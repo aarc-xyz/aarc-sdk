@@ -6,9 +6,9 @@
 class Logger {
     // By default, the logger is not in debug mode.
     static isDebug: boolean =
-      process.env.BICONOMY_SDK_DEBUG === 'true'
+      process.env.SDK_DEBUG === 'true'
         ? true
-        : process.env.REACT_APP_BICONOMY_SDK_DEBUG === 'true'
+        : process.env.REACT_APP_SDK_DEBUG === 'true'
         ? true
         : false
   

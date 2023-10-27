@@ -1,12 +1,12 @@
-import { ChainId } from "./ChainTypes"
+import { ChainId } from './ChainTypes';
 
 export type GetSafeDto = {
-    chainId: ChainId,
-    address: string
-}
+  chainId: ChainId;
+  address: string;
+};
 
 export type GetBalancesDto = {
-  chainId: ChainId,
-    address: string
-    tokenAddresses?: []
-}
+  chainId: ChainId;
+  address: string;
+  tokenAddresses?: [];
+};

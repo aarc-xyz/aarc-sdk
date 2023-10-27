@@ -1,9 +1,9 @@
-import { Logger } from "./Logger";
+import { Logger } from './Logger';
 
 export enum HttpMethod {
-  Get = "get",
-  Post = "post",
-  Delete = "delete",
+  Get = 'get',
+  Post = 'post',
+  Delete = 'delete',
 }
 
 /* eslint-disable  @typescript-eslint/no-explicit-any */
@@ -21,14 +21,19 @@ interface JsonResponse {
   msg?: string;
 }
 
-export async function sendRequest<T>({ url, method, body, headers = {} }: HttpRequest): Promise<T> {
-  Logger.log("jsonRpc request body ", JSON.stringify(body));
+export async function sendRequest<T>({
+  url,
+  method,
+  body,
+  headers = {},
+}: HttpRequest): Promise<T> {
+  Logger.log('jsonRpc request body ', JSON.stringify(body));
   const response = await fetch(url, {
     method,
     headers: {
       ...headers,
-      Accept: "application/json",
-      "Content-Type": "application/json",
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   });
@@ -44,30 +49,37 @@ export async function sendRequest<T>({ url, method, body, headers = {} }: HttpRe
 
   if (!jsonResponse) {
     // Handle the case where jsonResponse is undefined
-    throw new Error("No response received.");
+    throw new Error('No response received.');
   }
 
-  Logger.log("jsonRpc response ", jsonResponse);
+  Logger.log('jsonRpc response ', jsonResponse);
 
   if (response.ok) {
-    if (jsonResponse && Object.prototype.hasOwnProperty.call(jsonResponse, "result")) {
+    if (
+      jsonResponse &&
+      Object.prototype.hasOwnProperty.call(jsonResponse, 'result')
+    ) {
       return jsonResponse as T;
     }
     // else
   }
-  const errorObject = { code: response.status, message: response.statusText, data: undefined };
+  const errorObject = {
+    code: response.status,
+    message: response.statusText,
+    data: undefined,
+  };
 
   if (jsonResponse?.error) {
-    if (typeof jsonResponse.error === "string") {
+    if (typeof jsonResponse.error === 'string') {
       const error = jsonResponse.error;
       errorObject.code = response.status;
       errorObject.message = error;
       delete errorObject.data;
       throw errorObject;
-    } else if (typeof jsonResponse.error === "object") {
+    } else if (typeof jsonResponse.error === 'object') {
       const error = jsonResponse.error;
       errorObject.code = error?.code || 0;
-      errorObject.message = error?.message || "Unknown Error";
+      errorObject.message = error?.message || 'Unknown Error';
       errorObject.data = error?.handleOpsCallData;
       throw errorObject;
     }
@@ -81,5 +93,5 @@ export async function sendRequest<T>({ url, method, body, headers = {} }: HttpRe
     throw errorObject;
   }
 
-  throw new Error("Unknown Error: Api call ");
+  throw new Error('Unknown Error: Api call ');
 }

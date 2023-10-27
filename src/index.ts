@@ -1,1 +1,1 @@
-export * from './AarcSDK'
+export * from './AarcSDK';

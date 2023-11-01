@@ -8,7 +8,7 @@ export type GetSafeDto = {
 export type GetBalancesDto = {
   chainId: ChainId;
   eoaAddress: string;
-  tokenAddresses?: [];
+  tokenAddresses?: string[];
 };
 
 export type TokenData = {
@@ -17,8 +17,8 @@ export type TokenData = {
   contract_ticker_symbol: string;
   contract_address: string;
   balance: string;
-  allowance: number;
-  permitExist: boolean;
+  permit2Allowance: number;
+  permit2Exist: boolean;
 };
 
 export type BalancesResponse = {

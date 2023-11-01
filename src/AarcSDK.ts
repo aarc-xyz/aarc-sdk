@@ -1,6 +1,6 @@
 import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
-import { ethers, Signer } from 'ethers';
+import { Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import { BALANCES_ENDPOINT, ETHEREUM_PROVIDER, PERMIT2_CONTRACT_ADDRESS, SAFE_TX_SERVICE_URL } from './utils/Constants';
 import { ExecuteMigrationDto, GetBalancesDto, TokenData } from './utils/types';
@@ -9,6 +9,7 @@ import SafeApiKit from "@safe-global/api-kit";
 import { ERC20_ABI } from './utils/abis/ERC20.abi';
 import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/Permit2-sdk'
 import { ChainId } from './utils/ChainTypes';
+import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
 
 
 class AarcSDK {
@@ -103,27 +104,27 @@ class AarcSDK {
 
     async executeMigration(executeMigrationDto: ExecuteMigrationDto) {
         const { chainId, eoaAddress, tokenAndAmount, scwAddress } = executeMigrationDto
-        let balances = await this.fetchBalances({ chainId, eoaAddress })
-        const balancesList = balances.data.filter((balanceObj) =>
-            tokenAndAmount.some((token) => token.tokenAddress === balanceObj.contract_address)
-        )
+        const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress)
+
+        let balances = await this.fetchBalances({ chainId, eoaAddress, tokenAddresses })
+        Logger.log(' balancesList ', balances)
+
         const ethersProvider = new ethers.providers.JsonRpcProvider(
             ETHEREUM_PROVIDER,
         );
-        Logger.log(' balancesList ', balancesList)
 
         const erc20TransferableTokens = balances.data.filter((balanceObj) =>
-            balanceObj.allowance === 0
+            balanceObj.permit2Allowance === 0
         )
 
         const permit2TransferableTokens = balances.data.filter((balanceObj) =>
-            balanceObj.permitExist
+            balanceObj.permit2Exist
         )
 
         // Loop through tokens to perform normal transfers
         for (const token of erc20TransferableTokens) {
             // Check if the token's balance is greater than 0
-            if (parseFloat(token.balance) > 0 && token.allowance === 0) {
+            if (parseFloat(token.balance) > 0 && token.permit2Allowance === 0) {
                 await this.performTokenTransfer(
                     scwAddress,
                     token.contract_address,
@@ -131,9 +132,32 @@ class AarcSDK {
                 );
             }
         }
+        const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer)
 
-        if (permit2TransferableTokens.length > 0) {
-            await this.createPermitMessageData(chainId, eoaAddress, permit2TransferableTokens, scwAddress, ethersProvider)
+
+        // TODO: // verify below logic
+        if (permit2TransferableTokens.length === 1) {
+
+            // const { permitTransferFrom, signature } = await this.getSingleTransferPermitData(chainId, eoaAddress, permit2TransferableTokens[0], scwAddress, ethersProvider)
+            // await permit2Contract.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permit2TransferableTokens[0].permit2Allowance }, eoaAddress, signature)
+            if (parseFloat(permit2TransferableTokens[0].balance) > 0 && permit2TransferableTokens[0].permit2Allowance === 0) {
+                await this.performTokenTransfer(
+                    scwAddress,
+                    permit2TransferableTokens[0].contract_address,
+                    tokenAndAmount.find((t) => t.tokenAddress === permit2TransferableTokens[0].contract_address)?.amount || '0'
+                );
+            }
+        } 
+        
+        if (permit2TransferableTokens.length > 1) {
+
+            const { permitBatchTransferFrom, signature } = await this.getBatchTransferPermitData(chainId, eoaAddress, permit2TransferableTokens, scwAddress, ethersProvider)
+            const tokenPermissions = permitBatchTransferFrom.permitted.map((batchInfo) => ({
+                to: batchInfo.token,
+                requestedAmount: batchInfo.amount, // TODO: Verify transferrable amount
+            }));
+
+            await permit2Contract.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, eoaAddress, signature)
         }
 
     }
@@ -161,47 +185,56 @@ class AarcSDK {
         return Math.floor((Date.now() + expiration) / 1000)
     }
 
-    async createPermitMessageData(chainId: ChainId, eoaAddress: string, tokenData: TokenData[], scwAddress: string, provider: ethers.providers.JsonRpcProvider): Promise<boolean> {
-        try {
-            const nonce = await provider.getTransactionCount(eoaAddress);
-            let permitData;
+    async getSingleTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData, scwAddress: string, provider: ethers.providers.JsonRpcProvider) {
+        const nonce = await provider.getTransactionCount(eoaAddress);
+        let permitData;
+        let permitTransferFrom: PermitTransferFrom
 
-            if (tokenData.length === 1) {
-                const permitTransferFrom: PermitTransferFrom = {
-                    permitted: {
-                        token: tokenData[0].contract_address,
-                        amount: tokenData[0].allowance, // TODO: Verify transferrable amount
-                    },
-                    deadline: this.toDeadline(1000 * 60 * 60 * 24 * 30),
-                    nonce,
-                    spender: eoaAddress
-                }
-                permitData = SignatureTransfer.getPermitData(permitTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId);
-            } else {
-
-                const tokenPermissions: TokenPermissions[] = tokenData.map((token) => ({
-                    token: token.contract_address,
-                    amount: token.allowance, // TODO: Verify transferrable amount
-                }));
-
-                const permitBatchTransferFrom: PermitBatchTransferFrom = {
-                    permitted: tokenPermissions,
-                    deadline: this.toDeadline(1000 * 60 * 60 * 24 * 30),
-                    nonce,
-                    spender: eoaAddress,
-                };
-
-                permitData = SignatureTransfer.getPermitData(permitBatchTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId)
-            }
-            // TODO: fix error here
-            // const signature = await signTypedData(this.signer, permitData.domain, permitData.types, permitData.values)
-            return true
-
-        } catch (error) {
-            Logger.error(`Token transfer error: ${error}`);
-            return false;
+        permitTransferFrom = {
+            permitted: {
+                token: tokenData.contract_address,
+                amount: tokenData.permit2Allowance, // TODO: Verify transferrable amount
+            },
+            deadline: this.toDeadline(1000 * 60 * 60 * 24 * 30),
+            nonce,
+            spender: eoaAddress
         }
-    };
+        permitData = SignatureTransfer.getPermitData(permitTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId);
+        const signature = await this.signer.signMessage(ethers.utils.arrayify(ethers.utils._TypedDataEncoder.encode(permitData.domain, permitData.types, permitData.values)));
+        return {
+            permitTransferFrom,
+            signature,
+        };
+    }
+
+    async getBatchTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData[], scwAddress: string, provider: ethers.providers.JsonRpcProvider) {
+        const nonce = await provider.getTransactionCount(eoaAddress);
+        let permitData;
+
+        if (tokenData.length < 2) {
+            throw new Error('Invalid token data length');
+        }
+
+        const tokenPermissions: TokenPermissions[] = tokenData.map((token) => ({
+            token: token.contract_address,
+            amount: token.permit2Allowance, // TODO: Verify transferrable amount
+        }));
+
+        const permitBatchTransferFrom: PermitBatchTransferFrom = {
+            permitted: tokenPermissions,
+            deadline: this.toDeadline(1000 * 60 * 60 * 24 * 30),
+            nonce,
+            spender: eoaAddress,
+        };
+
+        permitData = SignatureTransfer.getPermitData(permitBatchTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId)
+
+        const signature = await this.signer.signMessage(ethers.utils.arrayify(ethers.utils._TypedDataEncoder.encode(permitData.domain, permitData.types, permitData.values)));
+        return {
+            permitBatchTransferFrom,
+            signature,
+        };
+    }
 }
 
 export default AarcSDK;

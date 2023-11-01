@@ -10,11 +10,9 @@ import { ERC20_ABI } from './utils/abis/ERC20.abi';
 import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
 import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/Permit2-sdk'
 import { ChainId } from './utils/ChainTypes';
-import { BiconomySmartAccountV2, DEFAULT_ENTRYPOINT_ADDRESS } from "@biconomy/account";
-import { ECDSAOwnershipValidationModule, DEFAULT_ECDSA_OWNERSHIP_MODULE } from '@biconomy/modules'
-import NodeClient from '@biconomy/node-client'
+import Biconomy from "./Biconomy";
 
-class AarcSDK {
+class AarcSDK extends Biconomy{
     chainId!: number;
     owner!: string;
     saltNonce = 0;
@@ -23,13 +21,14 @@ class AarcSDK {
 
     constructor(_signer: Signer) {
         Logger.log('SDK initiated');
+        super(_signer);
 
         // Create an EthersAdapter using the provided signer or provider
         this.ethAdapter = new EthersAdapter({
             ethers,
             signerOrProvider: _signer,
         });
-        this.signer = _signer
+        this.signer = _signer;
     }
 
     async getOwnerAddress(): Promise<string> {
@@ -65,22 +64,6 @@ class AarcSDK {
         }
     }
 
-    async getAllBiconomySCWs(){
-        try{
-            const nodeClient = new NodeClient({ txServiceUrl: BICONOMY_TX_SERVICE_URL });
-            const params = {
-                chainId: await this.getChainId(), //or any chain id of your choice
-                owner: await this.getOwnerAddress(),
-                index: 0
-            }
-            const accounts = await nodeClient.getSmartAccountsByOwner(params);
-            return accounts;
-        } catch (error){
-            Logger.log('error while getting biconomy smart accounts');
-            throw error;
-        }
-    }
-
     async generateSafeSCW(): Promise<string> {
         // Create a SafeFactory instance using the EthersAdapter
         const safeFactory = await SafeFactory.create({
@@ -96,22 +79,6 @@ class AarcSDK {
             this.saltNonce.toString(),
         );
         return smartWalletAddress;
-    }
-
-    async generateBiconomySCW(): Promise<string> {
-        const module = await ECDSAOwnershipValidationModule.create({
-            signer: this.signer,
-            moduleAddress: DEFAULT_ECDSA_OWNERSHIP_MODULE
-        });
-        
-        let biconomySmartAccount = await BiconomySmartAccountV2.create({
-            chainId: await this.getChainId(),// or any supported chain of your choice 
-            entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
-            defaultValidationModule: module,
-            activeValidationModule: module
-        });
-
-        return await biconomySmartAccount.getAccountAddress();
     }
 
     /**

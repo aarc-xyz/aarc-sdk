@@ -42,8 +42,6 @@ export type TokenAndAmount = {
 }
 
 export type ExecuteMigrationDto = {
-  chainId: ChainId;
-  eoaAddress: string;
   scwAddress: string;
   tokenAndAmount: TokenAndAmount[]
 }

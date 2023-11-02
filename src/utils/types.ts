@@ -1,4 +1,12 @@
+import { Signer } from 'ethers';
 import { ChainId } from './ChainTypes';
+import { PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/Permit2-sdk'
+
+
+export type Config = {
+  signer: Signer,
+  apiKey: string
+}
 
 export type GetSafeDto = {
   chainId: ChainId;
@@ -34,8 +42,6 @@ export type TokenAndAmount = {
 }
 
 export type ExecuteMigrationDto = {
-  chainId: ChainId;
-  eoaAddress: string;
   scwAddress: string;
   tokenAndAmount: TokenAndAmount[]
 }
@@ -56,3 +62,15 @@ export interface SafeInfoResponse {
 export type OwnerResponse = {
   safes: string[];
 }
+
+
+
+export type PermitData = {
+  permitTransferFrom: PermitTransferFrom;
+  signature: string;
+};
+
+export type BatchPermitData = {
+  permitBatchTransferFrom: PermitBatchTransferFrom;
+  signature: string;
+};

@@ -20,6 +20,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
+    "@gelatonetwork/relay-sdk": "^5.5.2",
     "@biconomy/account": "^3.1.0",
     "@biconomy/modules": "^3.1.0",
     "@biconomy/node-client": "^3.1.0",

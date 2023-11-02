@@ -2,44 +2,61 @@ import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
-import { BALANCES_ENDPOINT, ETHEREUM_PROVIDER, PERMIT2_CONTRACT_ADDRESS, SAFE_TX_SERVICE_URL } from './utils/Constants';
+import { BALANCES_ENDPOINT, ETHEREUM_PROVIDER, PERMIT2_CONTRACT_ADDRESS, SAFE_TX_SERVICE_URL, BICONOMY_TX_SERVICE_URL } from './utils/Constants';
 import { ExecuteMigrationDto, GetBalancesDto, TokenData } from './utils/types';
 import { OwnerResponse, BalancesResponse } from './utils/types'
 import SafeApiKit from "@safe-global/api-kit";
 import { ERC20_ABI } from './utils/abis/ERC20.abi';
+import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
 import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/Permit2-sdk'
 import { ChainId } from './utils/ChainTypes';
-import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
+import Biconomy from "./Biconomy";
 
-
-class AarcSDK {
-    safeFactory!: SafeFactory;
+class AarcSDK extends Biconomy{
+    chainId!: number;
     owner!: string;
-    smartWalletAddress!: string;
     saltNonce = 0;
     ethAdapter!: EthersAdapter;
-    safeService!: SafeApiKit;
-    isInited = false;
-    signer!: Signer
+    signer!: Signer;
 
     constructor(_signer: Signer) {
         Logger.log('SDK initiated');
+        super(_signer);
 
         // Create an EthersAdapter using the provided signer or provider
         this.ethAdapter = new EthersAdapter({
             ethers,
             signerOrProvider: _signer,
         });
-        this.safeService = new SafeApiKit({
-            txServiceUrl: SAFE_TX_SERVICE_URL,
-            ethAdapter: this.ethAdapter,
-        });
-        this.signer = _signer
+        this.signer = _signer;
+    }
+
+    async getOwnerAddress(): Promise<string> {
+        if (this.owner == undefined) {
+            this.owner = await this.signer.getAddress();
+        }
+        return this.owner;
+    }
+
+    async getChainId(): Promise<ChainId> {
+        if (this.chainId == undefined) {
+            const chainId = await this.signer.getChainId();
+            if (chainId in Object.values(ChainId)) {
+                this.chainId = chainId;
+            } else {
+                throw new Error('Invalid chain id');
+            }
+        }
+        return this.chainId;
     }
 
     async getAllSafes(): Promise<OwnerResponse> {
         try {
-            const safes = await this.safeService?.getSafesByOwner(this.owner);
+            const safeService = new SafeApiKit({
+                txServiceUrl: SAFE_TX_SERVICE_URL,
+                ethAdapter: this.ethAdapter,
+            });     
+            const safes = await safeService.getSafesByOwner(this.owner);
             return safes;
         } catch (error) {
             Logger.log('error while getting safes');
@@ -47,35 +64,21 @@ class AarcSDK {
         }
     }
 
-    async init(): Promise<AarcSDK> {
-        try {
-            this.owner = await this.signer.getAddress()
-            // Create a SafeFactory instance using the EthersAdapter
-            this.safeFactory = await SafeFactory.create({
-                ethAdapter: this.ethAdapter,
-            });
-            const config = {
-                owners: [this.owner],
-                threshold: 1,
-            };
-            // Configure the Safe parameters and predict the Safe address
-            this.smartWalletAddress = await this.safeFactory.predictSafeAddress(
-                config,
-                this.saltNonce.toString(),
-            );
-        } catch (err) {
-            Logger.error('Error creating safe');
-        }
-        this.isInited = true;
-        return this
-    }
-
-    /**
-     * @description this function will return computer smart wallet address
-     * @returns
-     */
-    getSafe() {
-        return this.smartWalletAddress;
+    async generateSafeSCW(): Promise<string> {
+        // Create a SafeFactory instance using the EthersAdapter
+        const safeFactory = await SafeFactory.create({
+            ethAdapter: this.ethAdapter,
+        });
+        const config = {
+            owners: [this.owner],
+            threshold: 1,
+        };
+        // Configure the Safe parameters and predict the Safe address
+        const smartWalletAddress = await safeFactory.predictSafeAddress(
+            config,
+            this.saltNonce.toString(),
+        );
+        return smartWalletAddress;
     }
 
     /**

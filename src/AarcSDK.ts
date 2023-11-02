@@ -2,7 +2,7 @@ import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
-import { BALANCES_ENDPOINT, ETHEREUM_PROVIDER, PERMIT2_CONTRACT_ADDRESS, SAFE_TX_SERVICE_URL } from './utils/Constants';
+import { BALANCES_ENDPOINT, ETHEREUM_PROVIDER, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URL } from './utils/Constants';
 import { BatchPermitData, Config, ExecuteMigrationDto, GetBalancesDto, PermitData, TokenData } from './utils/types';
 import { OwnerResponse, BalancesResponse } from './utils/types'
 import SafeApiKit from "@safe-global/api-kit";
@@ -21,7 +21,6 @@ class AarcSDK extends Biconomy{
     saltNonce = 0;
     ethAdapter!: EthersAdapter;
     safeService!: SafeApiKit;
-    isInited = false;
     signer!: Signer
     apiKey: string
     relayer: GelatoRelay
@@ -30,7 +29,6 @@ class AarcSDK extends Biconomy{
         const { signer, apiKey } = config
         super(signer);
         Logger.log('SDK initiated');
-
 
         // Create an EthersAdapter using the provided signer or provider
         this.ethAdapter = new EthersAdapter({
@@ -41,11 +39,10 @@ class AarcSDK extends Biconomy{
             txServiceUrl: SAFE_TX_SERVICE_URL,
             ethAdapter: this.ethAdapter,
         });
-        this.signer = signer
-        this.apiKey = apiKey
+        this.signer = signer;
+        this.apiKey = apiKey;
         // instantiating Gelato Relay SDK
         this.relayer = new GelatoRelay();
-        this.signer = signer;
     }
 
     async getOwnerAddress(): Promise<string> {
@@ -124,8 +121,10 @@ class AarcSDK extends Biconomy{
 
     async executeMigration(executeMigrationDto: ExecuteMigrationDto) {
         try {
-            const { chainId, eoaAddress, tokenAndAmount, scwAddress } = executeMigrationDto;
+            const { tokenAndAmount, scwAddress } = executeMigrationDto;
             const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
+            const chainId = await this.getChainId();
+            const eoaAddress = await this.getOwnerAddress();
 
             const balances = await this.fetchBalances({ chainId, eoaAddress, tokenAddresses });
             Logger.log('balancesList', balances);
@@ -173,13 +172,15 @@ class AarcSDK extends Biconomy{
         try {
             const ethersProvider = new ethers.providers.JsonRpcProvider(ETHEREUM_PROVIDER);
 
-            const { chainId, eoaAddress, tokenAndAmount, scwAddress } = executeMigrationDto;
+            const { tokenAndAmount, scwAddress } = executeMigrationDto;
             const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
+            const chainId = await this.getChainId();
+            const eoaAddress = await this.getOwnerAddress();
 
             const balances = await this.fetchBalances({ chainId, eoaAddress, tokenAddresses });
             Logger.log('balancesList', balances);
 
-            const erc20TransferableTokens = balances.data.filter(balanceObj => !balanceObj.permit2Exist);
+            const erc20TransferableTokens = balances.data.filter(balanceObj => !balanceObj.permit2Exist && balanceObj.permit2Allowance === 0);
 
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
@@ -190,17 +191,17 @@ class AarcSDK extends Biconomy{
             }
 
             // Filtering out tokens to do permit transaction
-            const permiteedTokens = balances.data.filter(balanceObj => balanceObj.permit2Exist);
+            const permittedTokens = balances.data.filter(balanceObj => balanceObj.permit2Exist);
 
-            permiteedTokens.map(async token => {
+            permittedTokens.map(async token => {
                 await this.performPermit(chainId, scwAddress, token.contract_address)
             })
 
             // filter out tokens that have already given allowan
             const permit2TransferableTokens = balances.data.filter(balanceObj => balanceObj.permit2Allowance > 0);
 
-            // Merge permiteedTokens and permit2TransferableTokens
-            const batchPermitTransaction = permiteedTokens.concat(permit2TransferableTokens);
+            // Merge permittedTokens and permit2TransferableTokens
+            const batchPermitTransaction = permittedTokens.concat(permit2TransferableTokens);
 
             const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer);
 
@@ -219,7 +220,7 @@ class AarcSDK extends Biconomy{
                     data
                 })
             } else if (batchPermitTransaction.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(chainId, eoaAddress, permit2TransferableTokens, scwAddress, ethersProvider, true);
+                const permitData = await this.getBatchTransferPermitData(chainId, eoaAddress, permit2TransferableTokens, scwAddress, ethersProvider);
 
                 const { permitBatchTransferFrom, signature } = permitData
 
@@ -301,7 +302,7 @@ class AarcSDK extends Biconomy{
             // Create a contract instance with the ABI and contract address.
             const tokenContract = new ethers.Contract(
                 tokenAddress,
-                ['function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)'],
+                [PERMIT_FUNCTION_ABI],
                 this.signer
             );
 
@@ -361,7 +362,7 @@ class AarcSDK extends Biconomy{
         };
     }
 
-    async getBatchTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData[], scwAddress: string, provider: ethers.providers.JsonRpcProvider, isGaless: boolean = false): Promise<BatchPermitData> {
+    async getBatchTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData[], scwAddress: string, provider: ethers.providers.JsonRpcProvider): Promise<BatchPermitData> {
         const nonce = await provider.getTransactionCount(eoaAddress);
         let permitData;
 

@@ -55,7 +55,7 @@ class AarcSDK extends Biconomy{
     async getChainId(): Promise<ChainId> {
         if (this.chainId == undefined) {
             const chainId = await this.signer.getChainId();
-            if (chainId in Object.values(ChainId)) {
+            if (Object.values(ChainId).includes(chainId)) {
                 this.chainId = chainId;
             } else {
                 throw new Error('Invalid chain id');
@@ -100,13 +100,20 @@ class AarcSDK extends Biconomy{
      * @param balancesDto
      * @returns
      */
-    async fetchBalances(balancesDto: GetBalancesDto): Promise<BalancesResponse> {
+    async fetchBalances(tokenAddresses?: string[]): Promise<BalancesResponse> {
         try {
             // Make the API call using the sendRequest function
             const response: BalancesResponse = await sendRequest({
                 url: BALANCES_ENDPOINT,
-                method: HttpMethod.Post,
-                body: balancesDto,
+                method: HttpMethod.POST,
+                headers: {
+                    'x-api-key': this.apiKey,
+                },
+                body: {
+                    chainId: String(await this.getChainId()),
+                    address: await this.getOwnerAddress(),
+                    tokenAddresses,
+                },
             });
 
             // Handle the response here, logging the result
@@ -126,7 +133,7 @@ class AarcSDK extends Biconomy{
             const chainId = await this.getChainId();
             const eoaAddress = await this.getOwnerAddress();
 
-            const balances = await this.fetchBalances({ chainId, eoaAddress, tokenAddresses });
+            const balances = await this.fetchBalances(tokenAddresses);
             Logger.log('balancesList', balances);
 
             const ethersProvider = new ethers.providers.JsonRpcProvider(ETHEREUM_PROVIDER);
@@ -177,7 +184,7 @@ class AarcSDK extends Biconomy{
             const chainId = await this.getChainId();
             const eoaAddress = await this.getOwnerAddress();
 
-            const balances = await this.fetchBalances({ chainId, eoaAddress, tokenAddresses });
+            const balances = await this.fetchBalances(tokenAddresses);
             Logger.log('balancesList', balances);
 
             const erc20TransferableTokens = balances.data.filter(balanceObj => !balanceObj.permit2Exist && balanceObj.permit2Allowance === 0);

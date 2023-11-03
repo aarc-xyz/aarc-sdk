@@ -14,8 +14,6 @@ export type GetSafeDto = {
 };
 
 export type GetBalancesDto = {
-  chainId: ChainId;
-  eoaAddress: string;
   tokenAddresses?: string[];
 };
 

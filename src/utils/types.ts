@@ -18,10 +18,10 @@ export type GetBalancesDto = {
 };
 
 export type TokenData = {
-  contract_decimals: number;
-  contract_name: string;
-  contract_ticker_symbol: string;
-  contract_address: string;
+  decimals: number;
+  name: string;
+  symbol: string;
+  token_address: string;
   balance: string;
   permit2Allowance: number;
   permit2Exist: boolean;

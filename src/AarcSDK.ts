@@ -2,7 +2,7 @@ import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
-import { BALANCES_ENDPOINT, ETHEREUM_PROVIDER, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URL } from './utils/Constants';
+import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS } from './utils/Constants';
 import { BatchPermitData, Config, ExecuteMigrationDto, GetBalancesDto, PermitData, TokenData } from './utils/types';
 import { OwnerResponse, BalancesResponse } from './utils/types'
 import SafeApiKit from "@safe-global/api-kit";
@@ -15,12 +15,12 @@ import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 import Biconomy from './Biconomy';
 
 class AarcSDK extends Biconomy{
-    safeFactory!: SafeFactory;
+    // safeFactory!: SafeFactory;
     chainId!: number;
     owner!: string;
     saltNonce = 0;
     ethAdapter!: EthersAdapter;
-    safeService!: SafeApiKit;
+    // safeService!: SafeApiKit;
     signer!: Signer
     apiKey: string
     relayer: GelatoRelay
@@ -35,39 +35,51 @@ class AarcSDK extends Biconomy{
             ethers,
             signerOrProvider: signer,
         });
-        this.safeService = new SafeApiKit({
-            txServiceUrl: SAFE_TX_SERVICE_URL,
-            ethAdapter: this.ethAdapter,
-        });
         this.signer = signer;
         this.apiKey = apiKey;
         // instantiating Gelato Relay SDK
         this.relayer = new GelatoRelay();
     }
 
-    async getOwnerAddress(): Promise<string> {
-        if (this.owner == undefined) {
-            this.owner = await this.signer.getAddress();
-        }
-        return this.owner;
-    }
-
-    async getChainId(): Promise<ChainId> {
-        if (this.chainId == undefined) {
+    async init(): Promise<AarcSDK> {
+        try {
             const chainId = await this.signer.getChainId();
             if (Object.values(ChainId).includes(chainId)) {
                 this.chainId = chainId;
             } else {
                 throw new Error('Invalid chain id');
             }
+            this.owner = await this.signer.getAddress();
+            return this;
+        } catch (error) {
+            Logger.error('error while initiating sdk');
+            throw error;
         }
-        return this.chainId;
     }
+
+    // async getOwnerAddress(): Promise<string> {
+    //     if (this.owner == undefined) {
+    //         this.owner = await this.signer.getAddress();
+    //     }
+    //     return this.owner;
+    // }
+
+    // async getChainId(): Promise<ChainId> {
+    //     if (this.chainId == undefined) {
+    //         const chainId = await this.signer.getChainId();
+    //         if (Object.values(ChainId).includes(chainId)) {
+    //             this.chainId = chainId;
+    //         } else {
+    //             throw new Error('Invalid chain id');
+    //         }
+    //     }
+    //     return this.chainId;
+    // }
 
     async getAllSafes(): Promise<OwnerResponse> {
         try {
             const safeService = new SafeApiKit({
-                txServiceUrl: SAFE_TX_SERVICE_URL,
+                txServiceUrl: SAFE_TX_SERVICE_URLS[this.chainId],
                 ethAdapter: this.ethAdapter,
             });     
             const safes = await safeService.getSafesByOwner(this.owner);
@@ -110,8 +122,8 @@ class AarcSDK extends Biconomy{
                     'x-api-key': this.apiKey,
                 },
                 body: {
-                    chainId: String(await this.getChainId()),
-                    address: await this.getOwnerAddress(),
+                    chainId: String(this.chainId),
+                    address: this.owner,
                     tokenAddresses,
                 },
             });
@@ -130,20 +142,21 @@ class AarcSDK extends Biconomy{
         try {
             const { tokenAndAmount, scwAddress } = executeMigrationDto;
             const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
-            const chainId = await this.getChainId();
-            const eoaAddress = await this.getOwnerAddress();
 
             const balances = await this.fetchBalances(tokenAddresses);
             Logger.log('balancesList', balances);
 
-            const ethersProvider = new ethers.providers.JsonRpcProvider(ETHEREUM_PROVIDER);
+            console.log('tokenAddresses', tokenAddresses);
+            const ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
 
             const erc20TransferableTokens = balances.data.filter(balanceObj => balanceObj.permit2Allowance === 0);
+            console.log('erc20TransferableTokens', erc20TransferableTokens);
             const permit2TransferableTokens = balances.data.filter(balanceObj => balanceObj.permit2Allowance > 0);
 
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
-                const tokenAddress = token.contract_address;
+                console.log('token', token);
+                const tokenAddress = token.token_address;
                 const t = tokenAndAmount.find(ta => ta.tokenAddress === tokenAddress);
                 const transferAmount = t ? t.amount : token.balance;
                 await this.performTokenTransfer(scwAddress, tokenAddress, transferAmount);
@@ -153,20 +166,20 @@ class AarcSDK extends Biconomy{
 
             if (permit2TransferableTokens.length === 1) {
                 const token = permit2TransferableTokens[0];
-                const t = tokenAndAmount.find(ta => ta.tokenAddress === token.contract_address);
+                const t = tokenAndAmount.find(ta => ta.tokenAddress === token.token_address);
                 const transferAmount = t ? t.amount : token.balance;
-                await this.performTokenTransfer(scwAddress, token.contract_address, transferAmount);
+                await this.performTokenTransfer(scwAddress, token.token_address, transferAmount);
             }
 
             if (permit2TransferableTokens.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(chainId, eoaAddress, permit2TransferableTokens, scwAddress, ethersProvider);
+                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, scwAddress, ethersProvider);
                 const { permitBatchTransferFrom, signature } = permitData
 
                 const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
                     to: batchInfo.token,
                     requestedAmount: batchInfo.amount
                 }));
-                await permit2Contract.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, eoaAddress, signature);
+                await permit2Contract.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, this.owner, signature);
             }
         } catch (error) {
             // Handle any errors that occur during the migration process
@@ -177,12 +190,10 @@ class AarcSDK extends Biconomy{
 
     async executeMigrationGasless(executeMigrationDto: ExecuteMigrationDto) {
         try {
-            const ethersProvider = new ethers.providers.JsonRpcProvider(ETHEREUM_PROVIDER);
+            const ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
 
             const { tokenAndAmount, scwAddress } = executeMigrationDto;
             const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
-            const chainId = await this.getChainId();
-            const eoaAddress = await this.getOwnerAddress();
 
             const balances = await this.fetchBalances(tokenAddresses);
             Logger.log('balancesList', balances);
@@ -191,7 +202,7 @@ class AarcSDK extends Biconomy{
 
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
-                const tokenAddress = token.contract_address;
+                const tokenAddress = token.token_address;
                 const t = tokenAndAmount.find(ta => ta.tokenAddress === tokenAddress);
                 const transferAmount = t ? t.amount : token.balance;
                 await this.performTokenTransfer(scwAddress, transferAmount, transferAmount);
@@ -201,7 +212,7 @@ class AarcSDK extends Biconomy{
             const permittedTokens = balances.data.filter(balanceObj => balanceObj.permit2Exist);
 
             permittedTokens.map(async token => {
-                await this.performPermit(chainId, scwAddress, token.contract_address)
+                await this.performPermit(this.chainId, scwAddress, token.token_address)
             })
 
             // filter out tokens that have already given allowan
@@ -214,20 +225,20 @@ class AarcSDK extends Biconomy{
 
 
             if (batchPermitTransaction.length === 1) {
-                const permitData = await this.getSingleTransferPermitData(chainId, eoaAddress, permit2TransferableTokens[0], scwAddress, ethersProvider);
+                const permitData = await this.getSingleTransferPermitData(this.chainId, this.owner, permit2TransferableTokens[0], scwAddress, ethersProvider);
                 const { permitTransferFrom, signature } = permitData
 
-                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, eoaAddress, signature);
+                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
                 if (!data) {
                     throw new Error('unable to get data')
                 }
                 return this.relayTransaction({
-                    chainId: BigInt(chainId),
+                    chainId: BigInt(this.chainId),
                     target: PERMIT2_CONTRACT_ADDRESS,
                     data
                 })
             } else if (batchPermitTransaction.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(chainId, eoaAddress, permit2TransferableTokens, scwAddress, ethersProvider);
+                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, scwAddress, ethersProvider);
 
                 const { permitBatchTransferFrom, signature } = permitData
 
@@ -235,12 +246,12 @@ class AarcSDK extends Biconomy{
                     to: batchInfo.token,
                     requestedAmount: batchInfo.amount
                 }));
-                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, eoaAddress, signature);
+                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, this.owner, signature);
                 if (!data) {
                     throw new Error('unable to get data')
                 }
                 return this.relayTransaction({
-                    chainId: BigInt(chainId),
+                    chainId: BigInt(this.chainId),
                     target: PERMIT2_CONTRACT_ADDRESS,
                     data
                 })
@@ -260,10 +271,15 @@ class AarcSDK extends Biconomy{
             const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
 
             // Convert the amount to the appropriate units (e.g., wei for ERC-20 tokens).
-            const amountWei = ethers.utils.parseUnits(amount, 'ether');
+            // const amountWei = ethers.utils.parseUnits(amount, 'ether');
+
+            const gasEstimated = await tokenContract.estimateGas.transfer(recipient, amount);
+            console.log("gasEstimated", gasEstimated);
 
             // Perform the token transfer.
-            const tx = await tokenContract.transfer(recipient, amountWei);
+            const tx = await tokenContract.transfer(recipient, amount, {
+                gasLimit: gasEstimated.mul(130).div(100),
+            });
 
             Logger.log(`Token transfer successful. Transaction hash: ${tx.hash}`);
             return true;
@@ -354,7 +370,7 @@ class AarcSDK extends Biconomy{
 
         permitTransferFrom = {
             permitted: {
-                token: tokenData.contract_address,
+                token: tokenData.token_address,
                 amount: tokenData.permit2Allowance, // TODO: Verify transferrable amount
             },
             deadline: this.toDeadline(1000 * 60 * 60 * 24 * 30),
@@ -378,7 +394,7 @@ class AarcSDK extends Biconomy{
         }
 
         const tokenPermissions: TokenPermissions[] = tokenData.map((token) => ({
-            token: token.contract_address,
+            token: token.token_address,
             amount: token.permit2Allowance, // TODO: Verify transferrable amount
         }));
 

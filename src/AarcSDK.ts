@@ -1,6 +1,6 @@
 import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
-import { Contract, ethers, Signer } from 'ethers';
+import { BigNumber, BigNumberish, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS } from './utils/Constants';
 import { BatchPermitData, Config, ExecuteMigrationDto, GetBalancesDto, PermitData, TokenData } from './utils/types';
@@ -175,11 +175,22 @@ class AarcSDK extends Biconomy{
                 const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, scwAddress, ethersProvider);
                 const { permitBatchTransferFrom, signature } = permitData
 
+                let tempPermitData:{permitted: TokenPermissions[], deadline: BigNumberish, nonce: BigNumberish} = {
+                    permitted: permitBatchTransferFrom.permitted,
+                    deadline: permitBatchTransferFrom.deadline,
+                    nonce: permitBatchTransferFrom.nonce,
+                };
+
                 const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
                     to: batchInfo.token,
                     requestedAmount: batchInfo.amount
                 }));
-                await permit2Contract.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, this.owner, signature);
+                const gasEstimated = await permit2Contract.estimateGas.permitTransferFrom(tempPermitData, tokenPermissions, this.owner, signature);
+                console.log("gasEstimated", gasEstimated);
+
+                await permit2Contract.permitTransferFrom(tempPermitData, tokenPermissions, this.owner, signature, {
+                    gasLimit: gasEstimated.mul(130).div(100),
+                });
             }
         } catch (error) {
             // Handle any errors that occur during the migration process

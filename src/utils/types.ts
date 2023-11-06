@@ -44,6 +44,12 @@ export type ExecuteMigrationDto = {
   tokenAndAmount: TokenAndAmount[]
 }
 
+export type ExecuteMigrationGaslessDto = {
+  scwAddress: string;
+  tokenAndAmount: TokenAndAmount[];
+  gelatoApiKey: string;
+}
+
 
 export interface SafeInfoResponse {
   address: string;

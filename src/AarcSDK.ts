@@ -169,9 +169,6 @@ class AarcSDK extends Biconomy {
 
 
 
-
-
-
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
                 console.log('token', token);
@@ -186,13 +183,13 @@ class AarcSDK extends Biconomy {
             }
 
             if (permit2TransferableTokens.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, scwAddress, ethersProvider);
+                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, ethersProvider);
                 const { permitBatchTransferFrom, signature } = permitData
 
                 let tempPermitData: { permitted: TokenPermissions[], deadline: BigNumberish, nonce: BigNumberish } = {
                     permitted: permitBatchTransferFrom.permitted,
-                    deadline: permitBatchTransferFrom.deadline,
                     nonce: permitBatchTransferFrom.nonce,
+                    deadline: permitBatchTransferFrom.deadline,
                 };
 
                 console.log(' this.owner ', this.owner);
@@ -216,6 +213,19 @@ class AarcSDK extends Biconomy {
 
                 /**
                  , {
+                const transferDetails = permitBatchTransferFrom.permitted.map(batchInfo => ({
+                    to: scwAddress,
+                    requestedAmount: batchInfo.amount
+                }));
+                console.log("tempPermitData", tempPermitData);
+                console.log("transferDetails", transferDetails);
+                console.log("this.owner", this.owner);
+                console.log("signature", signature);
+                
+                const gasEstimated = await permit2Contract.estimateGas.permitTransferFrom(tempPermitData, transferDetails, this.owner, signature);
+                console.log("gasEstimated", gasEstimated);
+
+                await permit2Contract.permitTransferFrom(tempPermitData, transferDetails, this.owner, signature, {
                     gasLimit: gasEstimated.mul(130).div(100),
                 }
                  */
@@ -279,7 +289,7 @@ class AarcSDK extends Biconomy {
                     data
                 })
             } else if (batchPermitTransaction.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, scwAddress, ethersProvider);
+                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, ethersProvider);
 
                 const { permitBatchTransferFrom, signature } = permitData
 
@@ -426,7 +436,7 @@ class AarcSDK extends Biconomy {
         };
     }
 
-    async getBatchTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData[], scwAddress: string, provider: ethers.providers.JsonRpcProvider): Promise<BatchPermitData> {
+    async getBatchTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData[], provider: ethers.providers.JsonRpcProvider): Promise<BatchPermitData> {
         const nonce = await provider.getTransactionCount(eoaAddress);
         let permitData;
 
@@ -452,6 +462,7 @@ class AarcSDK extends Biconomy {
 
 
         permitData = SignatureTransfer.getPermitData(permitBatchTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId)
+        console.log("permitData", permitData);
 
         console.log('getBatchTransferPermitData permitData ', JSON.stringify(permitData));
 

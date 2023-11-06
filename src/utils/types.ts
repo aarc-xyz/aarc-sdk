@@ -1,6 +1,6 @@
 import { Signer } from 'ethers';
 import { ChainId } from './ChainTypes';
-import { PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/Permit2-sdk'
+import { PermitTransferFrom, PermitBatchTransferFrom } from '../SignatureTransfer'
 
 
 export type Config = {

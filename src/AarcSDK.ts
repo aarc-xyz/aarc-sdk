@@ -3,18 +3,20 @@ import { Logger } from './utils/Logger';
 import { BigNumber, BigNumberish, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS } from './utils/Constants';
-import { BatchPermitData, Config, ExecuteMigrationDto, GetBalancesDto, PermitData, TokenData } from './utils/types';
+import { BatchPermitData, Config, ExecuteMigrationDto, PermitData, TokenData } from './utils/types';
 import { OwnerResponse, BalancesResponse } from './utils/types'
 import SafeApiKit from "@safe-global/api-kit";
 import { ERC20_ABI } from './utils/abis/ERC20.abi';
-import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/Permit2-sdk'
+import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom } from './SignatureTransfer'
 import { ChainId } from './utils/ChainTypes';
 import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
 import { GelatoRelay, SponsoredCallRequest } from "@gelatonetwork/relay-sdk";
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 import Biconomy from './Biconomy';
+import { TypedDataDomain } from '@ethersproject/abstract-signer'
+import { TypedDataSigner } from '@ethersproject/abstract-signer'
 
-class AarcSDK extends Biconomy{
+class AarcSDK extends Biconomy {
     // safeFactory!: SafeFactory;
     chainId!: number;
     owner!: string;
@@ -81,7 +83,7 @@ class AarcSDK extends Biconomy{
             const safeService = new SafeApiKit({
                 txServiceUrl: SAFE_TX_SERVICE_URLS[this.chainId],
                 ethAdapter: this.ethAdapter,
-            });     
+            });
             const safes = await safeService.getSafesByOwner(this.owner);
             return safes;
         } catch (error) {
@@ -143,54 +145,82 @@ class AarcSDK extends Biconomy{
             const { tokenAndAmount, scwAddress } = executeMigrationDto;
             const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
 
-            const balances = await this.fetchBalances(tokenAddresses);
-            Logger.log('balancesList', balances);
+            let balancesList = await this.fetchBalances(tokenAddresses);
+            Logger.log('balancesList', balancesList);
+
+
+            const balances: TokenData[] = balancesList.data.map((element) => {
+                const matchingToken = tokenAndAmount.find((token) => token.tokenAddress === element.token_address);
+
+                if (matchingToken && Number(matchingToken.amount) > 0) {
+                    element.balance = matchingToken.amount;
+                }
+
+                return element;
+            });
 
             console.log('tokenAddresses', tokenAddresses);
             const ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
 
-            const erc20TransferableTokens = balances.data.filter(balanceObj => balanceObj.permit2Allowance === 0);
+            const erc20TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance === 0);
             console.log('erc20TransferableTokens', erc20TransferableTokens);
-            const permit2TransferableTokens = balances.data.filter(balanceObj => balanceObj.permit2Allowance > 0);
+            const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance > 0);
+            console.log('permit2TransferableTokens', permit2TransferableTokens);
+
+
+
+
+
 
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
                 console.log('token', token);
-                const tokenAddress = token.token_address;
-                const t = tokenAndAmount.find(ta => ta.tokenAddress === tokenAddress);
-                const transferAmount = t ? t.amount : token.balance;
-                await this.performTokenTransfer(scwAddress, tokenAddress, transferAmount);
+                await this.performTokenTransfer(scwAddress, token.token_address, token.balance);
             }
 
             const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer);
 
             if (permit2TransferableTokens.length === 1) {
                 const token = permit2TransferableTokens[0];
-                const t = tokenAndAmount.find(ta => ta.tokenAddress === token.token_address);
-                const transferAmount = t ? t.amount : token.balance;
-                await this.performTokenTransfer(scwAddress, token.token_address, transferAmount);
+                await this.performTokenTransfer(scwAddress, token.token_address, token.balance);
             }
 
             if (permit2TransferableTokens.length > 1) {
                 const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, scwAddress, ethersProvider);
                 const { permitBatchTransferFrom, signature } = permitData
 
-                let tempPermitData:{permitted: TokenPermissions[], deadline: BigNumberish, nonce: BigNumberish} = {
+                let tempPermitData: { permitted: TokenPermissions[], deadline: BigNumberish, nonce: BigNumberish } = {
                     permitted: permitBatchTransferFrom.permitted,
                     deadline: permitBatchTransferFrom.deadline,
                     nonce: permitBatchTransferFrom.nonce,
                 };
 
+                console.log(' this.owner ', this.owner);
+
+                console.log('tempPermitData ', tempPermitData);
+
+
                 const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
-                    to: batchInfo.token,
+                    to: scwAddress,
                     requestedAmount: batchInfo.amount
                 }));
-                const gasEstimated = await permit2Contract.estimateGas.permitTransferFrom(tempPermitData, tokenPermissions, this.owner, signature);
-                console.log("gasEstimated", gasEstimated);
 
-                await permit2Contract.permitTransferFrom(tempPermitData, tokenPermissions, this.owner, signature, {
+                console.log('tokenPermissions ', tokenPermissions);
+
+                // try {
+                //     const gasEstimated = await permit2Contract.estimateGas.permitTransferFrom(tempPermitData, tokenPermissions, this.owner, signature);
+                //     console.log("gasEstimated", gasEstimated);
+                // } catch (error) {
+                //     console.log('estimation failed for permitTransferFrom');
+                // }
+
+                /**
+                 , {
                     gasLimit: gasEstimated.mul(130).div(100),
-                });
+                }
+                 */
+
+                await permit2Contract.permitTransferFrom(tempPermitData, tokenPermissions, this.owner, signature);
             }
         } catch (error) {
             // Handle any errors that occur during the migration process
@@ -257,6 +287,7 @@ class AarcSDK extends Biconomy{
                     to: batchInfo.token,
                     requestedAmount: batchInfo.amount
                 }));
+
                 const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, this.owner, signature);
                 if (!data) {
                     throw new Error('unable to get data')
@@ -385,8 +416,7 @@ class AarcSDK extends Biconomy{
                 amount: tokenData.permit2Allowance, // TODO: Verify transferrable amount
             },
             deadline: this.toDeadline(1000 * 60 * 60 * 24 * 30),
-            nonce,
-            spender: eoaAddress
+            nonce
         }
         permitData = SignatureTransfer.getPermitData(permitTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId);
         const signature = await this.signer.signMessage(ethers.utils.arrayify(ethers.utils._TypedDataEncoder.encode(permitData.domain, permitData.types, permitData.values)));
@@ -406,24 +436,47 @@ class AarcSDK extends Biconomy{
 
         const tokenPermissions: TokenPermissions[] = tokenData.map((token) => ({
             token: token.token_address,
-            amount: token.permit2Allowance, // TODO: Verify transferrable amount
+            amount: token.balance
         }));
+
+        console.log('getBatchTransferPermitData tokenPermissions ', tokenPermissions);
+
 
         const permitBatchTransferFrom: PermitBatchTransferFrom = {
             permitted: tokenPermissions,
-            deadline: this.toDeadline(1000 * 60 * 60 * 24 * 30),
-            nonce,
-            spender: eoaAddress,
+            deadline: this.toDeadline(1000 * 60 * 60 * 24 * 1),
+            nonce
         };
+
+        console.log('getBatchTransferPermitData permitBatchTransferFrom ', permitBatchTransferFrom);
+
 
         permitData = SignatureTransfer.getPermitData(permitBatchTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId)
 
-        const signature = await this.signer.signMessage(ethers.utils.arrayify(ethers.utils._TypedDataEncoder.encode(permitData.domain, permitData.types, permitData.values)));
+        console.log('getBatchTransferPermitData permitData ', JSON.stringify(permitData));
+
+        let signature = '0x' + (await (this.signer as Signer & TypedDataSigner)._signTypedData(permitData.domain, permitData.types, permitData.values)).slice(2)
+        const potentiallyIncorrectV = parseInt(signature.slice(-2), 16)
+        if (![27, 28].includes(potentiallyIncorrectV)) {
+            const correctV = potentiallyIncorrectV + 27
+            signature = signature.slice(0, -2) + correctV.toString(16)
+        }
+        // const signature = await this.signer.signMessage(message);
+        console.log('getBatchTransferPermitData signature ', signature);
 
         return {
             permitBatchTransferFrom,
             signature,
         };
+    }
+
+    permit2Domain(permit2Address: string, chainId: number): TypedDataDomain {
+        const PERMIT2_DOMAIN_NAME = 'Permit2'
+        return {
+            name: PERMIT2_DOMAIN_NAME,
+            chainId,
+            verifyingContract: permit2Address,
+        }
     }
 }
 

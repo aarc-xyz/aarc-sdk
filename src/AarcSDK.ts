@@ -3,7 +3,7 @@ import { Logger } from './utils/Logger';
 import { BigNumber, BigNumberish, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS } from './utils/Constants';
-import { BatchPermitData, Config, ExecuteMigrationDto, PermitData, TokenData } from './utils/types';
+import { BatchPermitData, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, PermitData, TokenData } from './utils/types';
 import { OwnerResponse, BalancesResponse } from './utils/types'
 import SafeApiKit from "@safe-global/api-kit";
 import { ERC20_ABI } from './utils/abis/ERC20.abi';
@@ -13,8 +13,7 @@ import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
 import { GelatoRelay, SponsoredCallRequest } from "@gelatonetwork/relay-sdk";
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 import Biconomy from './Biconomy';
-import { TypedDataDomain } from '@ethersproject/abstract-signer'
-import { TypedDataSigner } from '@ethersproject/abstract-signer'
+import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer'
 
 class AarcSDK extends Biconomy {
     // safeFactory!: SafeFactory;
@@ -115,6 +114,7 @@ class AarcSDK extends Biconomy {
      * @returns
      */
     async fetchBalances(tokenAddresses?: string[]): Promise<BalancesResponse> {
+        console.log('tokenAddresses', tokenAddresses);
         try {
             // Make the API call using the sendRequest function
             const response: BalancesResponse = await sendRequest({
@@ -126,7 +126,7 @@ class AarcSDK extends Biconomy {
                 body: {
                     chainId: String(this.chainId),
                     address: this.owner,
-                    tokenAddresses,
+                    tokenAddresses: tokenAddresses,
                 },
             });
 
@@ -155,6 +155,7 @@ class AarcSDK extends Biconomy {
                 return element;
             });
 
+            // console.log('tokenAddresses', tokenAddresses);
             const ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
 
             const erc20TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance === 0);
@@ -193,12 +194,13 @@ class AarcSDK extends Biconomy {
         }
     }
 
-    async executeMigrationGasless(executeMigrationDto: ExecuteMigrationDto) {
+    async executeMigrationGasless(executeMigrationGaslessDto: ExecuteMigrationGaslessDto) {
         try {
             const ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
 
-            const { tokenAndAmount, scwAddress } = executeMigrationDto;
+            const { tokenAndAmount, scwAddress, gelatoApiKey } = executeMigrationGaslessDto;
             const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
+            console.log('tokenAddresses', tokenAddresses);
 
             const balancesList = await this.fetchBalances(tokenAddresses);
 
@@ -226,7 +228,7 @@ class AarcSDK extends Biconomy {
             const permittedTokens = balances.filter(balanceObj => balanceObj.permit2Exist);
 
             permittedTokens.map(async token => {
-                await this.performPermit(this.chainId, scwAddress, token.token_address)
+                await this.performPermit(this.chainId, this.owner, token.token_address, gelatoApiKey)
             })
 
             // filter out tokens that have already given allowance
@@ -249,7 +251,7 @@ class AarcSDK extends Biconomy {
                     chainId: BigInt(this.chainId),
                     target: PERMIT2_CONTRACT_ADDRESS,
                     data
-                })
+                }, gelatoApiKey)
             } else if (batchPermitTransaction.length > 1) {
                 const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, ethersProvider);
 
@@ -268,7 +270,7 @@ class AarcSDK extends Biconomy {
                     chainId: BigInt(this.chainId),
                     target: PERMIT2_CONTRACT_ADDRESS,
                     data
-                })
+                }, gelatoApiKey)
             }
 
         } catch (error) {
@@ -331,7 +333,7 @@ class AarcSDK extends Biconomy {
         }
     }
 
-    async performPermit(chainId: ChainId, eoaAddress: string, tokenAddress: string): Promise<boolean> {
+    async performPermit(chainId: ChainId, eoaAddress: string, tokenAddress: string, gelatoApiKey: string): Promise<boolean> {
         try {
             const { r, s, v, deadline } = await this.signPermitMessage(eoaAddress, tokenAddress);
 
@@ -353,17 +355,17 @@ class AarcSDK extends Biconomy {
                 chainId: BigInt(chainId),
                 target: tokenAddress,
                 data
-            })
+            }, gelatoApiKey)
         } catch (error) {
             Logger.error(`permit transaction error: ${error}`);
             throw error
         }
     }
 
-    async relayTransaction(requestData: BaseRelayParams): Promise<boolean> {
+    async relayTransaction(requestData: BaseRelayParams, gelatoApiKey: string): Promise<boolean> {
         try {
             const request: SponsoredCallRequest = requestData
-            const relayResponse = await this.relayer.sponsoredCall(request, this.apiKey);
+            const relayResponse = await this.relayer.sponsoredCall(request, gelatoApiKey);
             Logger.log('Relayed transaction info:', relayResponse);
             return true
         } catch (error) {

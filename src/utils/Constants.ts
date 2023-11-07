@@ -1,3 +1,5 @@
+import { ethers } from "ethers";
+
 export const BASE_URL = 'http://localhost:4000';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/covalent`;
 export const SAFE_TX_SERVICE_URL = 'https://safe-transaction-mainnet.safe.global'
@@ -17,3 +19,9 @@ export enum SAFE_TX_SERVICE_URLS {
     'https://safe-transaction-mainnet.safe.global' = 1,
     'https://safe-transaction-goerli.safe.global' = 5,
 }
+
+export const PERMIT_BATCH_TRANSFER_FROM_TYPEHASH = ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes(
+    "PermitBatchTransferFrom(TokenPermissions[] permitted,address spender,uint256 nonce,uint256 deadline)TokenPermissions(address token,uint256 amount)"
+    )
+);

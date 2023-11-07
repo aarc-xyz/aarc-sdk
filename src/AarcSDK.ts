@@ -2,7 +2,7 @@ import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { BigNumber, BigNumberish, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
-import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS } from './utils/Constants';
+import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS, PERMIT_FUNCTION_TYPES } from './utils/Constants';
 import { BatchPermitData, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, PermitData, TokenData } from './utils/types';
 import { OwnerResponse, BalancesResponse } from './utils/types'
 import SafeApiKit from "@safe-global/api-kit";
@@ -16,15 +16,14 @@ import Biconomy from './Biconomy';
 import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer'
 
 class AarcSDK extends Biconomy {
-    // safeFactory!: SafeFactory;
     chainId!: number;
     owner!: string;
     saltNonce = 0;
     ethAdapter!: EthersAdapter;
-    // safeService!: SafeApiKit;
-    signer!: Signer
+    signer: Signer
     apiKey: string
     relayer: GelatoRelay
+    ethersProvider!: ethers.providers.JsonRpcProvider
 
     constructor(config: Config) {
         const { signer, apiKey } = config
@@ -51,31 +50,13 @@ class AarcSDK extends Biconomy {
                 throw new Error('Invalid chain id');
             }
             this.owner = await this.signer.getAddress();
+            this.ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
             return this;
         } catch (error) {
             Logger.error('error while initiating sdk');
             throw error;
         }
     }
-
-    // async getOwnerAddress(): Promise<string> {
-    //     if (this.owner == undefined) {
-    //         this.owner = await this.signer.getAddress();
-    //     }
-    //     return this.owner;
-    // }
-
-    // async getChainId(): Promise<ChainId> {
-    //     if (this.chainId == undefined) {
-    //         const chainId = await this.signer.getChainId();
-    //         if (Object.values(ChainId).includes(chainId)) {
-    //             this.chainId = chainId;
-    //         } else {
-    //             throw new Error('Invalid chain id');
-    //         }
-    //     }
-    //     return this.chainId;
-    // }
 
     async getAllSafes(): Promise<OwnerResponse> {
         try {
@@ -155,9 +136,6 @@ class AarcSDK extends Biconomy {
                 return element;
             });
 
-            // console.log('tokenAddresses', tokenAddresses);
-            const ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
-
             const erc20TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance === 0);
             const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance > 0);
 
@@ -174,7 +152,7 @@ class AarcSDK extends Biconomy {
             }
 
             if (permit2TransferableTokens.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, ethersProvider);
+                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, this.ethersProvider);
                 const { permitBatchTransferFrom, signature } = permitData
 
                 const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
@@ -225,8 +203,7 @@ class AarcSDK extends Biconomy {
             }
 
             // Filtering out tokens to do permit transaction
-            const permittedTokens = balances.filter(balanceObj => balanceObj.permit2Exist);
-
+            const permittedTokens = balances.filter(balanceObj => balanceObj.permit2Exist && balanceObj.permit2Allowance === 0);
             permittedTokens.map(async token => {
                 await this.performPermit(this.chainId, this.owner, token.token_address, gelatoApiKey)
             })
@@ -304,26 +281,37 @@ class AarcSDK extends Biconomy {
         }
     }
 
-    async signPermitMessage(eoaAddress: string, tokenAddress: string): Promise<{ r: string, s: string, v: string, nonce: number, deadline: number }> {
+    async signPermitMessage(eoaAddress: string, tokenAddress: string): Promise<{ r: string, s: string, v: number, nonce: number, deadline: number }> {
         try {
             const deadline = Math.floor(Date.now() / 1000) + 3600
             // Create a contract instance with the ABI and contract address.
             const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
+            const nonce = await tokenContract.nonces(eoaAddress);
 
-            const nonce = await tokenContract.nonceOf(eoaAddress);
+            // set the domain parameters
+            const domain = {
+                name: await tokenContract.name(),
+                version: "1",
+                chainId: this.chainId,
+                verifyingContract: tokenContract.address
+            };
 
-            // Encode the message manually according to contract expectations
-            const encodedMessage = ethers.utils.defaultAbiCoder.encode(
-                ['bytes32', 'address', 'address', 'uint256', 'uint256', 'uint8', 'bytes32', 'bytes32'],
-                [ethers.utils.keccak256('0x1901'), eoaAddress, PERMIT2_CONTRACT_ADDRESS, ethers.constants.MaxUint256, nonce, deadline, 0, '0x', '0x']
-            );
+            // set the Permit type values
+            const values = {
+                owner: this.owner,
+                spender: PERMIT2_CONTRACT_ADDRESS,
+                value: ethers.constants.MaxUint256,
+                nonce: nonce,
+                deadline: deadline,
+            };
 
-            // Sign the encoded message
-            const signature = await this.signer.signMessage(ethers.utils.arrayify(encodedMessage));
+            // Sign the EIP-712 message
+            const signature = await (this.signer as Signer & TypedDataSigner)._signTypedData(domain, PERMIT_FUNCTION_TYPES, values);
+            const sig = ethers.utils.splitSignature(signature);
             return {
-                r: signature.slice(0, 66),
-                s: '0x' + signature.slice(66, 130),
-                v: '0x' + signature.slice(130, 132),
+                r: sig.r,
+                s: sig.s,
+                v: sig.v,
                 nonce,
                 deadline,
             };

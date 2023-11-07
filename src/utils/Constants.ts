@@ -25,3 +25,27 @@ export const PERMIT_BATCH_TRANSFER_FROM_TYPEHASH = ethers.utils.keccak256(
     "PermitBatchTransferFrom(TokenPermissions[] permitted,address spender,uint256 nonce,uint256 deadline)TokenPermissions(address token,uint256 amount)"
     )
 );
+
+export const PERMIT_FUNCTION_TYPES = {
+    Permit: [{
+        name: "owner",
+        type: "address"
+    },
+    {
+        name: "spender",
+        type: "address"
+    },
+    {
+        name: "value",
+        type: "uint256"
+    },
+    {
+        name: "nonce",
+        type: "uint256"
+    },
+    {
+        name: "deadline",
+        type: "uint256"
+    },
+    ],
+};

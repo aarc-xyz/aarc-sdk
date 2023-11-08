@@ -1,9 +1,9 @@
 import { Logger } from './Logger';
 
 export enum HttpMethod {
-  Get = 'get',
-  Post = 'post',
-  Delete = 'delete',
+  GET = 'get',
+  POST = 'post',
+  DELETE = 'delete',
 }
 
 /* eslint-disable  @typescript-eslint/no-explicit-any */
@@ -57,7 +57,7 @@ export async function sendRequest<T>({
   if (response.ok) {
     if (
       jsonResponse &&
-      Object.prototype.hasOwnProperty.call(jsonResponse, 'result')
+      Object.prototype.hasOwnProperty.call(jsonResponse, 'data')
     ) {
       return jsonResponse as T;
     }

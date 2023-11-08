@@ -1,6 +1,6 @@
 import { Signer } from 'ethers';
 import { ChainId } from './ChainTypes';
-import { PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/Permit2-sdk'
+import { PermitTransferFrom, PermitBatchTransferFrom } from '../SignatureTransfer'
 
 
 export type Config = {
@@ -14,18 +14,16 @@ export type GetSafeDto = {
 };
 
 export type GetBalancesDto = {
-  chainId: ChainId;
-  eoaAddress: string;
   tokenAddresses?: string[];
 };
 
 export type TokenData = {
-  contract_decimals: number;
-  contract_name: string;
-  contract_ticker_symbol: string;
-  contract_address: string;
+  decimals: number;
+  name: string;
+  symbol: string;
+  token_address: string;
   balance: string;
-  permit2Allowance: number;
+  permit2Allowance: string;
   permit2Exist: boolean;
 };
 
@@ -44,6 +42,12 @@ export type TokenAndAmount = {
 export type ExecuteMigrationDto = {
   scwAddress: string;
   tokenAndAmount: TokenAndAmount[]
+}
+
+export type ExecuteMigrationGaslessDto = {
+  scwAddress: string;
+  tokenAndAmount: TokenAndAmount[];
+  gelatoApiKey: string;
 }
 
 

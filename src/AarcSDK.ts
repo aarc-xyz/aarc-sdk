@@ -2,12 +2,12 @@ import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
-import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS, PERMIT_FUNCTION_TYPES } from './utils/Constants';
+import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT2_DOMAIN_NAME, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS, PERMIT_FUNCTION_TYPES, GELATO_RELAYER_ADDRESS } from './utils/Constants';
 import { BatchPermitData, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, PermitData, TokenData } from './utils/types';
 import { OwnerResponse, BalancesResponse } from './utils/types'
 import SafeApiKit from "@safe-global/api-kit";
 import { ERC20_ABI } from './utils/abis/ERC20.abi';
-import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/permit2-sdk'
+import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom, PERMIT2_ADDRESS } from '@uniswap/permit2-sdk'
 import { ChainId } from './utils/ChainTypes';
 import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
 import { GelatoRelay, SponsoredCallRequest } from "@gelatonetwork/relay-sdk";
@@ -130,15 +130,15 @@ class AarcSDK extends Biconomy {
             const balancesList = await this.fetchBalances(tokenAddresses);
 
             const balances: TokenData[] = balancesList.data.map((element) => {
-                const matchingToken = tokenAndAmount.find((token) => token.tokenAddress === element.token_address);
+                const matchingToken = tokenAndAmount.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
                 if (matchingToken && Number(matchingToken.amount) > 0) {
                     element.balance = matchingToken.amount;
                 }
                 return element;
             });
 
-            const erc20TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance === 0);
-            const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance > 0);
+            const erc20TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance === "0");
+            const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance != "0");
 
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
@@ -153,7 +153,7 @@ class AarcSDK extends Biconomy {
             }
 
             if (permit2TransferableTokens.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, this.ethersProvider);
+                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens);
                 const { permitBatchTransferFrom, signature } = permitData
 
                 const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
@@ -161,9 +161,8 @@ class AarcSDK extends Biconomy {
                     requestedAmount: batchInfo.amount
                 }));
 
-                Logger.log('tokenPermissions ', tokenPermissions);
-                const txInfo = await permit2Contract.permitTransferFrom(permitData.permitBatchTransferFrom, tokenPermissions, this.owner, signature);
-                Logger.log('txInfo ', txInfo)
+                const txInfo  = await permit2Contract.permitTransferFrom(permitData.permitBatchTransferFrom, tokenPermissions, this.owner, signature);
+                console.log('txInfo ', txInfo);
             }
         } catch (error) {
             // Handle any errors that occur during the migration process
@@ -174,15 +173,13 @@ class AarcSDK extends Biconomy {
 
     async executeMigrationGasless(executeMigrationGaslessDto: ExecuteMigrationGaslessDto) {
         try {
-            const ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
-
             const { tokenAndAmount, scwAddress, gelatoApiKey } = executeMigrationGaslessDto;
             const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
 
             const balancesList = await this.fetchBalances(tokenAddresses);
 
             const balances: TokenData[] = balancesList.data.map((element) => {
-                const matchingToken = tokenAndAmount.find((token) => token.tokenAddress === element.token_address);
+                const matchingToken = tokenAndAmount.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
                 if (matchingToken && Number(matchingToken.amount) > 0) {
                     element.balance = matchingToken.amount;
                 }
@@ -190,7 +187,7 @@ class AarcSDK extends Biconomy {
             });
             Logger.log('balancesList', balances);
 
-            const erc20TransferableTokens = balances.filter(balanceObj => !balanceObj.permitExist && balanceObj.permit2Allowance === 0);
+            const erc20TransferableTokens = balances.filter(balanceObj => !balanceObj.permit2Exist && balanceObj.permit2Allowance === "0");
 
             // Loop through tokens to perform normal transfers
 
@@ -198,25 +195,25 @@ class AarcSDK extends Biconomy {
                 const tokenAddress = token.token_address;
                 const t = tokenAndAmount.find(ta => ta.tokenAddress === tokenAddress);
                 const transferAmount = t ? t.amount : token.balance;
-                await this.performTokenTransfer(scwAddress, transferAmount, transferAmount);
+                await this.performTokenTransfer(scwAddress, tokenAddress, transferAmount);
             }
 
             // Filtering out tokens to do permit transaction
-            const permittedTokens = balances.filter(balanceObj => balanceObj.permitExist && balanceObj.permit2Allowance === 0);
+            const permittedTokens = balances.filter(balanceObj => balanceObj.permit2Exist && balanceObj.permit2Allowance === "0");
             permittedTokens.map(async token => {
                 await this.performPermit(this.chainId, this.owner, token.token_address, gelatoApiKey)
             })
 
             // filter out tokens that have already given allowance
-            const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance > 0);
-
+            const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance != "0");
+            
             // Merge permittedTokens and permit2TransferableTokens
             const batchPermitTransaction = permittedTokens.concat(permit2TransferableTokens);
 
             const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer);
 
             if (batchPermitTransaction.length === 1) {
-                const permitData = await this.getSingleTransferPermitData(this.chainId, this.owner, permit2TransferableTokens[0], scwAddress, ethersProvider);
+                const permitData = await this.getSingleTransferPermitData(this.chainId, GELATO_RELAYER_ADDRESS, batchPermitTransaction[0]);
                 const { permitTransferFrom, signature } = permitData
 
                 const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
@@ -229,12 +226,12 @@ class AarcSDK extends Biconomy {
                     data
                 }, gelatoApiKey)
             } else if (batchPermitTransaction.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(this.chainId, this.owner, permit2TransferableTokens, ethersProvider);
+                const permitData = await this.getBatchTransferPermitData(this.chainId, GELATO_RELAYER_ADDRESS, batchPermitTransaction);
 
                 const { permitBatchTransferFrom, signature } = permitData
 
                 const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
-                    to: batchInfo.token,
+                    to: scwAddress,
                     requestedAmount: batchInfo.amount
                 }));
 
@@ -365,8 +362,8 @@ class AarcSDK extends Biconomy {
         return Math.floor((Date.now() + expiration) / 1000)
     }
 
-    async getSingleTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData, scwAddress: string, provider: ethers.providers.JsonRpcProvider): Promise<PermitData> {
-        const nonce = await provider.getTransactionCount(eoaAddress);
+    async getSingleTransferPermitData(chainId: ChainId, spenderAddress: string, tokenData: TokenData): Promise<PermitData> {
+        const nonce = await this.ethersProvider.getTransactionCount(spenderAddress);
         let permitTransferFrom: PermitTransferFrom
 
         permitTransferFrom = {
@@ -374,14 +371,14 @@ class AarcSDK extends Biconomy {
                 token: tokenData.token_address,
                 amount: tokenData.balance, // TODO: Verify transferrable amount
             },
-            spender: eoaAddress,
+            spender: spenderAddress,
             deadline: this.toDeadline(1000 * 60 * 60 * 24 * 1),
             nonce
         }
 
         const permitData = SignatureTransfer.getPermitData(permitTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId);
 
-        Logger.log('getBatchTransferPermitData permitData ', JSON.stringify(permitData));
+        Logger.log('getSingleTransferPermitData permitData ', JSON.stringify(permitData));
 
         const signature = await (this.signer as Signer & TypedDataSigner)._signTypedData(permitData.domain, permitData.types, permitData.values)
 
@@ -391,8 +388,8 @@ class AarcSDK extends Biconomy {
         };
     }
 
-    async getBatchTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData[], provider: ethers.providers.JsonRpcProvider): Promise<BatchPermitData> {
-        const nonce = await provider.getTransactionCount(eoaAddress);
+    async getBatchTransferPermitData(chainId: ChainId, spenderAddress: string, tokenData: TokenData[]): Promise<BatchPermitData> {
+        const nonce = await this.ethersProvider.getTransactionCount(spenderAddress);
         let permitData;
 
         if (tokenData.length < 2) {
@@ -406,7 +403,7 @@ class AarcSDK extends Biconomy {
 
         const permitBatchTransferFrom: PermitBatchTransferFrom = {
             permitted: tokenPermissions,
-            spender: eoaAddress,
+            spender: spenderAddress,
             deadline: this.toDeadline(1000 * 60 * 60 * 24 * 1),
             nonce
         };
@@ -424,7 +421,6 @@ class AarcSDK extends Biconomy {
     }
 
     permit2Domain(permit2Address: string, chainId: number): TypedDataDomain {
-        const PERMIT2_DOMAIN_NAME = 'Permit2'
         return {
             name: PERMIT2_DOMAIN_NAME,
             chainId,

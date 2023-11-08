@@ -10,6 +10,9 @@ export const ETHEREUM_PROVIDER =
 export const PERMIT2_CONTRACT_ADDRESS =
     '0x000000000022D473030F116dDEE9F6B43aC78BA3';
 
+export const GELATO_RELAYER_ADDRESS = "0x75ba5af8effdcfca32e1e288806d54277d1fde99";
+export const PERMIT2_DOMAIN_NAME = 'Permit2';
+
 export enum CHAIN_PROVIDERS {
     'https://eth-mainnet.alchemyapi.io/v2/VFsqvAAgenvw98xGBsOGfogbZ5WFN17X' = 1,
     'https://eth-goerli.g.alchemy.com/v2/JumlonOyBH3vkn70ZD6QlyR19I_73gNX' = 5,

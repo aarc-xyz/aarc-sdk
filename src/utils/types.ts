@@ -24,7 +24,7 @@ export type TokenData = {
   token_address: string;
   balance: string;
   permit2Allowance: number;
-  permit2Exist: boolean;
+  permitExist: boolean;
 };
 
 export type BalancesResponse = {

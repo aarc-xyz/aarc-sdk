@@ -1,3 +1,5 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
 /**
  * Single class to be used for logging purpose.
  *

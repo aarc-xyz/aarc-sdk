@@ -1,6 +1,6 @@
 import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
-import { BigNumber, BigNumberish, Contract, ethers, Signer } from 'ethers';
+import { Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS, PERMIT_FUNCTION_TYPES } from './utils/Constants';
 import { BatchPermitData, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, PermitData, TokenData } from './utils/types';
@@ -95,7 +95,6 @@ class AarcSDK extends Biconomy {
      * @returns
      */
     async fetchBalances(tokenAddresses?: string[]): Promise<BalancesResponse> {
-        console.log('tokenAddresses', tokenAddresses);
         try {
             // Make the API call using the sendRequest function
             const response: BalancesResponse = await sendRequest({
@@ -123,6 +122,8 @@ class AarcSDK extends Biconomy {
 
     async executeMigration(executeMigrationDto: ExecuteMigrationDto) {
         try {
+            Logger.log('executeMigration ');
+
             const { tokenAndAmount, scwAddress } = executeMigrationDto;
             const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
 
@@ -161,9 +162,8 @@ class AarcSDK extends Biconomy {
                 }));
 
                 Logger.log('tokenPermissions ', tokenPermissions);
-                const txInfo  = await permit2Contract.permitTransferFrom(permitData.permitBatchTransferFrom, tokenPermissions, this.owner, signature);
-                console.log('txInfo ', txInfo)
-
+                const txInfo = await permit2Contract.permitTransferFrom(permitData.permitBatchTransferFrom, tokenPermissions, this.owner, signature);
+                Logger.log('txInfo ', txInfo)
             }
         } catch (error) {
             // Handle any errors that occur during the migration process
@@ -178,7 +178,6 @@ class AarcSDK extends Biconomy {
 
             const { tokenAndAmount, scwAddress, gelatoApiKey } = executeMigrationGaslessDto;
             const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
-            console.log('tokenAddresses', tokenAddresses);
 
             const balancesList = await this.fetchBalances(tokenAddresses);
 
@@ -191,7 +190,7 @@ class AarcSDK extends Biconomy {
             });
             Logger.log('balancesList', balances);
 
-            const erc20TransferableTokens = balances.filter(balanceObj => !balanceObj.permit2Exist && balanceObj.permit2Allowance === 0);
+            const erc20TransferableTokens = balances.filter(balanceObj => !balanceObj.permitExist && balanceObj.permit2Allowance === 0);
 
             // Loop through tokens to perform normal transfers
 
@@ -203,7 +202,7 @@ class AarcSDK extends Biconomy {
             }
 
             // Filtering out tokens to do permit transaction
-            const permittedTokens = balances.filter(balanceObj => balanceObj.permit2Exist && balanceObj.permit2Allowance === 0);
+            const permittedTokens = balances.filter(balanceObj => balanceObj.permitExist && balanceObj.permit2Allowance === 0);
             permittedTokens.map(async token => {
                 await this.performPermit(this.chainId, this.owner, token.token_address, gelatoApiKey)
             })

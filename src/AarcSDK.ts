@@ -9,7 +9,8 @@ import SafeApiKit from "@safe-global/api-kit";
 import { ERC20_ABI } from './utils/abis/ERC20.abi';
 import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom, PERMIT2_ADDRESS } from '@uniswap/permit2-sdk'
 import { ChainId } from './utils/ChainTypes';
-import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
+import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
+import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
 import { GelatoRelay, SponsoredCallRequest } from "@gelatonetwork/relay-sdk";
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 import Biconomy from './Biconomy';
@@ -145,7 +146,7 @@ class AarcSDK extends Biconomy {
                 await this.performTokenTransfer(scwAddress, token.token_address, token.balance);
             }
 
-            const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer);
+            const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_BATCH_TRANSFER_ABI, this.signer);
 
             if (permit2TransferableTokens.length === 1) {
                 const token = permit2TransferableTokens[0];
@@ -209,14 +210,17 @@ class AarcSDK extends Biconomy {
             
             // Merge permittedTokens and permit2TransferableTokens
             const batchPermitTransaction = permittedTokens.concat(permit2TransferableTokens);
-
-            const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer);
-
+            
             if (batchPermitTransaction.length === 1) {
+                const permit2SingleContract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_SINGLE_TRANSFER_ABI, this.signer);
                 const permitData = await this.getSingleTransferPermitData(this.chainId, GELATO_RELAYER_ADDRESS, batchPermitTransaction[0]);
                 const { permitTransferFrom, signature } = permitData
 
-                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
+                console.log('permitTransferFrom ', permitTransferFrom);
+                console.log('owner ', this.owner);
+                console.log('signature ', signature);
+
+                const { data } = await permit2SingleContract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
                 if (!data) {
                     throw new Error('unable to get data')
                 }
@@ -226,6 +230,7 @@ class AarcSDK extends Biconomy {
                     data
                 }, gelatoApiKey)
             } else if (batchPermitTransaction.length > 1) {
+                const permit2BatchContract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_BATCH_TRANSFER_ABI, this.signer);
                 const permitData = await this.getBatchTransferPermitData(this.chainId, GELATO_RELAYER_ADDRESS, batchPermitTransaction);
 
                 const { permitBatchTransferFrom, signature } = permitData
@@ -235,7 +240,7 @@ class AarcSDK extends Biconomy {
                     requestedAmount: batchInfo.amount
                 }));
 
-                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, this.owner, signature);
+                const { data } = await permit2BatchContract.populateTransaction.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, this.owner, signature);
                 if (!data) {
                     throw new Error('unable to get data')
                 }
@@ -245,7 +250,6 @@ class AarcSDK extends Biconomy {
                     data
                 }, gelatoApiKey)
             }
-
         } catch (error) {
             // Handle any errors that occur during the migration process
             Logger.error('Migration Error:', error);
@@ -363,6 +367,7 @@ class AarcSDK extends Biconomy {
     }
 
     async getSingleTransferPermitData(chainId: ChainId, spenderAddress: string, tokenData: TokenData): Promise<PermitData> {
+        // need to change this nonce logic
         const nonce = await this.ethersProvider.getTransactionCount(spenderAddress);
         let permitTransferFrom: PermitTransferFrom
 

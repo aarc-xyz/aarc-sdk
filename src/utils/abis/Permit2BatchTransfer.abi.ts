@@ -1,4 +1,4 @@
-export const PERMIT_2_ABI =[
+export const PERMIT2_BATCH_TRANSFER_ABI =[
     {
        "inputs":[
           {

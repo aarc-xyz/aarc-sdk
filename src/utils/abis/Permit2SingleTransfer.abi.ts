@@ -66,5 +66,6 @@ export const PERMIT2_SINGLE_TRANSFER_ABI = [
     "outputs": [], 
     "stateMutability": "nonpayable", 
     "type": "function" 
-  }
+  },
+  {"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"nonceBitmap","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
 ]

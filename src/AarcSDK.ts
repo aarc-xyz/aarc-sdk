@@ -7,14 +7,15 @@ import { BatchPermitData, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDt
 import { OwnerResponse, BalancesResponse } from './utils/types'
 import SafeApiKit from "@safe-global/api-kit";
 import { ERC20_ABI } from './utils/abis/ERC20.abi';
-import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom, PERMIT2_ADDRESS } from '@uniswap/permit2-sdk'
+import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/permit2-sdk'
 import { ChainId } from './utils/ChainTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
 import { GelatoRelay, SponsoredCallRequest } from "@gelatonetwork/relay-sdk";
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 import Biconomy from './Biconomy';
-import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer'
+import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer';
+import {uint256, uint8} from "solidity-math";
 
 class AarcSDK extends Biconomy {
     chainId!: number;
@@ -367,8 +368,7 @@ class AarcSDK extends Biconomy {
     }
 
     async getSingleTransferPermitData(chainId: ChainId, spenderAddress: string, tokenData: TokenData): Promise<PermitData> {
-        // need to change this nonce logic
-        const nonce = await this.ethersProvider.getTransactionCount(spenderAddress);
+        const nonce = await this.getPermit2Nonce();
         let permitTransferFrom: PermitTransferFrom
 
         permitTransferFrom = {
@@ -394,7 +394,7 @@ class AarcSDK extends Biconomy {
     }
 
     async getBatchTransferPermitData(chainId: ChainId, spenderAddress: string, tokenData: TokenData[]): Promise<BatchPermitData> {
-        const nonce = await this.ethersProvider.getTransactionCount(spenderAddress);
+        const nonce = await this.getPermit2Nonce();
         let permitData;
 
         if (tokenData.length < 2) {
@@ -423,6 +423,17 @@ class AarcSDK extends Biconomy {
             permitBatchTransferFrom,
             signature,
         };
+    }
+
+    async getPermit2Nonce(): Promise<number> {
+        const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_SINGLE_TRANSFER_ABI, this.signer);
+        let nonce = Math.floor(1000 + Math.random() * 9000);
+        let bitmapValue = 69;
+        while (bitmapValue != 0){
+            bitmapValue = await permit2Contract.nonceBitmap(this.owner, uint256(nonce).cast(uint8).toString());
+            nonce++;
+        }
+        return nonce;
     }
 
     permit2Domain(permit2Address: string, chainId: number): TypedDataDomain {

@@ -211,6 +211,8 @@ class AarcSDK extends Biconomy {
                 const txStatus = await this.getGelatoTransactionStatus(taskId);
                 if (txStatus){
                     permit2TransferableTokens.push(token);
+                } else {
+                    Logger.error('permit transaction failed for token ', token.token_address);
                 }
             })
             
@@ -218,10 +220,6 @@ class AarcSDK extends Biconomy {
                 const permit2SingleContract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_SINGLE_TRANSFER_ABI, this.signer);
                 const permitData = await this.getSingleTransferPermitData(this.chainId, GELATO_RELAYER_ADDRESS, permit2TransferableTokens[0]);
                 const { permitTransferFrom, signature } = permitData
-
-                console.log('permitTransferFrom ', permitTransferFrom);
-                console.log('owner ', this.owner);
-                console.log('signature ', signature);
 
                 const { data } = await permit2SingleContract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
                 if (!data) {

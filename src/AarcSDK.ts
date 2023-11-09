@@ -7,14 +7,16 @@ import { BatchPermitData, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDt
 import { OwnerResponse, BalancesResponse } from './utils/types'
 import SafeApiKit from "@safe-global/api-kit";
 import { ERC20_ABI } from './utils/abis/ERC20.abi';
-import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom, PERMIT2_ADDRESS } from '@uniswap/permit2-sdk'
+import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/permit2-sdk'
 import { ChainId } from './utils/ChainTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
-import { GelatoRelay, SponsoredCallRequest } from "@gelatonetwork/relay-sdk";
+import { GelatoRelay, SponsoredCallRequest, TransactionStatusResponse } from "@gelatonetwork/relay-sdk";
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 import Biconomy from './Biconomy';
+import {uint256, uint8} from "solidity-math";
 import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer'
+import { TaskState } from '@gelatonetwork/relay-sdk/dist/lib/status/types';
 
 class AarcSDK extends Biconomy {
     chainId!: number;
@@ -199,39 +201,39 @@ class AarcSDK extends Biconomy {
                 await this.performTokenTransfer(scwAddress, tokenAddress, transferAmount);
             }
 
+            // filter out tokens that have already given allowance
+            const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance != "0");
+
             // Filtering out tokens to do permit transaction
             const permittedTokens = balances.filter(balanceObj => balanceObj.permit2Exist && balanceObj.permit2Allowance === "0");
             permittedTokens.map(async token => {
-                await this.performPermit(this.chainId, this.owner, token.token_address, gelatoApiKey)
+                const taskId = await this.performPermit(this.chainId, this.owner, token.token_address, gelatoApiKey)
+                const txStatus = await this.getGelatoTransactionStatus(taskId);
+                if (txStatus){
+                    permit2TransferableTokens.push(token);
+                } else {
+                    Logger.error('permit transaction failed for token ', token.token_address);
+                }
             })
-
-            // filter out tokens that have already given allowance
-            const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance != "0");
             
-            // Merge permittedTokens and permit2TransferableTokens
-            const batchPermitTransaction = permittedTokens.concat(permit2TransferableTokens);
-            
-            if (batchPermitTransaction.length === 1) {
+            if (permit2TransferableTokens.length === 1) {
                 const permit2SingleContract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_SINGLE_TRANSFER_ABI, this.signer);
-                const permitData = await this.getSingleTransferPermitData(this.chainId, GELATO_RELAYER_ADDRESS, batchPermitTransaction[0]);
+                const permitData = await this.getSingleTransferPermitData(this.chainId, GELATO_RELAYER_ADDRESS, permit2TransferableTokens[0]);
                 const { permitTransferFrom, signature } = permitData
-
-                console.log('permitTransferFrom ', permitTransferFrom);
-                console.log('owner ', this.owner);
-                console.log('signature ', signature);
 
                 const { data } = await permit2SingleContract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
                 if (!data) {
                     throw new Error('unable to get data')
                 }
-                return this.relayTransaction({
+                const taskId = await this.relayTransaction({
                     chainId: BigInt(this.chainId),
                     target: PERMIT2_CONTRACT_ADDRESS,
                     data
                 }, gelatoApiKey)
-            } else if (batchPermitTransaction.length > 1) {
+                return await this.getGelatoTransactionStatus(taskId);
+            } else if (permit2TransferableTokens.length > 1) {
                 const permit2BatchContract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_BATCH_TRANSFER_ABI, this.signer);
-                const permitData = await this.getBatchTransferPermitData(this.chainId, GELATO_RELAYER_ADDRESS, batchPermitTransaction);
+                const permitData = await this.getBatchTransferPermitData(this.chainId, GELATO_RELAYER_ADDRESS, permit2TransferableTokens);
 
                 const { permitBatchTransferFrom, signature } = permitData
 
@@ -244,11 +246,12 @@ class AarcSDK extends Biconomy {
                 if (!data) {
                     throw new Error('unable to get data')
                 }
-                return this.relayTransaction({
+                const taskId = await this.relayTransaction({
                     chainId: BigInt(this.chainId),
                     target: PERMIT2_CONTRACT_ADDRESS,
                     data
                 }, gelatoApiKey)
+                return await this.getGelatoTransactionStatus(taskId);
             }
         } catch (error) {
             // Handle any errors that occur during the migration process
@@ -321,7 +324,7 @@ class AarcSDK extends Biconomy {
         }
     }
 
-    async performPermit(chainId: ChainId, eoaAddress: string, tokenAddress: string, gelatoApiKey: string): Promise<boolean> {
+    async performPermit(chainId: ChainId, eoaAddress: string, tokenAddress: string, gelatoApiKey: string): Promise<string> {
         try {
             const { r, s, v, deadline } = await this.signPermitMessage(eoaAddress, tokenAddress);
 
@@ -350,12 +353,12 @@ class AarcSDK extends Biconomy {
         }
     }
 
-    async relayTransaction(requestData: BaseRelayParams, gelatoApiKey: string): Promise<boolean> {
+    async relayTransaction(requestData: BaseRelayParams, gelatoApiKey: string): Promise<string> {
         try {
             const request: SponsoredCallRequest = requestData
             const relayResponse = await this.relayer.sponsoredCall(request, gelatoApiKey);
             Logger.log('Relayed transaction info:', relayResponse);
-            return true
+            return relayResponse.taskId;
         } catch (error) {
             Logger.error(`Relayed transaction error: ${error}`);
             throw error
@@ -367,8 +370,7 @@ class AarcSDK extends Biconomy {
     }
 
     async getSingleTransferPermitData(chainId: ChainId, spenderAddress: string, tokenData: TokenData): Promise<PermitData> {
-        // need to change this nonce logic
-        const nonce = await this.ethersProvider.getTransactionCount(spenderAddress);
+        const nonce = await this.getPermit2Nonce();
         let permitTransferFrom: PermitTransferFrom
 
         permitTransferFrom = {
@@ -394,7 +396,7 @@ class AarcSDK extends Biconomy {
     }
 
     async getBatchTransferPermitData(chainId: ChainId, spenderAddress: string, tokenData: TokenData[]): Promise<BatchPermitData> {
-        const nonce = await this.ethersProvider.getTransactionCount(spenderAddress);
+        const nonce = await this.getPermit2Nonce();
         let permitData;
 
         if (tokenData.length < 2) {
@@ -423,6 +425,41 @@ class AarcSDK extends Biconomy {
             permitBatchTransferFrom,
             signature,
         };
+    }
+
+    async getGelatoTransactionStatus(taskId: string): Promise<boolean> {
+        let response = await this.relayer.getTaskStatus(taskId);
+        Logger.log('response ', response);
+        while (response != undefined && (response.taskState === TaskState.CheckPending || response.taskState === TaskState.ExecPending)) {
+            Logger.log('Transaction is pending');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            response = await this.relayer.getTaskStatus(taskId);
+        }
+        if (response != undefined && response.taskState === TaskState.WaitingForConfirmation) {
+            Logger.log('Transaction is executed successfully, waiting for confirmations');
+            Logger.log('Transaction hash: ', response.transactionHash);
+            return true;
+        } else if(response != undefined && (response.taskState === TaskState.ExecReverted || response.taskState === TaskState.Cancelled)) {
+            Logger.log('Transaction failed');
+            return false;
+        } else if(response != undefined && response.taskState === TaskState.ExecSuccess) {
+            Logger.log('Transaction is executed successfully');
+            Logger.log('Transaction hash: ', response.transactionHash);
+            return true;
+        } else{
+            return false;
+        }
+    }
+
+    async getPermit2Nonce(): Promise<number> {
+        const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_SINGLE_TRANSFER_ABI, this.signer);
+        let nonce = Math.floor(1000 + Math.random() * 9000);
+        let bitmapValue = 69;
+        while (bitmapValue != 0){
+            bitmapValue = await permit2Contract.nonceBitmap(this.owner, uint256(nonce).cast(uint8).toString());
+            nonce++;
+        }
+        return nonce;
     }
 
     permit2Domain(permit2Address: string, chainId: number): TypedDataDomain {

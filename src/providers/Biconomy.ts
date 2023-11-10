@@ -1,6 +1,6 @@
-import { Logger } from './utils/Logger';
+import { Logger } from '../utils/Logger';
 import { Signer } from 'ethers';
-import { BICONOMY_TX_SERVICE_URL } from './utils/Constants';
+import { BICONOMY_TX_SERVICE_URL } from '../utils/Constants';
 import { BiconomySmartAccountV2, DEFAULT_ENTRYPOINT_ADDRESS } from "@biconomy/account";
 import { ECDSAOwnershipValidationModule, DEFAULT_ECDSA_OWNERSHIP_MODULE } from '@biconomy/modules'
 import NodeClient from '@biconomy/node-client';

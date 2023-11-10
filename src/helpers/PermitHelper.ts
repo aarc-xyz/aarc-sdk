@@ -1,14 +1,11 @@
 import { ERC20_ABI } from "@biconomy/modules";
-import { SponsoredCallRequest } from "@gelatonetwork/relay-sdk";
-import { BaseRelayParams } from "@gelatonetwork/relay-sdk/dist/lib/types";
 import { ethers, Signer } from "ethers";
 import { PermitTransferFrom, SignatureTransfer, TokenPermissions, PermitBatchTransferFrom } from "@uniswap/permit2-sdk";
-import { ChainId } from "./utils/ChainTypes";
-import { PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_TYPES, PERMIT_FUNCTION_ABI, PERMIT2_DOMAIN_NAME } from "./utils/Constants";
-import { TokenData, PermitData, BatchPermitData } from "./utils/types";
+import { ChainId } from "../utils/ChainTypes";
+import { PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_TYPES, PERMIT_FUNCTION_ABI, PERMIT2_DOMAIN_NAME } from "../utils/Constants";
+import { TokenData, PermitData, BatchPermitData, PermitDto, SingleTransferPermitDto, BatchTransferPermitDto, PermitDomainDto } from "../utils/Types";
 import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer'
-import { Logger } from './utils/Logger';
-import { GelatoRelay } from "@gelatonetwork/relay-sdk";
+import { Logger } from '../utils/Logger';
 
 export class PermitHelper {
     signer: Signer
@@ -79,8 +76,9 @@ export class PermitHelper {
         }
     }
 
-    async performPermit(chainId: ChainId, eoaAddress: string, tokenAddress: string, gelatoApiKey: string): Promise<boolean> {
+    async performPermit(permitDto: PermitDto) {
         try {
+            const { chainId, eoaAddress, tokenAddress } = permitDto
             const { r, s, v, deadline } = await this.signPermitMessage(eoaAddress, chainId, eoaAddress, tokenAddress);
 
             // Create a contract instance with the ABI and contract address.
@@ -97,28 +95,14 @@ export class PermitHelper {
                 throw new Error('unable to get data')
             }
 
-            // TODO: need to relay transaction
+            return {
+                chainId: BigInt(chainId),
+                data,
+                target: tokenAddress
+            }
 
-            // return this.relayTransaction({
-            //     chainId: BigInt(chainId),
-            //     target: tokenAddress,
-            //     data
-            // }, gelatoApiKey)
-            return true
         } catch (error) {
             Logger.error(`permit transaction error: ${error}`);
-            throw error
-        }
-    }
-
-    async relayTransaction(relayer: GelatoRelay, requestData: BaseRelayParams, gelatoApiKey: string): Promise<boolean> {
-        try {
-            const request: SponsoredCallRequest = requestData
-            const relayResponse = await relayer.sponsoredCall(request, gelatoApiKey);
-            Logger.log('Relayed transaction info:', relayResponse);
-            return true
-        } catch (error) {
-            Logger.error(`Relayed transaction error: ${error}`);
             throw error
         }
     }
@@ -127,7 +111,8 @@ export class PermitHelper {
         return Math.floor((Date.now() + expiration) / 1000)
     }
 
-    async getSingleTransferPermitData(provider: ethers.providers.JsonRpcProvider, chainId: ChainId, spenderAddress: string, tokenData: TokenData): Promise<PermitData> {
+    async getSingleTransferPermitData(singleTransferPermitDto: SingleTransferPermitDto): Promise<PermitData> {
+        const { provider, chainId, spenderAddress, tokenData } = singleTransferPermitDto
         const nonce = await provider.getTransactionCount(spenderAddress);
         let permitTransferFrom: PermitTransferFrom
 
@@ -153,7 +138,8 @@ export class PermitHelper {
         };
     }
 
-    async getBatchTransferPermitData(provider: ethers.providers.JsonRpcProvider, chainId: ChainId, spenderAddress: string, tokenData: TokenData[]): Promise<BatchPermitData> {
+    async getBatchTransferPermitData(batchTransferPermitDto: BatchTransferPermitDto): Promise<BatchPermitData> {
+        const { provider, chainId, spenderAddress, tokenData } = batchTransferPermitDto
         const nonce = await provider.getTransactionCount(spenderAddress);
         let permitData;
 
@@ -185,7 +171,8 @@ export class PermitHelper {
         };
     }
 
-    permit2Domain(permit2Address: string, chainId: number): TypedDataDomain {
+    permit2Domain(permitDomainDto: PermitDomainDto): TypedDataDomain {
+        const { chainId, permit2Address } = permitDomainDto
         return {
             name: PERMIT2_DOMAIN_NAME,
             chainId,

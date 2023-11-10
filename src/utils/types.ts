@@ -1,6 +1,8 @@
-import { Signer } from 'ethers';
+import { Signer, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 import { PermitTransferFrom, PermitBatchTransferFrom } from '../SignatureTransfer'
+import { GelatoRelay } from "@gelatonetwork/relay-sdk";
+import { BaseRelayParams } from "@gelatonetwork/relay-sdk/dist/lib/types";
 
 
 export type Config = {
@@ -41,7 +43,7 @@ export type TokenAndAmount = {
 
 export type ExecuteMigrationDto = {
   scwAddress: string;
-  tokenAndAmount: TokenAndAmount[]
+  tokenAndAmount?: TokenAndAmount[]
 }
 
 export type ExecuteMigrationGaslessDto = {
@@ -78,3 +80,39 @@ export type BatchPermitData = {
   permitBatchTransferFrom: PermitBatchTransferFrom;
   signature: string;
 };
+
+export type RelayTrxDto = {
+  relayer: GelatoRelay
+  requestData: BaseRelayParams
+  gelatoApiKey: string
+}
+
+export type GelatoTxStatusDto = {
+  relayer: GelatoRelay
+  taskId: string
+}
+
+export type PermitDto = {
+  chainId: ChainId
+  eoaAddress: string
+  tokenAddress: string
+}
+
+export type SingleTransferPermitDto = {
+  provider: ethers.providers.JsonRpcProvider
+  chainId: ChainId
+  spenderAddress: string
+  tokenData: TokenData
+}
+
+export type BatchTransferPermitDto = {
+  provider: ethers.providers.JsonRpcProvider
+  chainId: ChainId
+  spenderAddress: string
+  tokenData: TokenData[]
+}
+
+export type PermitDomainDto = {
+  permit2Address: string
+  chainId: number
+}

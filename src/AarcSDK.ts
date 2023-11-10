@@ -1,4 +1,4 @@
-import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
+import { EthersAdapter } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
@@ -6,7 +6,8 @@ import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT2_D
 import { BatchTransferPermitDto, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, GelatoTxStatusDto, PermitDto, RelayTrxDto, SingleTransferPermitDto, TokenData } from './utils/Types';
 import { BalancesResponse } from './utils/Types'
 import { ChainId } from './utils/ChainTypes';
-import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
+import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
+import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
 import { GelatoRelay } from "@gelatonetwork/relay-sdk";
 import Biconomy from './providers/Biconomy';
 import Safe from './providers/Safe'
@@ -142,7 +143,7 @@ class AarcSDK {
                 await this.permitHelper.performTokenTransfer(scwAddress, token.token_address, token.balance);
             }
 
-            const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer);
+            const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_BATCH_TRANSFER_ABI, this.signer);
 
             if (permit2TransferableTokens.length === 1) {
                 const token = permit2TransferableTokens[0];
@@ -232,7 +233,6 @@ class AarcSDK {
             // Merge permittedTokens and permit2TransferableTokens
             const batchPermitTransaction = permittedTokens.concat(permit2TransferableTokens);
 
-            const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer);
 
             if (batchPermitTransaction.length === 1) {
                 const singleTransferPermitDto: SingleTransferPermitDto= {
@@ -241,10 +241,11 @@ class AarcSDK {
                     spenderAddress: GELATO_RELAYER_ADDRESS, 
                     tokenData: batchPermitTransaction[0]
                 }
+                const permit2SingleContract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_SINGLE_TRANSFER_ABI, this.signer);
                 const permitData = await this.permitHelper.getSingleTransferPermitData(singleTransferPermitDto);
                 const { permitTransferFrom, signature } = permitData
 
-                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
+                const { data } = await permit2SingleContract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
                 if (!data) {
                     throw new Error('unable to get data')
                 }
@@ -263,6 +264,8 @@ class AarcSDK {
                     taskId
                 });
             } else if (batchPermitTransaction.length > 1) {
+                const permit2BatchContract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_BATCH_TRANSFER_ABI, this.signer);
+
                 const batchTransferPermitDto: BatchTransferPermitDto= {
                     provider: this.ethersProvider, 
                     chainId: this.chainId, 
@@ -278,7 +281,7 @@ class AarcSDK {
                     requestedAmount: batchInfo.amount
                 }));
 
-                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, this.owner, signature);
+                const { data } = await permit2BatchContract.populateTransaction.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, this.owner, signature);
                 if (!data) {
                     throw new Error('unable to get data')
                 }
@@ -308,4 +311,3 @@ class AarcSDK {
 }
 
 export default AarcSDK;
-

@@ -189,7 +189,7 @@ class AarcSDK {
 
             const balances: TokenData[] = balancesList.data.map((element) => {
                 const matchingToken = tokenAndAmount.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
-                if (matchingToken && Number(matchingToken.amount) > 0) {
+                if (matchingToken && Number(matchingToken.amount) > 0 && element.balance >= matchingToken.amount) {
                     element.balance = matchingToken.amount;
                 }
                 return element;

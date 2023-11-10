@@ -120,17 +120,22 @@ class AarcSDK {
 
             const balancesList = await this.fetchBalances(tokenAddresses);
 
-            const balances: TokenData[] = balancesList.data.map((element) => {
+
+            let balances: TokenData[] = balancesList.data.map((element) => {
                 const matchingToken = tokenAndAmount?.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
-                if (matchingToken && Number(matchingToken.amount) <= Number(element.balance)) {
-                    if (matchingToken && Number(matchingToken.amount) > 0) {
-                        element.balance = matchingToken.amount;
-                    }
+                // case: tokenAndAmount contains amount for token, update balance to tokenAndAmount amount
+
+                if (matchingToken && Number(matchingToken.amount) > 0 && element.balance >= matchingToken.amount) {
+                    element.balance = matchingToken.amount;
                 }
+                // case: tokenAndAmount contains amount for token but its greater then given allowance
+                // then we assign allowance amount to balance property to make it work
+                if ( matchingToken && Number(matchingToken.amount) > 0 && element.balance > element.permit2Allowance )
+                element.balance = element.permit2Allowance
                 return element;
             });
 
-
+            Logger.log('balances ', balances)
 
             const erc20TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance === "0");
             const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance != "0");
@@ -153,7 +158,7 @@ class AarcSDK {
             if (permit2TransferableTokens.length > 1) {
                 const batchTransferPermitDto: BatchTransferPermitDto = {
                     provider: this.ethersProvider,
-                    chainId: this.chainId, 
+                    chainId: this.chainId,
                     spenderAddress: this.owner,
                     tokenData: permit2TransferableTokens
                 }
@@ -222,7 +227,7 @@ class AarcSDK {
                     taskId
                 }
                 const txStatus = await getGelatoTransactionStatus(gelatoTxStatusDto);
-                if (txStatus){
+                if (txStatus) {
                     permit2TransferableTokens.push(token);
                 }
             })
@@ -235,10 +240,10 @@ class AarcSDK {
 
 
             if (batchPermitTransaction.length === 1) {
-                const singleTransferPermitDto: SingleTransferPermitDto= {
-                    provider: this.ethersProvider, 
-                    chainId: this.chainId, 
-                    spenderAddress: GELATO_RELAYER_ADDRESS, 
+                const singleTransferPermitDto: SingleTransferPermitDto = {
+                    provider: this.ethersProvider,
+                    chainId: this.chainId,
+                    spenderAddress: GELATO_RELAYER_ADDRESS,
                     tokenData: batchPermitTransaction[0]
                 }
                 const permit2SingleContract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_SINGLE_TRANSFER_ABI, this.signer);
@@ -266,10 +271,10 @@ class AarcSDK {
             } else if (batchPermitTransaction.length > 1) {
                 const permit2BatchContract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_BATCH_TRANSFER_ABI, this.signer);
 
-                const batchTransferPermitDto: BatchTransferPermitDto= {
-                    provider: this.ethersProvider, 
-                    chainId: this.chainId, 
-                    spenderAddress: GELATO_RELAYER_ADDRESS, 
+                const batchTransferPermitDto: BatchTransferPermitDto = {
+                    provider: this.ethersProvider,
+                    chainId: this.chainId,
+                    spenderAddress: GELATO_RELAYER_ADDRESS,
                     tokenData: batchPermitTransaction
                 }
                 const permitData = await this.permitHelper.getBatchTransferPermitData(batchTransferPermitDto);

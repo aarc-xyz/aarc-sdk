@@ -1,19 +1,21 @@
 import { ERC20_ABI } from "@biconomy/modules";
-import { ethers, Signer } from "ethers";
+import { BigNumber, Contract, ethers, Signer } from "ethers";
 import { PermitTransferFrom, SignatureTransfer, TokenPermissions, PermitBatchTransferFrom } from "@uniswap/permit2-sdk";
 import { ChainId } from "../utils/ChainTypes";
 import { PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_TYPES, PERMIT_FUNCTION_ABI, PERMIT2_DOMAIN_NAME } from "../utils/Constants";
 import { TokenData, PermitData, BatchPermitData, PermitDto, SingleTransferPermitDto, BatchTransferPermitDto, PermitDomainDto } from "../utils/Types";
 import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer'
 import { Logger } from '../utils/Logger';
+import { PERMIT2_SINGLE_TRANSFER_ABI } from "../utils/abis/Permit2SingleTransfer.abi";
+import {uint256, uint8} from "solidity-math";
 
 export class PermitHelper {
     signer: Signer
     constructor(_signer: Signer) {
         this.signer = _signer
     }
-    async performTokenTransfer(recipient: string, tokenAddress: string, amount: string): Promise<boolean> {
-        try {
+    async performTokenTransfer(recipient: string, tokenAddress: string, amount: BigNumber): Promise<boolean> {
+            Logger.log(`Transferring token ${tokenAddress} with amount ${amount}`)
             // Create a contract instance with the ABI and contract address.
             const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
 
@@ -30,11 +32,19 @@ export class PermitHelper {
 
             Logger.log(`Token transfer successful. Transaction hash: ${tx.hash}`);
             return true;
-        } catch (error) {
-            Logger.error(`Token transfer error: ${error}`);
-            throw error
-        }
     }
+
+    async performNativeTransfer(recipient: string, amount: BigNumber): Promise<boolean> {
+            // Perform the token transfer.
+            const tx = await this.signer.sendTransaction({
+                to: recipient,
+                value: amount,
+            });
+
+            Logger.log(`Native transfer successful. Transaction hash: ${tx.hash}`);
+            return true;
+    }
+
 
     async signPermitMessage(owner: string, chainId: ChainId, eoaAddress: string, tokenAddress: string): Promise<{ r: string, s: string, v: number, nonce: number, deadline: number }> {
         try {
@@ -113,7 +123,7 @@ export class PermitHelper {
 
     async getSingleTransferPermitData(singleTransferPermitDto: SingleTransferPermitDto): Promise<PermitData> {
         const { provider, chainId, spenderAddress, tokenData } = singleTransferPermitDto
-        const nonce = await provider.getTransactionCount(spenderAddress);
+        const nonce = await this.getPermit2Nonce(spenderAddress);
         let permitTransferFrom: PermitTransferFrom
 
         permitTransferFrom = {
@@ -140,7 +150,8 @@ export class PermitHelper {
 
     async getBatchTransferPermitData(batchTransferPermitDto: BatchTransferPermitDto): Promise<BatchPermitData> {
         const { provider, chainId, spenderAddress, tokenData } = batchTransferPermitDto
-        const nonce = await provider.getTransactionCount(spenderAddress);
+        const nonce = await this.getPermit2Nonce(spenderAddress);
+        
         let permitData;
 
         if (tokenData.length < 2) {
@@ -178,5 +189,15 @@ export class PermitHelper {
             chainId,
             verifyingContract: permit2Address,
         }
+    }
+    async getPermit2Nonce(owner: string): Promise<number> {
+        const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_SINGLE_TRANSFER_ABI, this.signer);
+        let nonce = Math.floor(1000 + Math.random() * 9000);
+        let bitmapValue = 69;
+        while (bitmapValue != 0){
+            bitmapValue = await permit2Contract.nonceBitmap(owner, uint256(nonce).cast(uint8).toString());
+            nonce++;
+        }
+        return nonce;
     }
 }

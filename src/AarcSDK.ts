@@ -1,8 +1,8 @@
 import { EthersAdapter } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
-import { Contract, ethers, Signer } from 'ethers';
+import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
-import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT2_DOMAIN_NAME, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS, PERMIT_FUNCTION_TYPES, GELATO_RELAYER_ADDRESS } from './utils/Constants';
+import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT2_DOMAIN_NAME, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS, PERMIT_FUNCTION_TYPES, GELATO_RELAYER_ADDRESS, COVALENT_TOKEN_TYPES } from './utils/Constants';
 import { BatchTransferPermitDto, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, GelatoTxStatusDto, PermitDto, RelayTrxDto, SingleTransferPermitDto, TokenData } from './utils/Types';
 import { BalancesResponse } from './utils/Types'
 import { ChainId } from './utils/ChainTypes';
@@ -88,7 +88,7 @@ class AarcSDK {
     async fetchBalances(tokenAddresses?: string[]): Promise<BalancesResponse> {
         try {
             // Make the API call using the sendRequest function
-            const response: BalancesResponse = await sendRequest({
+            let response: BalancesResponse = await sendRequest({
                 url: BALANCES_ENDPOINT,
                 method: HttpMethod.POST,
                 headers: {
@@ -101,6 +101,18 @@ class AarcSDK {
                 },
             });
 
+            // // Check if response.data is an array with at least one element
+            // if (response && response.data && response.data.length > 0) {
+            //     // Create a new array with updated values using map
+            //     const updatedData = response.data.map(balances => ({
+            //         ...balances,
+            //         balance: BigNumber.from(balances.balance), // No need for BigNumber.from() if balance is already a BigNumber
+            //         permit2Allowance: balances.permit2Allowance !== "-1" ? BigNumber.from(balances.permit2Allowance) : '-1',
+            //     }));
+
+            //     // Assign the new array back to response.data
+            //     response.data = updatedData;
+            // }
             // Handle the response here, logging the result
             Logger.log('Fetching API Response:', response);
             return response;
@@ -118,34 +130,67 @@ class AarcSDK {
             const { tokenAndAmount, scwAddress } = executeMigrationDto;
             const tokenAddresses = tokenAndAmount?.map(token => token.tokenAddress);
 
-            const balancesList = await this.fetchBalances(tokenAddresses);
+            let balancesList = await this.fetchBalances(tokenAddresses);
+            Logger.log('balancesList ', balancesList)
 
-
-            let balances: TokenData[] = balancesList.data.map((element) => {
-                const matchingToken = tokenAndAmount?.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
-                // case: tokenAndAmount contains amount for token, update balance to tokenAndAmount amount
-
-                if (matchingToken && Number(matchingToken.amount) > 0 && element.balance >= matchingToken.amount) {
-                    element.balance = matchingToken.amount;
-                }
-                // case: tokenAndAmount contains amount for token but its greater then given allowance
-                // then we assign allowance amount to balance property to make it work
-                if ( matchingToken && Number(matchingToken.amount) > 0 && element.balance > element.permit2Allowance )
-                element.balance = element.permit2Allowance
-                return element;
+            let tokens = balancesList.data.filter(balances => {
+                return (
+                    balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+                    balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
+                    balances.type === COVALENT_TOKEN_TYPES.DUST
+                );
             });
 
-            Logger.log('balances ', balances)
+            Logger.log('tokens ', tokens)
 
-            const erc20TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance === "0");
-            const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance != "0");
+
+            tokens = tokens.map((element) => {
+                const matchingToken = tokenAndAmount?.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
+
+
+                // Case: tokenAndAmount contains amount for token, update balance to tokenAndAmount amount
+                if (matchingToken && matchingToken.amount.gt(0) && element.balance.gte(matchingToken.amount)) {
+                    element.balance = matchingToken.amount;
+                }
+
+                // Case: tokenAndAmount contains amount for token but it's greater than the given allowance
+                // Then we assign the allowance amount 0 to perform normal token transfer
+                if (element.type === COVALENT_TOKEN_TYPES.STABLE_COIN && COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY && element.permit2Allowance.gte(BigNumber.from(0)) && element.balance.gt(element.permit2Allowance)) {
+                    element.permit2Allowance = BigNumber.from(0);
+                }
+
+                return element;
+            })
+
+            Logger.log('balances ', tokens)
+
+            const erc20Tokens = tokens.filter(
+                token =>
+                (token.type === COVALENT_TOKEN_TYPES.STABLE_COIN || token.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY
+                ));
+            Logger.log('erc20Tokens ', erc20Tokens)
+
+            const erc20TransferableTokens = erc20Tokens.filter(balanceObj => BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)));
+            const permit2TransferableTokens = erc20Tokens.filter(balanceObj => BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)) || BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)));
+
+            const nativeToken = tokens.filter((token) =>
+                token.type === COVALENT_TOKEN_TYPES.DUST)
+
+            // if ( nativeToken.length > 0){
+            //     this.permitHelper.performNativeTransfer(scwAddress, nativeToken[0].balance)
+            // }
 
             Logger.log(' erc20TransferableTokens ', erc20TransferableTokens)
             Logger.log(' permit2TransferableTokens ', permit2TransferableTokens)
+            Logger.log(' nativeToken ', nativeToken)
 
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
-                await this.permitHelper.performTokenTransfer(scwAddress, token.token_address, token.balance);
+                try {
+                    await this.permitHelper.performTokenTransfer(scwAddress, token.token_address, token.balance);
+                } catch (error) {
+                    Logger.error('error transferring token ', token.token_address)
+                }
             }
 
             const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT2_BATCH_TRANSFER_ABI, this.signer);
@@ -187,16 +232,45 @@ class AarcSDK {
 
             const balancesList = await this.fetchBalances(tokenAddresses);
 
-            const balances: TokenData[] = balancesList.data.map((element) => {
-                const matchingToken = tokenAndAmount.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
-                if (matchingToken && Number(matchingToken.amount) > 0 && element.balance >= matchingToken.amount) {
+            let tokens = balancesList.data.filter(balances => {
+                return (
+                    balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+                    balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
+                    balances.type === COVALENT_TOKEN_TYPES.DUST
+                );
+            });
+
+            Logger.log('tokens ', tokens)
+
+
+            tokens = tokens.map((element) => {
+                const matchingToken = tokenAndAmount?.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
+
+
+                // Case: tokenAndAmount contains amount for token, update balance to tokenAndAmount amount
+                if (matchingToken && matchingToken.amount.gt(0) && element.balance.gte(matchingToken.amount)) {
                     element.balance = matchingToken.amount;
                 }
-                return element;
-            });
-            Logger.log('balancesList', balances);
 
-            const erc20TransferableTokens = balances.filter(balanceObj => !balanceObj.permit2Exist && balanceObj.permit2Allowance === "0");
+                // Case: tokenAndAmount contains amount for token but it's greater than the given allowance
+                // Then we assign the allowance amount 0 to perform normal token transfer
+                if (element.type === COVALENT_TOKEN_TYPES.STABLE_COIN && COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY && element.permit2Allowance.gte(BigNumber.from(0)) && element.balance.gt(element.permit2Allowance)) {
+                    element.permit2Allowance = BigNumber.from(0);
+                }
+
+                return element;
+            })
+
+            Logger.log('balances ', tokens)
+
+            const erc20Tokens = tokens.filter(
+                token =>
+                (token.type === COVALENT_TOKEN_TYPES.STABLE_COIN || token.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY
+                ));
+            Logger.log('erc20Tokens ', erc20Tokens)
+
+
+            const erc20TransferableTokens = erc20Tokens.filter(balanceObj => !balanceObj.permitExist && balanceObj.permit2Allowance.eq(BigNumber.from(0)));
 
             // Loop through tokens to perform normal transfers
 
@@ -208,7 +282,7 @@ class AarcSDK {
             }
 
             // Filtering out tokens to do permit transaction
-            const permittedTokens = balances.filter(balanceObj => balanceObj.permit2Exist && balanceObj.permit2Allowance === "0");
+            const permittedTokens = erc20Tokens.filter(balanceObj => balanceObj.permitExist && balanceObj.permit2Allowance.eq(BigNumber.from(0)));
             permittedTokens.map(async token => {
                 const permitDto: PermitDto = {
                     chainId: this.chainId,
@@ -233,7 +307,7 @@ class AarcSDK {
             })
 
             // filter out tokens that have already given allowance
-            const permit2TransferableTokens = balances.filter(balanceObj => balanceObj.permit2Allowance != "0");
+            const permit2TransferableTokens = erc20Tokens.filter(balanceObj => balanceObj.permit2Allowance.gt(BigNumber.from(0)) || balanceObj.permit2Allowance.eq(BigNumber.from(-1)));
 
             // Merge permittedTokens and permit2TransferableTokens
             const batchPermitTransaction = permittedTokens.concat(permit2TransferableTokens);

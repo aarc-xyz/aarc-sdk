@@ -1,4 +1,4 @@
-import { Signer, ethers } from 'ethers';
+import { BigNumber, Signer, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 import { PermitTransferFrom, PermitBatchTransferFrom } from '../SignatureTransfer'
 import { GelatoRelay } from "@gelatonetwork/relay-sdk";
@@ -24,9 +24,10 @@ export type TokenData = {
   name: string;
   symbol: string;
   token_address: string;
-  balance: string;
-  permit2Allowance: string;
-  permit2Exist: boolean;
+  balance: BigNumber;
+  type: string,
+  permit2Allowance: BigNumber;
+  permitExist: boolean;
 };
 
 export type BalancesResponse = {
@@ -38,7 +39,7 @@ export type BalancesResponse = {
 
 export type TokenAndAmount = {
   tokenAddress: string
-  amount: string
+  amount: BigNumber
 }
 
 export type ExecuteMigrationDto = {

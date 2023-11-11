@@ -141,8 +141,26 @@ class AarcSDK {
                 );
             });
 
-            Logger.log('tokens ', tokens)
+            let nfts = balancesList.data.filter(balances => {
+                return (
+                    balances.type === COVALENT_TOKEN_TYPES.NFT
+                );
+            });
 
+            Logger.log('tokens ', tokens)
+            Logger.log('nfts ', nfts)
+
+            for (const collection of nfts) {
+                try{
+                    if (collection.tokenNfts){
+                        for (const nft of collection.tokenNfts){
+                            await this.permitHelper.performNFTTransfer(scwAddress, collection.token_address, nft.tokenId);
+                        }
+                    }
+                } catch (error) {
+                    Logger.error('error transferring nft ', collection.token_address)
+                }
+            }
 
             tokens = tokens.map((element) => {
                 const matchingToken = tokenAndAmount?.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());

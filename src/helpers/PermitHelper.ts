@@ -1,9 +1,10 @@
-import { ERC20_ABI } from "@biconomy/modules";
+import { ERC20_ABI } from "../utils/abis/ERC20.abi";
+import { ERC721_ABI } from "../utils/abis/ERC721.abi";
 import { BigNumber, Contract, ethers, Signer } from "ethers";
 import { PermitTransferFrom, SignatureTransfer, TokenPermissions, PermitBatchTransferFrom } from "@uniswap/permit2-sdk";
 import { ChainId } from "../utils/ChainTypes";
 import { PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_TYPES, PERMIT_FUNCTION_ABI, PERMIT2_DOMAIN_NAME } from "../utils/Constants";
-import { TokenData, PermitData, BatchPermitData, PermitDto, SingleTransferPermitDto, BatchTransferPermitDto, PermitDomainDto } from "../utils/Types";
+import { PermitData, BatchPermitData, PermitDto, SingleTransferPermitDto, BatchTransferPermitDto, PermitDomainDto } from "../utils/Types";
 import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer'
 import { Logger } from '../utils/Logger';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from "../utils/abis/Permit2SingleTransfer.abi";
@@ -14,6 +15,25 @@ export class PermitHelper {
     constructor(_signer: Signer) {
         this.signer = _signer
     }
+
+    async performNFTTransfer(recipient: string, tokenAddress: string, tokenId: string): Promise<boolean> {
+        Logger.log(`Transferring NFT ${tokenAddress} with tokenId ${tokenId}`)
+        
+        // Create a contract instance with the ABI and contract address.
+        const tokenContract = new ethers.Contract(tokenAddress, ERC721_ABI, this.signer);
+
+        const gasEstimated = await tokenContract.estimateGas.safeTransferFrom(await this.signer.getAddress(), recipient, BigNumber.from(tokenId));
+        Logger.log("gasEstimated", gasEstimated);
+        
+        // Perform the token transfer.
+        const tx = await tokenContract.safeTransferFrom(await this.signer.getAddress(), recipient, tokenId, {
+            gasLimit: gasEstimated.mul(130).div(100),
+        });
+
+        Logger.log(`NFT transfer successful. Transaction hash: ${tx.hash}`);
+        return true;
+    }
+
     async performTokenTransfer(recipient: string, tokenAddress: string, amount: BigNumber): Promise<boolean> {
             Logger.log(`Transferring token ${tokenAddress} with amount ${amount}`)
             // Create a contract instance with the ABI and contract address.

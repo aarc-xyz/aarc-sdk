@@ -1,4 +1,4 @@
-import { BigNumber, Signer, ethers } from 'ethers';
+import { BigNumber, BigNumberish, Signer, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 import { PermitTransferFrom, PermitBatchTransferFrom } from '../SignatureTransfer'
 import { GelatoRelay } from "@gelatonetwork/relay-sdk";
@@ -116,4 +116,11 @@ export type BatchTransferPermitDto = {
 export type PermitDomainDto = {
   permit2Address: string
   chainId: number
+}
+
+export type MigrationResponse = {
+  tokenAddress: string,
+  amount: BigNumber | BigNumberish,
+  message: string,
+  txHash?: string
 }

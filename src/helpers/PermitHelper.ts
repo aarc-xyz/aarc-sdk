@@ -8,14 +8,15 @@ import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer
 import { Logger } from '../utils/Logger';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from "../utils/abis/Permit2SingleTransfer.abi";
 import {uint256, uint8} from "solidity-math";
+import { ERC721_ABI } from "../utils/abis/ERC721.abi";
 
 export class PermitHelper {
     signer: Signer
     constructor(_signer: Signer) {
         this.signer = _signer
     }
-    async performTokenTransfer(recipient: string, tokenAddress: string, amount: BigNumber): Promise<boolean> {
-            Logger.log(`Transferring token ${tokenAddress} with amount ${amount}`)
+    async performTokenTransfer(recipient: string, tokenAddress: string, amount: BigNumber): Promise<boolean | string> {
+            // Logger.log(`Transferring token ${tokenAddress} with amount ${amount.toNumber()}`)
             // Create a contract instance with the ABI and contract address.
             const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
 
@@ -29,20 +30,35 @@ export class PermitHelper {
             const tx = await tokenContract.transfer(recipient, amount, {
                 gasLimit: gasEstimated.mul(130).div(100),
             });
-
-            Logger.log(`Token transfer successful. Transaction hash: ${tx.hash}`);
-            return true;
+            return tx.hash;
     }
 
-    async performNativeTransfer(recipient: string, amount: BigNumber): Promise<boolean> {
+    async performNFTTransfer(recipient: string, tokenAddress: string, tokenId: string): Promise<boolean> {
+        Logger.log(`Transferring NFT ${tokenAddress} with tokenId ${tokenId}`)
+
+        // Create a contract instance with the ABI and contract address.
+        const tokenContract = new ethers.Contract(tokenAddress, ERC721_ABI, this.signer);
+
+        const gasEstimated = await tokenContract.estimateGas.safeTransferFrom(await this.signer.getAddress(), recipient, BigNumber.from(tokenId));
+        Logger.log("gasEstimated", gasEstimated);
+
+        // Perform the token transfer.
+        const tx = await tokenContract.safeTransferFrom(await this.signer.getAddress(), recipient, tokenId, {
+            gasLimit: gasEstimated.mul(130).div(100),
+        });
+
+        return tx.hash;
+    }
+
+    async performNativeTransfer(recipient: string, amount: BigNumber): Promise<boolean | string> {
+        // Logger.log(`Transferring native token with amount ${BigNumber.from(amount).toNumber()}`)
+
             // Perform the token transfer.
             const tx = await this.signer.sendTransaction({
                 to: recipient,
                 value: amount,
             });
-
-            Logger.log(`Native transfer successful. Transaction hash: ${tx.hash}`);
-            return true;
+            return tx.hash;
     }
 
 

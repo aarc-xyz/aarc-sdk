@@ -3,7 +3,7 @@ import { Logger } from './utils/Logger';
 import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT2_DOMAIN_NAME, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS, PERMIT_FUNCTION_TYPES, GELATO_RELAYER_ADDRESS, COVALENT_TOKEN_TYPES } from './utils/Constants';
-import { BatchTransferPermitDto, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, GelatoTxStatusDto, PermitDto, RelayTrxDto, SingleTransferPermitDto, TokenData } from './utils/Types';
+import { BatchTransferPermitDto, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, GelatoTxStatusDto, MigrationResponse, PermitDto, RelayTrxDto, SingleTransferPermitDto, TokenData } from './utils/Types';
 import { BalancesResponse } from './utils/Types'
 import { ChainId } from './utils/ChainTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
@@ -13,6 +13,7 @@ import Biconomy from './providers/Biconomy';
 import Safe from './providers/Safe'
 import { PermitHelper } from './helpers/PermitHelper';
 import { getGelatoTransactionStatus, relayTransaction } from './helpers/GelatoHelper';
+import { delay } from './helpers';
 
 class AarcSDK {
     biconomy: Biconomy;
@@ -73,6 +74,7 @@ class AarcSDK {
             }
             this.owner = await this.signer.getAddress();
             this.ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
+            Logger.log('EOA address', this.owner)
             return this;
         } catch (error) {
             Logger.error('error while initiating sdk');
@@ -124,6 +126,7 @@ class AarcSDK {
     }
 
     async executeMigration(executeMigrationDto: ExecuteMigrationDto) {
+        const response: MigrationResponse[] = []
         try {
             Logger.log('executeMigration ');
 
@@ -131,8 +134,6 @@ class AarcSDK {
             const tokenAddresses = tokenAndAmount?.map(token => token.tokenAddress);
 
             let balancesList = await this.fetchBalances(tokenAddresses);
-            Logger.log('balancesList ', balancesList)
-
             let tokens = balancesList.data.filter(balances => {
                 return (
                     balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
@@ -141,16 +142,46 @@ class AarcSDK {
                 );
             });
 
-            Logger.log('tokens ', tokens)
+            tokenAndAmount?.map(tandA => {
+                const matchingToken = tokens.find((mToken) => mToken.token_address.toLowerCase() === tandA.tokenAddress.toLowerCase());
+                if (!matchingToken){
+                    response.push({
+                        tokenAddress: tandA.tokenAddress,
+                        amount: tandA?.amount,
+                        message: 'Supplied token does not exist'
+                    });
+                }
+            })
+
+            const updatedTokens = [];
+            for (const tokenInfo of tokens) {
+                const matchingToken = tokenAndAmount?.find((token) => token.tokenAddress.toLowerCase() === tokenInfo.token_address.toLowerCase());
+
+                if (matchingToken && matchingToken.amount.gt(0) && BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)) {
+                    response.push({
+                        tokenAddress: tokenInfo.token_address,
+                        amount: matchingToken?.amount,
+                        message: 'Supplied amount is greater than balance'
+                    });
+                }
+                else
+                updatedTokens.push(tokenInfo);
+            }
+
+            Logger.log('updatedTokens ', updatedTokens)
+
+            // Now, updatedTokens contains the filtered array without the undesired elements
+            tokens = updatedTokens;
 
 
-            tokens = tokens.map((element) => {
+            Logger.log(' filtered tokens ', tokens)
+
+
+            tokens = tokens.map((element: TokenData) => {
                 const matchingToken = tokenAndAmount?.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
 
-
-                // Case: tokenAndAmount contains amount for token, update balance to tokenAndAmount amount
-                if (matchingToken && matchingToken.amount.gt(0) && element.balance.gte(matchingToken.amount)) {
-                    element.balance = matchingToken.amount;
+                if (matchingToken && matchingToken.amount.gt(0)){
+                    element.balance = matchingToken.amount
                 }
 
                 // Case: tokenAndAmount contains amount for token but it's greater than the given allowance
@@ -176,20 +207,50 @@ class AarcSDK {
             const nativeToken = tokens.filter((token) =>
                 token.type === COVALENT_TOKEN_TYPES.DUST)
 
-            // if ( nativeToken.length > 0){
-            //     this.permitHelper.performNativeTransfer(scwAddress, nativeToken[0].balance)
-            // }
-
             Logger.log(' erc20TransferableTokens ', erc20TransferableTokens)
             Logger.log(' permit2TransferableTokens ', permit2TransferableTokens)
             Logger.log(' nativeToken ', nativeToken)
 
+
+            if ( nativeToken.length > 0){
+                try {
+                    const txHash = await this.permitHelper.performNativeTransfer(scwAddress, nativeToken[0].balance)
+
+                    response.push({
+                        tokenAddress: nativeToken[0].token_address,
+                        amount: nativeToken[0].balance,
+                        message: 'Native transfer successful',
+                        txHash: typeof (txHash) === 'string' ? txHash : ''
+                    })
+                // await delay(5000)
+                } catch (error) {
+                    Logger.error('error transferring token ', nativeToken[0].token_address)
+                    response.push({
+                        tokenAddress: nativeToken[0].token_address,
+                        amount: nativeToken[0].balance,
+                        message: 'Native transfer failed',
+                        txHash: ''
+                    })
+                }
+            }
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
                 try {
-                    await this.permitHelper.performTokenTransfer(scwAddress, token.token_address, token.balance);
+                    const txHash = await this.permitHelper.performTokenTransfer(scwAddress, token.token_address, token.balance);
+                    response.push({
+                        tokenAddress: token.token_address,
+                        amount: token.balance,
+                        message: 'Token transfer successful',
+                        txHash: typeof(txHash) === 'string' ? txHash : ''
+                    })
                 } catch (error) {
                     Logger.error('error transferring token ', token.token_address)
+                    response.push({
+                        tokenAddress: token.token_address,
+                        amount: token.balance,
+                        message: 'Token transfer failed',
+                        txHash: ''
+                    })
                 }
             }
 
@@ -197,7 +258,23 @@ class AarcSDK {
 
             if (permit2TransferableTokens.length === 1) {
                 const token = permit2TransferableTokens[0];
-                await this.permitHelper.performTokenTransfer(scwAddress, token.token_address, token.balance);
+                try {
+                    const txHash = await this.permitHelper.performTokenTransfer(scwAddress, token.token_address, token.balance);
+                    response.push({
+                        tokenAddress: token.token_address,
+                        amount: token.balance,
+                        message: 'Token transfer successful',
+                        txHash: typeof (txHash) === 'string' ? txHash : ''
+                    })
+                } catch (error) {
+                    Logger.error('error transferring token ', token.token_address)
+                    response.push({
+                        tokenAddress: token.token_address,
+                        amount: token.balance,
+                        message: 'Token transfer failed',
+                        txHash: ''
+                    })
+                }
             }
 
             if (permit2TransferableTokens.length > 1) {
@@ -215,14 +292,34 @@ class AarcSDK {
                     requestedAmount: batchInfo.amount
                 }));
 
-                const txInfo = await permit2Contract.permitTransferFrom(permitData.permitBatchTransferFrom, tokenPermissions, this.owner, signature);
-                console.log('txInfo ', txInfo);
+                try {
+                    const txInfo = await permit2Contract.permitTransferFrom(permitData.permitBatchTransferFrom, tokenPermissions, this.owner, signature);
+                    permitBatchTransferFrom.permitted.map(token=>{
+                        response.push({
+                            tokenAddress: token.token,
+                            amount: token.amount,
+                            message: 'Token transfer successful',
+                            txHash: txInfo.hash
+                        })
+                    })
+                } catch (error) {
+                    permitBatchTransferFrom.permitted.map(token=>{
+                        response.push({
+                            tokenAddress: token.token,
+                            amount: token.amount,
+                            message: 'Token transfer Failed',
+                            txHash: ''
+                        })
+                    })
+                }
             }
         } catch (error) {
             // Handle any errors that occur during the migration process
             Logger.error('Migration Error:', error);
             throw error
         }
+        Logger.log(JSON.stringify(response))
+        return response
     }
 
     async executeMigrationGasless(executeMigrationGaslessDto: ExecuteMigrationGaslessDto) {

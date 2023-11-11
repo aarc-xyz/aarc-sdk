@@ -3,6 +3,7 @@ import { ChainId } from './ChainTypes';
 import { PermitTransferFrom, PermitBatchTransferFrom } from '../SignatureTransfer'
 import { GelatoRelay } from "@gelatonetwork/relay-sdk";
 import { BaseRelayParams } from "@gelatonetwork/relay-sdk/dist/lib/types";
+import { type } from 'os';
 
 
 export type Config = {
@@ -28,7 +29,13 @@ export type TokenData = {
   type: string,
   permit2Allowance: BigNumber;
   permitExist: boolean;
+  nft_data: TokenNftData[];
 };
+
+export type TokenNftData = {
+  image: string;
+  tokenId: string;
+}
 
 export type BalancesResponse = {
   code: number;
@@ -123,4 +130,5 @@ export type MigrationResponse = {
   amount: BigNumber | BigNumberish,
   message: string,
   txHash?: string
+  tokenId?: string 
 }

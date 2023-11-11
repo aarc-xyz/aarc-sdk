@@ -103,19 +103,6 @@ class AarcSDK {
                 },
             });
 
-            // // Check if response.data is an array with at least one element
-            // if (response && response.data && response.data.length > 0) {
-            //     // Create a new array with updated values using map
-            //     const updatedData = response.data.map(balances => ({
-            //         ...balances,
-            //         balance: BigNumber.from(balances.balance), // No need for BigNumber.from() if balance is already a BigNumber
-            //         permit2Allowance: balances.permit2Allowance !== "-1" ? BigNumber.from(balances.permit2Allowance) : '-1',
-            //     }));
-
-            //     // Assign the new array back to response.data
-            //     response.data = updatedData;
-            // }
-            // Handle the response here, logging the result
             Logger.log('Fetching API Response:', response);
             return response;
         } catch (error) {
@@ -134,17 +121,10 @@ class AarcSDK {
             const tokenAddresses = tokenAndAmount?.map(token => token.tokenAddress);
 
             let balancesList = await this.fetchBalances(tokenAddresses);
-            let tokens = balancesList.data.filter(balances => {
-                return (
-                    balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
-                    balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
-                    balances.type === COVALENT_TOKEN_TYPES.DUST
-                );
-            });
 
             tokenAndAmount?.map(tandA => {
-                const matchingToken = tokens.find((mToken) => mToken.token_address.toLowerCase() === tandA.tokenAddress.toLowerCase());
-                if (!matchingToken){
+                const matchingToken = balancesList.data.find((mToken) => mToken.token_address.toLowerCase() === tandA.tokenAddress.toLowerCase());
+                if (!matchingToken) {
                     response.push({
                         tokenAddress: tandA.tokenAddress,
                         amount: tandA?.amount,
@@ -153,8 +133,9 @@ class AarcSDK {
                 }
             })
 
+
             const updatedTokens = [];
-            for (const tokenInfo of tokens) {
+            for (const tokenInfo of balancesList.data) {
                 const matchingToken = tokenAndAmount?.find((token) => token.tokenAddress.toLowerCase() === tokenInfo.token_address.toLowerCase());
 
                 if (matchingToken && matchingToken.amount.gt(0) && BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)) {
@@ -165,14 +146,19 @@ class AarcSDK {
                     });
                 }
                 else
-                updatedTokens.push(tokenInfo);
+                    updatedTokens.push(tokenInfo);
             }
 
-            Logger.log('updatedTokens ', updatedTokens)
-
             // Now, updatedTokens contains the filtered array without the undesired elements
-            tokens = updatedTokens;
+            balancesList.data = updatedTokens;
 
+            let tokens = balancesList.data.filter(balances => {
+                return (
+                    balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+                    balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
+                    balances.type === COVALENT_TOKEN_TYPES.DUST
+                );
+            });
 
             Logger.log(' filtered tokens ', tokens)
 
@@ -180,7 +166,7 @@ class AarcSDK {
             tokens = tokens.map((element: TokenData) => {
                 const matchingToken = tokenAndAmount?.find((token) => token.tokenAddress.toLowerCase() === element.token_address.toLowerCase());
 
-                if (matchingToken && matchingToken.amount.gt(0)){
+                if (matchingToken && matchingToken.amount.gt(0)) {
                     element.balance = matchingToken.amount
                 }
 
@@ -193,7 +179,41 @@ class AarcSDK {
                 return element;
             })
 
-            Logger.log('balances ', tokens)
+            Logger.log('tokens ', tokens)
+
+
+            let nfts = balancesList.data.filter(balances => {
+                return (
+                    balances.type === COVALENT_TOKEN_TYPES.NFT
+                );
+            });
+
+            Logger.log('nfts ', nfts)
+
+            for (const collection of nfts) {
+                if (collection.nft_data) {
+                    for (const nft of collection.nft_data) {
+                        try {
+                            const txHash = await this.permitHelper.performNFTTransfer(scwAddress, collection.token_address, nft.tokenId);
+                            response.push({
+                                tokenAddress: collection.token_address,
+                                amount: 1,
+                                tokenId: nft.tokenId,
+                                message: 'Nft transfer successful',
+                                txHash: typeof (txHash) === 'string' ? txHash : ''
+                            })
+                        } catch (error) {
+                            Logger.error('error transferring token ', collection.token_address)
+                            response.push({
+                                tokenAddress: collection.token_address,
+                                amount: 1,
+                                message: 'Nft transfer failed',
+                                txHash: ''
+                            })
+                        }
+                    }
+                }
+            }
 
             const erc20Tokens = tokens.filter(
                 token =>
@@ -212,7 +232,7 @@ class AarcSDK {
             Logger.log(' nativeToken ', nativeToken)
 
 
-            if ( nativeToken.length > 0){
+            if (nativeToken.length > 0) {
                 try {
                     const txHash = await this.permitHelper.performNativeTransfer(scwAddress, nativeToken[0].balance)
 
@@ -222,7 +242,7 @@ class AarcSDK {
                         message: 'Native transfer successful',
                         txHash: typeof (txHash) === 'string' ? txHash : ''
                     })
-                // await delay(5000)
+                    // await delay(5000)
                 } catch (error) {
                     Logger.error('error transferring token ', nativeToken[0].token_address)
                     response.push({
@@ -241,7 +261,7 @@ class AarcSDK {
                         tokenAddress: token.token_address,
                         amount: token.balance,
                         message: 'Token transfer successful',
-                        txHash: typeof(txHash) === 'string' ? txHash : ''
+                        txHash: typeof (txHash) === 'string' ? txHash : ''
                     })
                 } catch (error) {
                     Logger.error('error transferring token ', token.token_address)
@@ -294,7 +314,7 @@ class AarcSDK {
 
                 try {
                     const txInfo = await permit2Contract.permitTransferFrom(permitData.permitBatchTransferFrom, tokenPermissions, this.owner, signature);
-                    permitBatchTransferFrom.permitted.map(token=>{
+                    permitBatchTransferFrom.permitted.map(token => {
                         response.push({
                             tokenAddress: token.token,
                             amount: token.amount,
@@ -303,7 +323,7 @@ class AarcSDK {
                         })
                     })
                 } catch (error) {
-                    permitBatchTransferFrom.permitted.map(token=>{
+                    permitBatchTransferFrom.permitted.map(token => {
                         response.push({
                             tokenAddress: token.token,
                             amount: token.amount,

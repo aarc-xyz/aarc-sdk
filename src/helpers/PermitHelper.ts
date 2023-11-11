@@ -1,22 +1,23 @@
-import { ERC20_ABI } from "@biconomy/modules";
+import { ERC20_ABI } from "../utils/abis/ERC20.abi";
+import { ERC721_ABI } from "../utils/abis/ERC721.abi";
 import { BigNumber, Contract, ethers, Signer } from "ethers";
 import { PermitTransferFrom, SignatureTransfer, TokenPermissions, PermitBatchTransferFrom } from "@uniswap/permit2-sdk";
 import { ChainId } from "../utils/ChainTypes";
 import { PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_TYPES, PERMIT_FUNCTION_ABI, PERMIT2_DOMAIN_NAME } from "../utils/Constants";
-import { TokenData, PermitData, BatchPermitData, PermitDto, SingleTransferPermitDto, BatchTransferPermitDto, PermitDomainDto } from "../utils/Types";
+import { PermitData, BatchPermitData, PermitDto, SingleTransferPermitDto, BatchTransferPermitDto, PermitDomainDto } from "../utils/Types";
 import { TypedDataDomain, TypedDataSigner } from '@ethersproject/abstract-signer'
 import { Logger } from '../utils/Logger';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from "../utils/abis/Permit2SingleTransfer.abi";
 import {uint256, uint8} from "solidity-math";
-import { ERC721_ABI } from "../utils/abis/ERC721.abi";
 
 export class PermitHelper {
     signer: Signer
     constructor(_signer: Signer) {
         this.signer = _signer
     }
-    async performTokenTransfer(recipient: string, tokenAddress: string, amount: BigNumber): Promise<boolean | string> {
-            // Logger.log(`Transferring token ${tokenAddress} with amount ${amount.toNumber()}`)
+
+    async performTokenTransfer(recipient: string, tokenAddress: string, amount: BigNumber): Promise<boolean> {
+            Logger.log(`Transferring token ${tokenAddress} with amount ${amount}`)
             // Create a contract instance with the ABI and contract address.
             const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
 

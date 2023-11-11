@@ -2,25 +2,30 @@ import { ethers } from "ethers";
 
 export const BASE_URL = 'http://localhost:4000';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/covalent`;
-export const SAFE_TX_SERVICE_URL = 'https://safe-transaction-mainnet.safe.global'
 export const BICONOMY_TX_SERVICE_URL = 'https://sdk-backend.prod.biconomy.io/v1'
 export const PERMIT_FUNCTION_ABI = 'function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)';
-export const ETHEREUM_PROVIDER =
-    'https://eth-mainnet.g.alchemy.com/v2/VFsqvAAgenvw98xGBsOGfogbZ5WFN17X';
+export const ETHEREUM_ADDRESS = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 export const PERMIT2_CONTRACT_ADDRESS =
     '0x000000000022D473030F116dDEE9F6B43aC78BA3';
 
 export const GELATO_RELAYER_ADDRESS = "0x75ba5af8effdcfca32e1e288806d54277d1fde99";
 export const PERMIT2_DOMAIN_NAME = 'Permit2';
 
-export enum CHAIN_PROVIDERS {
-    'https://eth-mainnet.alchemyapi.io/v2/VFsqvAAgenvw98xGBsOGfogbZ5WFN17X' = 1,
-    'https://eth-goerli.g.alchemy.com/v2/JumlonOyBH3vkn70ZD6QlyR19I_73gNX' = 5,
-}
-
 export enum SAFE_TX_SERVICE_URLS {
     'https://safe-transaction-mainnet.safe.global' = 1,
     'https://safe-transaction-goerli.safe.global' = 5,
+    'https://safe-transaction-arbitrum.safe.global' = 42161,
+    'https://safe-transaction-aurora.safe.global' = 1313161554,
+    'https://safe-transaction-avalanche.safe.global' = 43114,
+    'https://safe-transaction-base.safe.global' = 8453,
+    'https://safe-transaction-base-testnet.safe.global' = 84531,
+    'https://safe-transaction-bsc.safe.global' = 56,
+    'https://safe-transaction-celo.safe.global' = 42220,
+    'https://safe-transaction-gnosis-chain.safe.global' = 100,
+    'https://safe-transaction-optimism.safe.global' = 10,
+    'https://safe-transaction-polygon.safe.global' = 137,
+    'https://safe-transaction-zkevm.safe.global' = 1101,
+    'https://safe-transaction-zksync.safe.global' = 324,
 }
 
 export const PERMIT_BATCH_TRANSFER_FROM_TYPEHASH = ethers.utils.keccak256(

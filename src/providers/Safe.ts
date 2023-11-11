@@ -12,7 +12,7 @@ class Safe{
 
     constructor(_signer: Signer, _ethAdapter: EthersAdapter){
         this.signer = _signer;
-        this.ethAdapter = _ethAdapter
+        this.ethAdapter = _ethAdapter;
     }
 
     async getAllSafes(): Promise<OwnerResponse> {

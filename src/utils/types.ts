@@ -6,6 +6,7 @@ import { BaseRelayParams } from "@gelatonetwork/relay-sdk/dist/lib/types";
 
 
 export type Config = {
+  rpcUrl: string,
   signer: Signer,
   apiKey: string
 }

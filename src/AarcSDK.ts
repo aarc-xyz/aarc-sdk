@@ -2,7 +2,7 @@ import { EthersAdapter } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
-import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, PERMIT2_DOMAIN_NAME, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URLS, PERMIT_FUNCTION_TYPES, GELATO_RELAYER_ADDRESS, COVALENT_TOKEN_TYPES } from './utils/Constants';
+import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, GELATO_RELAYER_ADDRESS, COVALENT_TOKEN_TYPES } from './utils/Constants';
 import { BatchTransferPermitDto, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, GelatoTxStatusDto, MigrationResponse, PermitDto, RelayTrxDto, SingleTransferPermitDto, TokenData } from './utils/Types';
 import { BalancesResponse } from './utils/Types'
 import { ChainId } from './utils/ChainTypes';
@@ -28,9 +28,8 @@ class AarcSDK {
     permitHelper: PermitHelper
 
     constructor(config: Config) {
-        const { signer, apiKey } = config
-        Logger.log('SDK initiated');
-
+        const { rpcUrl, signer, apiKey } = config
+        Logger.log('Aarc SDK initiated');
         // Create an EthersAdapter using the provided signer or provider
         this.ethAdapter = new EthersAdapter({
             ethers,
@@ -40,19 +39,14 @@ class AarcSDK {
         this.safe = new Safe(signer, this.ethAdapter);
         this.signer = signer;
         this.apiKey = apiKey;
+        this.ethersProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
         // instantiating Gelato Relay SDK
         this.relayer = new GelatoRelay();
         this.permitHelper = new PermitHelper(signer)
     }
 
-
-    // Forward the methods from Biconomy
-    getAllBiconomySCWs() {
-        return this.biconomy.getAllBiconomySCWs();
-    }
-
-    generateBiconomySCW() {
-        return this.biconomy.generateBiconomySCW();
+    async generateBiconomySCW() {
+        return await this.biconomy.generateBiconomySCW();
     }
 
     // Forward the methods from Safe

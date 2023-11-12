@@ -7,6 +7,7 @@ import { type } from 'os';
 
 
 export type Config = {
+  rpcUrl: string,
   signer: Signer,
   apiKey: string
 }

@@ -10,24 +10,8 @@ class Biconomy{
   nodeClient: NodeClient;
 
   constructor(_signer: Signer) {
-    Logger.log('Biconomy initiated');
     this.signer = _signer;
     this.nodeClient = new NodeClient({ txServiceUrl: BICONOMY_TX_SERVICE_URL });
-  }
-
-  async getAllBiconomySCWs(){
-    try{
-        const params = {
-            chainId: await this.signer.getChainId(), //or any chain id of your choice
-            owner: await this.signer.getAddress(),
-            index: 0
-        }
-        const accounts = await this.nodeClient.getSmartAccountsByOwner(params);
-        return accounts;
-    } catch (error){
-        Logger.error('error while getting biconomy smart accounts');
-        throw error;
-    }
   }
 
   async generateBiconomySCW(): Promise<string> {

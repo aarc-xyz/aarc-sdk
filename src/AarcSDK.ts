@@ -2,7 +2,7 @@ import { EthersAdapter } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
-import { BALANCES_ENDPOINT, CHAIN_PROVIDERS, PERMIT2_CONTRACT_ADDRESS, GELATO_RELAYER_ADDRESS, COVALENT_TOKEN_TYPES } from './utils/Constants';
+import { BALANCES_ENDPOINT, PERMIT2_CONTRACT_ADDRESS, GELATO_RELAYER_ADDRESS, COVALENT_TOKEN_TYPES } from './utils/Constants';
 import { BatchTransferPermitDto, Config, ExecuteMigrationDto, ExecuteMigrationGaslessDto, GelatoTxStatusDto, MigrationResponse, PermitDto, RelayTrxDto, SingleTransferPermitDto, TokenData } from './utils/Types';
 import { BalancesResponse } from './utils/Types'
 import { ChainId } from './utils/ChainTypes';
@@ -67,7 +67,6 @@ class AarcSDK {
                 throw new Error('Invalid chain id');
             }
             this.owner = await this.signer.getAddress();
-            this.ethersProvider = new ethers.providers.JsonRpcProvider(CHAIN_PROVIDERS[this.chainId]);
             Logger.log('EOA address', this.owner)
             return this;
         } catch (error) {
@@ -225,28 +224,6 @@ class AarcSDK {
             Logger.log(' permit2TransferableTokens ', permit2TransferableTokens)
             Logger.log(' nativeToken ', nativeToken)
 
-
-            if (nativeToken.length > 0) {
-                try {
-                    const txHash = await this.permitHelper.performNativeTransfer(receiverAddress, nativeToken[0].balance)
-
-                    response.push({
-                        tokenAddress: nativeToken[0].token_address,
-                        amount: nativeToken[0].balance,
-                        message: 'Native transfer successful',
-                        txHash: typeof (txHash) === 'string' ? txHash : ''
-                    })
-                    // await delay(5000)
-                } catch (error: any) {
-                    logError(nativeToken[0], error)
-                    response.push({
-                        tokenAddress: nativeToken[0].token_address,
-                        amount: nativeToken[0].balance,
-                        message: 'Native transfer failed',
-                        txHash: ''
-                    })
-                }
-            }
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
                 try {
@@ -331,6 +308,30 @@ class AarcSDK {
                     })
                 }
             }
+
+            if (nativeToken.length > 0) {
+                const updatedNativeToken = await this.fetchBalances([nativeToken[0].token_address]);
+                const amountTransfer = updatedNativeToken.data[0].balance.mul(0.8);
+                try {
+                    const txHash = await this.permitHelper.performNativeTransfer(receiverAddress, amountTransfer)
+
+                    response.push({
+                        tokenAddress: nativeToken[0].token_address,
+                        amount: amountTransfer,
+                        message: 'Native transfer successful',
+                        txHash: typeof (txHash) === 'string' ? txHash : ''
+                    })
+                    // await delay(5000)
+                } catch (error: any) {
+                    logError(nativeToken[0], error)
+                    response.push({
+                        tokenAddress: nativeToken[0].token_address,
+                        amount: amountTransfer,
+                        message: 'Native transfer failed',
+                        txHash: ''
+                    })
+                }
+            }
         } catch (error) {
             // Handle any errors that occur during the migration process
             Logger.error('Migration Error:', error);
@@ -378,6 +379,39 @@ class AarcSDK {
             // Now, updatedTokens contains the filtered array without the undesired elements
             balancesList.data = updatedTokens;
 
+            let nfts = balancesList.data.filter(balances => {
+                return (
+                    balances.type === COVALENT_TOKEN_TYPES.NFT
+                );
+            });
+
+            Logger.log('nfts ', nfts)
+
+            for (const collection of nfts) {
+                if (collection.nft_data) {
+                    for (const nft of collection.nft_data) {
+                        try {
+                            const txHash = await this.permitHelper.performNFTTransfer(receiverAddress, collection.token_address, nft.tokenId);
+                            response.push({
+                                tokenAddress: collection.token_address,
+                                amount: 1,
+                                tokenId: nft.tokenId,
+                                message: 'Nft transfer successful',
+                                txHash: typeof (txHash) === 'string' ? txHash : ''
+                            })
+                        } catch (error: any) {
+                            logError(collection, error)
+                            response.push({
+                                tokenAddress: collection.token_address,
+                                amount: 1,
+                                message: 'Nft transfer failed',
+                                txHash: ''
+                            })
+                        }
+                    }
+                }
+            }
+
             let tokens = balancesList.data.filter(balances => {
                 return (
                     balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
@@ -414,27 +448,6 @@ class AarcSDK {
             Logger.log('erc20Tokens ', erc20Tokens)
 
             const nativeToken = tokens.filter(token => (token.type === COVALENT_TOKEN_TYPES.DUST));
-
-            if (nativeToken.length > 0) {
-                try {
-                    const txHash = await this.permitHelper.performNativeTransfer(receiverAddress, nativeToken[0].balance)
-
-                    response.push({
-                        tokenAddress: nativeToken[0].token_address,
-                        amount: nativeToken[0].balance,
-                        message: 'Native transfer successful',
-                        txHash: typeof (txHash) === 'string' ? txHash : ''
-                    })
-                } catch (error: any) {
-                    logError(nativeToken[0], error)
-                    response.push({
-                        tokenAddress: nativeToken[0].token_address,
-                        amount: nativeToken[0].balance,
-                        message: 'Native transfer failed',
-                        txHash: ''
-                    })
-                }
-            }
 
             const erc20TransferableTokens = erc20Tokens.filter(balanceObj => !balanceObj.permitExist && balanceObj.permit2Allowance.eq(BigNumber.from(0)));
 
@@ -611,6 +624,29 @@ class AarcSDK {
                             message: 'Transaction Failed',
                             txHash: ''
                         })
+                    })
+                }
+            }
+
+            if (nativeToken.length > 0) {
+                const updatedNativeToken = await this.fetchBalances([nativeToken[0].token_address]);
+                const amountTransfer = updatedNativeToken.data[0].balance.mul(0.8);
+                try {
+                    const txHash = await this.permitHelper.performNativeTransfer(receiverAddress, amountTransfer)
+
+                    response.push({
+                        tokenAddress: nativeToken[0].token_address,
+                        amount: amountTransfer,
+                        message: 'Native transfer successful',
+                        txHash: typeof (txHash) === 'string' ? txHash : ''
+                    })
+                } catch (error: any) {
+                    logError(nativeToken[0], error)
+                    response.push({
+                        tokenAddress: nativeToken[0].token_address,
+                        amount: amountTransfer,
+                        message: 'Native transfer failed',
+                        txHash: ''
                     })
                 }
             }

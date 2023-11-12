@@ -51,12 +51,12 @@ export type TokenAndAmount = {
 }
 
 export type ExecuteMigrationDto = {
-  scwAddress: string;
+  receiverAddress: string;
   tokenAndAmount?: TokenAndAmount[]
 }
 
 export type ExecuteMigrationGaslessDto = {
-  scwAddress: string;
+  receiverAddress: string;
   tokenAndAmount?: TokenAndAmount[];
   gelatoApiKey: string;
 }

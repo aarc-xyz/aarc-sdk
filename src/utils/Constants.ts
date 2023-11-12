@@ -18,11 +18,6 @@ export enum COVALENT_TOKEN_TYPES {
     DUST = 'dust'
 }
 
-export enum CHAIN_PROVIDERS {
-    'https://eth-mainnet.alchemyapi.io/v2/VFsqvAAgenvw98xGBsOGfogbZ5WFN17X' = 1,
-    'https://eth-goerli.g.alchemy.com/v2/JumlonOyBH3vkn70ZD6QlyR19I_73gNX' = 5,
-}
-
 export enum SAFE_TX_SERVICE_URLS {
     'https://safe-transaction-mainnet.safe.global' = 1,
     'https://safe-transaction-goerli.safe.global' = 5,

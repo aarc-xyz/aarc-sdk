@@ -111,7 +111,7 @@ class AarcSDK {
         try {
             Logger.log('executeMigration ');
 
-            const { tokenAndAmount, scwAddress } = executeMigrationDto;
+            const { tokenAndAmount, receiverAddress } = executeMigrationDto;
             const tokenAddresses = tokenAndAmount?.map(token => token.tokenAddress);
 
             let balancesList = await this.fetchBalances(tokenAddresses);
@@ -188,7 +188,7 @@ class AarcSDK {
                 if (collection.nft_data) {
                     for (const nft of collection.nft_data) {
                         try {
-                            const txHash = await this.permitHelper.performNFTTransfer(scwAddress, collection.token_address, nft.tokenId);
+                            const txHash = await this.permitHelper.performNFTTransfer(receiverAddress, collection.token_address, nft.tokenId);
                             response.push({
                                 tokenAddress: collection.token_address,
                                 amount: 1,
@@ -228,7 +228,7 @@ class AarcSDK {
 
             if (nativeToken.length > 0) {
                 try {
-                    const txHash = await this.permitHelper.performNativeTransfer(scwAddress, nativeToken[0].balance)
+                    const txHash = await this.permitHelper.performNativeTransfer(receiverAddress, nativeToken[0].balance)
 
                     response.push({
                         tokenAddress: nativeToken[0].token_address,
@@ -250,7 +250,7 @@ class AarcSDK {
             // Loop through tokens to perform normal transfers
             for (const token of erc20TransferableTokens) {
                 try {
-                    const txHash = await this.permitHelper.performTokenTransfer(scwAddress, token.token_address, token.balance);
+                    const txHash = await this.permitHelper.performTokenTransfer(receiverAddress, token.token_address, token.balance);
                     response.push({
                         tokenAddress: token.token_address,
                         amount: token.balance,
@@ -273,7 +273,7 @@ class AarcSDK {
             if (permit2TransferableTokens.length === 1) {
                 const token = permit2TransferableTokens[0];
                 try {
-                    const txHash = await this.permitHelper.performTokenTransfer(scwAddress, token.token_address, token.balance);
+                    const txHash = await this.permitHelper.performTokenTransfer(receiverAddress, token.token_address, token.balance);
                     response.push({
                         tokenAddress: token.token_address,
                         amount: token.balance,
@@ -302,7 +302,7 @@ class AarcSDK {
                 const { permitBatchTransferFrom, signature } = permitData
 
                 const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
-                    to: scwAddress,
+                    to: receiverAddress,
                     requestedAmount: batchInfo.amount
                 }));
 
@@ -343,7 +343,7 @@ class AarcSDK {
     async executeMigrationGasless(executeMigrationGaslessDto: ExecuteMigrationGaslessDto) {
         const response: MigrationResponse[] = []
         try {
-            const { tokenAndAmount, scwAddress, gelatoApiKey } = executeMigrationGaslessDto;
+            const { tokenAndAmount, receiverAddress, gelatoApiKey } = executeMigrationGaslessDto;
             const tokenAddresses = tokenAndAmount?.map(token => token.tokenAddress);
 
             const balancesList = await this.fetchBalances(tokenAddresses);
@@ -417,7 +417,7 @@ class AarcSDK {
 
             if (nativeToken.length > 0) {
                 try {
-                    const txHash = await this.permitHelper.performNativeTransfer(scwAddress, nativeToken[0].balance)
+                    const txHash = await this.permitHelper.performNativeTransfer(receiverAddress, nativeToken[0].balance)
 
                     response.push({
                         tokenAddress: nativeToken[0].token_address,
@@ -444,7 +444,7 @@ class AarcSDK {
             for (const token of erc20TransferableTokens) {
                 const tokenAddress = token.token_address;
                 try {
-                    const txHash = await this.permitHelper.performTokenTransfer(scwAddress, tokenAddress, token.balance);
+                    const txHash = await this.permitHelper.performTokenTransfer(receiverAddress, tokenAddress, token.balance);
                     response.push({
                         tokenAddress: token.token_address,
                         amount: token.balance,
@@ -522,7 +522,7 @@ class AarcSDK {
                 const permitData = await this.permitHelper.getSingleTransferPermitData(singleTransferPermitDto);
                 const { permitTransferFrom, signature } = permitData
 
-                const { data } = await permit2SingleContract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
+                const { data } = await permit2SingleContract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: receiverAddress, requestedAmount: permitTransferFrom.permitted.amount }, this.owner, signature);
                 if (!data) {
                     throw new Error('unable to get data')
                 }
@@ -567,7 +567,7 @@ class AarcSDK {
                 const { permitBatchTransferFrom, signature } = permitData
 
                 const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
-                    to: scwAddress,
+                    to: receiverAddress,
                     requestedAmount: batchInfo.amount
                 }));
 

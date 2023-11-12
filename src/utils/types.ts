@@ -1,8 +1,9 @@
-import { Signer, ethers } from 'ethers';
+import { BigNumber, BigNumberish, Signer, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 import { PermitTransferFrom, PermitBatchTransferFrom } from '../SignatureTransfer'
 import { GelatoRelay } from "@gelatonetwork/relay-sdk";
 import { BaseRelayParams } from "@gelatonetwork/relay-sdk/dist/lib/types";
+import { type } from 'os';
 
 
 export type Config = {
@@ -25,10 +26,17 @@ export type TokenData = {
   name: string;
   symbol: string;
   token_address: string;
-  balance: string;
-  permit2Allowance: string;
-  permit2Exist: boolean;
+  balance: BigNumber;
+  type: string,
+  permit2Allowance: BigNumber;
+  permitExist: boolean;
+  nft_data: TokenNftData[];
 };
+
+export type TokenNftData = {
+  image: string;
+  tokenId: string;
+}
 
 export type BalancesResponse = {
   code: number;
@@ -39,17 +47,17 @@ export type BalancesResponse = {
 
 export type TokenAndAmount = {
   tokenAddress: string
-  amount: string
+  amount?: BigNumber
 }
 
 export type ExecuteMigrationDto = {
-  scwAddress: string;
+  receiverAddress: string;
   tokenAndAmount?: TokenAndAmount[]
 }
 
 export type ExecuteMigrationGaslessDto = {
-  scwAddress: string;
-  tokenAndAmount: TokenAndAmount[];
+  receiverAddress: string;
+  tokenAndAmount?: TokenAndAmount[];
   gelatoApiKey: string;
 }
 
@@ -116,4 +124,12 @@ export type BatchTransferPermitDto = {
 export type PermitDomainDto = {
   permit2Address: string
   chainId: number
+}
+
+export type MigrationResponse = {
+  tokenAddress: string,
+  amount?: BigNumber | BigNumberish,
+  message: string,
+  txHash?: string
+  tokenId?: string 
 }

@@ -18,6 +18,7 @@
     "@types/node": "^20.8.7",
     "dotenv": "^16.3.1",
     "jest": "^27.5.1",
+    "solidity-math": "^0.1.0",
     "typescript": "^5.2.2"
   },
   "dependencies": {
@@ -29,7 +30,6 @@
     "@uniswap/permit2-sdk": "^1.2.0",
     "ethers": "^5.7.2",
     "prettier": "^2.3.2",
-    "rimraf": "^5.0.5",
-    "solidity-math": "^0.1.0"
+    "rimraf": "^5.0.5"
   }
 }

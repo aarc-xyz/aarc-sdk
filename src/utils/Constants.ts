@@ -11,6 +11,13 @@ export const PERMIT2_CONTRACT_ADDRESS =
 export const GELATO_RELAYER_ADDRESS = "0x75ba5af8effdcfca32e1e288806d54277d1fde99";
 export const PERMIT2_DOMAIN_NAME = 'Permit2';
 
+export enum COVALENT_TOKEN_TYPES {
+    CRYPTO_CURRENCY = 'cryptocurrency',
+    STABLE_COIN = 'stablecoin',
+    NFT = 'nft',
+    DUST = 'dust'
+}
+
 export enum SAFE_TX_SERVICE_URLS {
     'https://safe-transaction-mainnet.safe.global' = 1,
     'https://safe-transaction-goerli.safe.global' = 5,

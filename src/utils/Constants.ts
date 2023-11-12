@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 
 export const BASE_URL = 'http://localhost:4000';
-export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/covalent`;
+export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
 export const BICONOMY_TX_SERVICE_URL = 'https://sdk-backend.prod.biconomy.io/v1'
 export const PERMIT_FUNCTION_ABI = 'function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)';
 export const ETHEREUM_ADDRESS = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';

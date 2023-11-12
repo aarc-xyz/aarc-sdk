@@ -46,7 +46,7 @@ export type BalancesResponse = {
 
 export type TokenAndAmount = {
   tokenAddress: string
-  amount: BigNumber
+  amount?: BigNumber
 }
 
 export type ExecuteMigrationDto = {
@@ -56,7 +56,7 @@ export type ExecuteMigrationDto = {
 
 export type ExecuteMigrationGaslessDto = {
   scwAddress: string;
-  tokenAndAmount: TokenAndAmount[];
+  tokenAndAmount?: TokenAndAmount[];
   gelatoApiKey: string;
 }
 
@@ -127,7 +127,7 @@ export type PermitDomainDto = {
 
 export type MigrationResponse = {
   tokenAddress: string,
-  amount: BigNumber | BigNumberish,
+  amount?: BigNumber | BigNumberish,
   message: string,
   txHash?: string
   tokenId?: string 

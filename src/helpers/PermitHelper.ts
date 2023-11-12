@@ -52,9 +52,7 @@ export class PermitHelper {
     }
 
     async performNativeTransfer(recipient: string, amount: BigNumber): Promise<boolean | string> {
-        // Logger.log(`Transferring native token with amount ${BigNumber.from(amount).toNumber()}`)
 
-            // Perform the token transfer.
             const tx = await this.signer.sendTransaction({
                 to: recipient,
                 value: amount,

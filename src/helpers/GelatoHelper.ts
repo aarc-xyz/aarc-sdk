@@ -16,7 +16,7 @@ export const relayTransaction = async (relayTrxDto: RelayTrxDto): Promise<string
     }
 }
 
-export const getGelatoTransactionStatus = async (gelatoTxStatusDto: GelatoTxStatusDto): Promise<boolean> => {
+export const getGelatoTransactionStatus = async (gelatoTxStatusDto: GelatoTxStatusDto): Promise<string | boolean | undefined> => {
     const { relayer, taskId } = gelatoTxStatusDto
     let response = await relayer.getTaskStatus(taskId);
     Logger.log('response ', response);
@@ -26,16 +26,12 @@ export const getGelatoTransactionStatus = async (gelatoTxStatusDto: GelatoTxStat
         response = await relayer.getTaskStatus(taskId);
     }
     if (response != undefined && response.taskState === TaskState.WaitingForConfirmation) {
-        Logger.log('Transaction is executed successfully, waiting for confirmations');
-        Logger.log('Transaction hash: ', response.transactionHash);
-        return true;
+        return response.transactionHash;
     } else if (response != undefined && (response.taskState === TaskState.ExecReverted || response.taskState === TaskState.Cancelled)) {
         Logger.log('Transaction failed');
         return false;
     } else if (response != undefined && response.taskState === TaskState.ExecSuccess) {
-        Logger.log('Transaction is executed successfully');
-        Logger.log('Transaction hash: ', response.transactionHash);
-        return true;
+        return response.transactionHash
     } else {
         return false;
     }

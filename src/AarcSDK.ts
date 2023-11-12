@@ -105,7 +105,7 @@ class AarcSDK {
         }
     }
 
-    async executeMigration(executeMigrationDto: ExecuteMigrationDto) {
+    async executeMigration(executeMigrationDto: ExecuteMigrationDto): Promise<MigrationResponse[]> {
         const response: MigrationResponse[] = []
         try {
             Logger.log('executeMigration ');
@@ -341,7 +341,7 @@ class AarcSDK {
         return response
     }
 
-    async executeMigrationGasless(executeMigrationGaslessDto: ExecuteMigrationGaslessDto) {
+    async executeMigrationGasless(executeMigrationGaslessDto: ExecuteMigrationGaslessDto): Promise<MigrationResponse[]> {
         const response: MigrationResponse[] = []
         try {
             const { tokenAndAmount, receiverAddress, gelatoApiKey } = executeMigrationGaslessDto;

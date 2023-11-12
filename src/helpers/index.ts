@@ -1,3 +1,3 @@
-export * from './GelatoHelper'
-export * from './PermitHelper'
-export * from './helper'
+export * from './GelatoHelper';
+export * from './PermitHelper';
+export * from './helper';

@@ -1,396 +1,840 @@
-import { EthersAdapter, SafeFactory } from '@safe-global/protocol-kit';
+import { EthersAdapter } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
-import { Contract, ethers, Signer } from 'ethers';
+import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
-import { BALANCES_ENDPOINT, ETHEREUM_PROVIDER, PERMIT2_CONTRACT_ADDRESS, PERMIT_FUNCTION_ABI, SAFE_TX_SERVICE_URL } from './utils/Constants';
-import { BatchPermitData, Config, ExecuteMigrationDto, GetBalancesDto, PermitData, TokenData } from './utils/types';
-import { OwnerResponse, BalancesResponse } from './utils/types'
-import SafeApiKit from "@safe-global/api-kit";
-import { ERC20_ABI } from './utils/abis/ERC20.abi';
-import { TokenPermissions, SignatureTransfer, PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/Permit2-sdk'
+import {
+  BALANCES_ENDPOINT,
+  PERMIT2_CONTRACT_ADDRESS,
+  GELATO_RELAYER_ADDRESS,
+  COVALENT_TOKEN_TYPES,
+} from './utils/Constants';
+import {
+  BatchTransferPermitDto,
+  BalancesResponse,
+  Config,
+  ExecuteMigrationDto,
+  ExecuteMigrationGaslessDto,
+  GelatoTxStatusDto,
+  MigrationResponse,
+  PermitDto,
+  RelayTrxDto,
+  SingleTransferPermitDto,
+  TokenData,
+} from './utils/Types';
 import { ChainId } from './utils/ChainTypes';
-import { PERMIT_2_ABI } from './utils/abis/Permit2.abi';
-import { GelatoRelay, SponsoredCallRequest } from "@gelatonetwork/relay-sdk";
-import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
-import Biconomy from './Biconomy';
+import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
+import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
+import { GelatoRelay } from '@gelatonetwork/relay-sdk';
+import Biconomy from './providers/Biconomy';
+import Safe from './providers/Safe';
+import { PermitHelper } from './helpers/PermitHelper';
+import {
+  getGelatoTransactionStatus,
+  relayTransaction,
+} from './helpers/GelatoHelper';
+import { logError } from './helpers';
 
-class AarcSDK extends Biconomy{
-    safeFactory!: SafeFactory;
-    chainId!: number;
-    owner!: string;
-    saltNonce = 0;
-    ethAdapter!: EthersAdapter;
-    safeService!: SafeApiKit;
-    signer!: Signer
-    apiKey: string
-    relayer: GelatoRelay
+class AarcSDK {
+  biconomy: Biconomy;
+  safe: Safe;
+  chainId!: number;
+  owner!: string;
+  ethAdapter!: EthersAdapter;
+  signer: Signer;
+  apiKey: string;
+  relayer: GelatoRelay;
+  ethersProvider!: ethers.providers.JsonRpcProvider;
+  permitHelper: PermitHelper;
 
-    constructor(config: Config) {
-        const { signer, apiKey } = config
-        super(signer);
-        Logger.log('SDK initiated');
+  constructor(config: Config) {
+    const { rpcUrl, signer, apiKey } = config;
+    Logger.log('Aarc SDK initiated');
+    // Create an EthersAdapter using the provided signer or provider
+    this.ethAdapter = new EthersAdapter({
+      ethers,
+      signerOrProvider: signer,
+    });
+    this.biconomy = new Biconomy(signer);
+    this.safe = new Safe(signer, this.ethAdapter);
+    this.signer = signer;
+    this.apiKey = apiKey;
+    this.ethersProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
+    // instantiating Gelato Relay SDK
+    this.relayer = new GelatoRelay();
+    this.permitHelper = new PermitHelper(signer);
+  }
 
-        // Create an EthersAdapter using the provided signer or provider
-        this.ethAdapter = new EthersAdapter({
-            ethers,
-            signerOrProvider: signer,
-        });
-        this.safeService = new SafeApiKit({
-            txServiceUrl: SAFE_TX_SERVICE_URL,
-            ethAdapter: this.ethAdapter,
-        });
-        this.signer = signer;
-        this.apiKey = apiKey;
-        // instantiating Gelato Relay SDK
-        this.relayer = new GelatoRelay();
+  async generateBiconomySCW() {
+    return await this.biconomy.generateBiconomySCW();
+  }
+
+  // Forward the methods from Safe
+  getAllSafes() {
+    return this.safe.getAllSafes();
+  }
+
+  generateSafeSCW() {
+    return this.safe.generateSafeSCW();
+  }
+
+  async init(): Promise<AarcSDK> {
+    try {
+      const chainId = await this.signer.getChainId();
+      if (Object.values(ChainId).includes(chainId)) {
+        this.chainId = chainId;
+      } else {
+        throw new Error('Invalid chain id');
+      }
+      this.owner = await this.signer.getAddress();
+      Logger.log('EOA address', this.owner);
+      return this;
+    } catch (error) {
+      Logger.error('error while initiating sdk');
+      throw error;
     }
+  }
 
-    async getOwnerAddress(): Promise<string> {
-        if (this.owner == undefined) {
-            this.owner = await this.signer.getAddress();
-        }
-        return this.owner;
+  /**
+   * @description this function will return balances of ERC-20, ERC-721 and native tokens
+   * @param balancesDto
+   * @returns
+   */
+  async fetchBalances(tokenAddresses?: string[]): Promise<BalancesResponse> {
+    try {
+      // Make the API call using the sendRequest function
+      let response: BalancesResponse = await sendRequest({
+        url: BALANCES_ENDPOINT,
+        method: HttpMethod.POST,
+        headers: {
+          'x-api-key': this.apiKey,
+        },
+        body: {
+          chainId: String(this.chainId),
+          address: this.owner,
+          tokenAddresses: tokenAddresses,
+        },
+      });
+
+      Logger.log('Fetching API Response:', response);
+      return response;
+    } catch (error) {
+      // Handle any errors that may occur during the API request
+      Logger.error('Error making Covalent API call:', error);
+      throw error;
     }
+  }
 
-    async getChainId(): Promise<ChainId> {
-        if (this.chainId == undefined) {
-            const chainId = await this.signer.getChainId();
-            if (chainId in Object.values(ChainId)) {
-                this.chainId = chainId;
-            } else {
-                throw new Error('Invalid chain id');
-            }
-        }
-        return this.chainId;
-    }
+  async executeMigration(
+    executeMigrationDto: ExecuteMigrationDto,
+  ): Promise<MigrationResponse[]> {
+    const response: MigrationResponse[] = [];
+    try {
+      Logger.log('executeMigration ');
 
-    async getAllSafes(): Promise<OwnerResponse> {
-        try {
-            const safeService = new SafeApiKit({
-                txServiceUrl: SAFE_TX_SERVICE_URL,
-                ethAdapter: this.ethAdapter,
-            });     
-            const safes = await safeService.getSafesByOwner(this.owner);
-            return safes;
-        } catch (error) {
-            Logger.log('error while getting safes');
-            throw error;
-        }
-    }
+      const { tokenAndAmount, receiverAddress } = executeMigrationDto;
+      const tokenAddresses = tokenAndAmount?.map((token) => token.tokenAddress);
 
-    async generateSafeSCW(): Promise<string> {
-        // Create a SafeFactory instance using the EthersAdapter
-        const safeFactory = await SafeFactory.create({
-            ethAdapter: this.ethAdapter,
-        });
-        const config = {
-            owners: [this.owner],
-            threshold: 1,
-        };
-        // Configure the Safe parameters and predict the Safe address
-        const smartWalletAddress = await safeFactory.predictSafeAddress(
-            config,
-            this.saltNonce.toString(),
+      let balancesList = await this.fetchBalances(tokenAddresses);
+
+      tokenAndAmount?.map((tandA) => {
+        const matchingToken = balancesList.data.find(
+          (mToken) =>
+            mToken.token_address.toLowerCase() ===
+            tandA.tokenAddress.toLowerCase(),
         );
-        return smartWalletAddress;
-    }
+        if (!matchingToken) {
+          response.push({
+            tokenAddress: tandA.tokenAddress,
+            amount: tandA?.amount,
+            message: 'Supplied token does not exist',
+          });
+        }
+      });
 
-    /**
-     * @description this function will return balances of ERC-20, ERC-721 and native tokens
-     * @param balancesDto
-     * @returns
-     */
-    async fetchBalances(balancesDto: GetBalancesDto): Promise<BalancesResponse> {
+      const updatedTokens:TokenData[] = [];
+      for (const tokenInfo of balancesList.data) {
+        const matchingToken = tokenAndAmount?.find(
+          (token) =>
+            token.tokenAddress.toLowerCase() ===
+            tokenInfo.token_address.toLowerCase(),
+        );
+
+        if (
+          matchingToken &&
+          matchingToken.amount !== undefined &&
+          matchingToken.amount.gt(0) &&
+          BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
+        ) {
+          response.push({
+            tokenAddress: tokenInfo.token_address,
+            amount: matchingToken?.amount,
+            message: 'Supplied amount is greater than balance',
+          });
+        } else updatedTokens.push(tokenInfo);
+      }
+
+      // Now, updatedTokens contains the filtered array without the undesired elements
+      balancesList.data = updatedTokens;
+
+      let tokens = balancesList.data.filter((balances) => {
+        return (
+          balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+          balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
+          balances.type === COVALENT_TOKEN_TYPES.DUST
+        );
+      });
+
+      Logger.log(' filtered tokens ', tokens);
+
+      tokens = tokens.map((element: TokenData) => {
+        const matchingToken = tokenAndAmount?.find(
+          (token) =>
+            token.tokenAddress.toLowerCase() ===
+            element.token_address.toLowerCase(),
+        );
+
+        if (
+          matchingToken &&
+          matchingToken.amount !== undefined &&
+          matchingToken.amount.gt(0)
+        ) {
+          element.balance = matchingToken.amount;
+        }
+
+        // Case: tokenAndAmount contains amount for token but it's greater than the given allowance
+        // Then we assign the allowance amount 0 to perform normal token transfer
+        if (
+          element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&
+          COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY &&
+          element.permit2Allowance.gte(BigNumber.from(0)) &&
+          element.balance.gt(element.permit2Allowance)
+        ) {
+          element.permit2Allowance = BigNumber.from(0);
+        }
+
+        return element;
+      });
+
+      Logger.log('tokens ', tokens);
+
+      let nfts = balancesList.data.filter((balances) => {
+        return balances.type === COVALENT_TOKEN_TYPES.NFT;
+      });
+
+      Logger.log('nfts ', nfts);
+
+      for (const collection of nfts) {
+        if (collection.nft_data) {
+          for (const nft of collection.nft_data) {
+            try {
+              const txHash = await this.permitHelper.performNFTTransfer(
+                receiverAddress,
+                collection.token_address,
+                nft.tokenId,
+              );
+              response.push({
+                tokenAddress: collection.token_address,
+                amount: 1,
+                tokenId: nft.tokenId,
+                message: 'Nft transfer successful',
+                txHash: typeof txHash === 'string' ? txHash : '',
+              });
+            } catch (error: any) {
+              logError(collection, error);
+              response.push({
+                tokenAddress: collection.token_address,
+                amount: 1,
+                message: 'Nft transfer failed',
+                txHash: '',
+              });
+            }
+          }
+        }
+      }
+
+      const erc20Tokens = tokens.filter(
+        (token) =>
+          token.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+          token.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+      );
+      Logger.log('erc20Tokens ', erc20Tokens);
+
+      const erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
+        BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
+      );
+      const permit2TransferableTokens = erc20Tokens.filter(
+        (balanceObj) =>
+          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)) ||
+          BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)),
+      );
+
+      const nativeToken = tokens.filter(
+        (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
+      );
+
+      Logger.log(' erc20TransferableTokens ', erc20TransferableTokens);
+      Logger.log(' permit2TransferableTokens ', permit2TransferableTokens);
+      Logger.log(' nativeToken ', nativeToken);
+
+      // Loop through tokens to perform normal transfers
+      for (const token of erc20TransferableTokens) {
         try {
-            // Make the API call using the sendRequest function
-            const response: BalancesResponse = await sendRequest({
-                url: BALANCES_ENDPOINT,
-                method: HttpMethod.Post,
-                body: balancesDto,
+          const txHash = await this.permitHelper.performTokenTransfer(
+            receiverAddress,
+            token.token_address,
+            token.balance,
+          );
+          response.push({
+            tokenAddress: token.token_address,
+            amount: token.balance,
+            message: 'Token transfer successful',
+            txHash: typeof txHash === 'string' ? txHash : '',
+          });
+        } catch (error: any) {
+          logError(token, error);
+          response.push({
+            tokenAddress: token.token_address,
+            amount: token.balance,
+            message: 'Token transfer failed',
+            txHash: '',
+          });
+        }
+      }
+
+      const permit2Contract = new Contract(
+        PERMIT2_CONTRACT_ADDRESS,
+        PERMIT2_BATCH_TRANSFER_ABI,
+        this.signer,
+      );
+
+      if (permit2TransferableTokens.length === 1) {
+        const token = permit2TransferableTokens[0];
+        try {
+          const txHash = await this.permitHelper.performTokenTransfer(
+            receiverAddress,
+            token.token_address,
+            token.balance,
+          );
+          response.push({
+            tokenAddress: token.token_address,
+            amount: token.balance,
+            message: 'Token transfer successful',
+            txHash: typeof txHash === 'string' ? txHash : '',
+          });
+        } catch (error: any) {
+          logError(token, error);
+          response.push({
+            tokenAddress: token.token_address,
+            amount: token.balance,
+            message: 'Token transfer failed',
+            txHash: '',
+          });
+        }
+      }
+
+      if (permit2TransferableTokens.length > 1) {
+        const batchTransferPermitDto: BatchTransferPermitDto = {
+          provider: this.ethersProvider,
+          chainId: this.chainId,
+          spenderAddress: this.owner,
+          tokenData: permit2TransferableTokens,
+        };
+        const permitData = await this.permitHelper.getBatchTransferPermitData(
+          batchTransferPermitDto,
+        );
+        const { permitBatchTransferFrom, signature } = permitData;
+
+        const tokenPermissions = permitBatchTransferFrom.permitted.map(
+          (batchInfo) => ({
+            to: receiverAddress,
+            requestedAmount: batchInfo.amount,
+          }),
+        );
+
+        try {
+          const txInfo = await permit2Contract.permitTransferFrom(
+            permitData.permitBatchTransferFrom,
+            tokenPermissions,
+            this.owner,
+            signature,
+          );
+          permitBatchTransferFrom.permitted.map((token) => {
+            response.push({
+              tokenAddress: token.token,
+              amount: token.amount,
+              message: 'Token transfer successful',
+              txHash: txInfo.hash,
             });
-
-            // Handle the response here, logging the result
-            Logger.log('Fetching API Response:', response);
-            return response;
-        } catch (error) {
-            // Handle any errors that may occur during the API request
-            Logger.error('Error making Covalent API call:', error);
-            throw error;
-        }
-    }
-
-    async executeMigration(executeMigrationDto: ExecuteMigrationDto) {
-        try {
-            const { tokenAndAmount, scwAddress } = executeMigrationDto;
-            const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
-            const chainId = await this.getChainId();
-            const eoaAddress = await this.getOwnerAddress();
-
-            const balances = await this.fetchBalances({ chainId, eoaAddress, tokenAddresses });
-            Logger.log('balancesList', balances);
-
-            const ethersProvider = new ethers.providers.JsonRpcProvider(ETHEREUM_PROVIDER);
-
-            const erc20TransferableTokens = balances.data.filter(balanceObj => balanceObj.permit2Allowance === 0);
-            const permit2TransferableTokens = balances.data.filter(balanceObj => balanceObj.permit2Allowance > 0);
-
-            // Loop through tokens to perform normal transfers
-            for (const token of erc20TransferableTokens) {
-                const tokenAddress = token.contract_address;
-                const t = tokenAndAmount.find(ta => ta.tokenAddress === tokenAddress);
-                const transferAmount = t ? t.amount : token.balance;
-                await this.performTokenTransfer(scwAddress, tokenAddress, transferAmount);
-            }
-
-            const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer);
-
-            if (permit2TransferableTokens.length === 1) {
-                const token = permit2TransferableTokens[0];
-                const t = tokenAndAmount.find(ta => ta.tokenAddress === token.contract_address);
-                const transferAmount = t ? t.amount : token.balance;
-                await this.performTokenTransfer(scwAddress, token.contract_address, transferAmount);
-            }
-
-            if (permit2TransferableTokens.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(chainId, eoaAddress, permit2TransferableTokens, scwAddress, ethersProvider);
-                const { permitBatchTransferFrom, signature } = permitData
-
-                const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
-                    to: batchInfo.token,
-                    requestedAmount: batchInfo.amount
-                }));
-                await permit2Contract.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, eoaAddress, signature);
-            }
-        } catch (error) {
-            // Handle any errors that occur during the migration process
-            Logger.error('Migration Error:', error);
-            throw error
-        }
-    }
-
-    async executeMigrationGasless(executeMigrationDto: ExecuteMigrationDto) {
-        try {
-            const ethersProvider = new ethers.providers.JsonRpcProvider(ETHEREUM_PROVIDER);
-
-            const { tokenAndAmount, scwAddress } = executeMigrationDto;
-            const tokenAddresses = tokenAndAmount.map(token => token.tokenAddress);
-            const chainId = await this.getChainId();
-            const eoaAddress = await this.getOwnerAddress();
-
-            const balances = await this.fetchBalances({ chainId, eoaAddress, tokenAddresses });
-            Logger.log('balancesList', balances);
-
-            const erc20TransferableTokens = balances.data.filter(balanceObj => !balanceObj.permit2Exist && balanceObj.permit2Allowance === 0);
-
-            // Loop through tokens to perform normal transfers
-            for (const token of erc20TransferableTokens) {
-                const tokenAddress = token.contract_address;
-                const t = tokenAndAmount.find(ta => ta.tokenAddress === tokenAddress);
-                const transferAmount = t ? t.amount : token.balance;
-                await this.performTokenTransfer(scwAddress, transferAmount, transferAmount);
-            }
-
-            // Filtering out tokens to do permit transaction
-            const permittedTokens = balances.data.filter(balanceObj => balanceObj.permit2Exist);
-
-            permittedTokens.map(async token => {
-                await this.performPermit(chainId, scwAddress, token.contract_address)
-            })
-
-            // filter out tokens that have already given allowan
-            const permit2TransferableTokens = balances.data.filter(balanceObj => balanceObj.permit2Allowance > 0);
-
-            // Merge permittedTokens and permit2TransferableTokens
-            const batchPermitTransaction = permittedTokens.concat(permit2TransferableTokens);
-
-            const permit2Contract = new Contract(PERMIT2_CONTRACT_ADDRESS, PERMIT_2_ABI, this.signer);
-
-
-            if (batchPermitTransaction.length === 1) {
-                const permitData = await this.getSingleTransferPermitData(chainId, eoaAddress, permit2TransferableTokens[0], scwAddress, ethersProvider);
-                const { permitTransferFrom, signature } = permitData
-
-                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitTransferFrom, { to: scwAddress, requestedAmount: permitTransferFrom.permitted.amount }, eoaAddress, signature);
-                if (!data) {
-                    throw new Error('unable to get data')
-                }
-                return this.relayTransaction({
-                    chainId: BigInt(chainId),
-                    target: PERMIT2_CONTRACT_ADDRESS,
-                    data
-                })
-            } else if (batchPermitTransaction.length > 1) {
-                const permitData = await this.getBatchTransferPermitData(chainId, eoaAddress, permit2TransferableTokens, scwAddress, ethersProvider);
-
-                const { permitBatchTransferFrom, signature } = permitData
-
-                const tokenPermissions = permitBatchTransferFrom.permitted.map(batchInfo => ({
-                    to: batchInfo.token,
-                    requestedAmount: batchInfo.amount
-                }));
-                const { data } = await permit2Contract.populateTransaction.permitTransferFrom(permitBatchTransferFrom, tokenPermissions, eoaAddress, signature);
-                if (!data) {
-                    throw new Error('unable to get data')
-                }
-                return this.relayTransaction({
-                    chainId: BigInt(chainId),
-                    target: PERMIT2_CONTRACT_ADDRESS,
-                    data
-                })
-            }
-
-        } catch (error) {
-            // Handle any errors that occur during the migration process
-            Logger.error('Migration Error:', error);
-            throw error
-        }
-    }
-
-
-    async performTokenTransfer(recipient: string, tokenAddress: string, amount: string): Promise<boolean> {
-        try {
-            // Create a contract instance with the ABI and contract address.
-            const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
-
-            // Convert the amount to the appropriate units (e.g., wei for ERC-20 tokens).
-            const amountWei = ethers.utils.parseUnits(amount, 'ether');
-
-            // Perform the token transfer.
-            const tx = await tokenContract.transfer(recipient, amountWei);
-
-            Logger.log(`Token transfer successful. Transaction hash: ${tx.hash}`);
-            return true;
-        } catch (error) {
-            Logger.error(`Token transfer error: ${error}`);
-            throw error
-        }
-    }
-
-    async signPermitMessage(eoaAddress: string, tokenAddress: string): Promise<{ r: string, s: string, v: string, nonce: number, deadline: number }> {
-        try {
-            const deadline = Math.floor(Date.now() / 1000) + 3600
-            // Create a contract instance with the ABI and contract address.
-            const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.signer);
-
-            const nonce = await tokenContract.nonceOf(eoaAddress);
-
-            // Encode the message manually according to contract expectations
-            const encodedMessage = ethers.utils.defaultAbiCoder.encode(
-                ['bytes32', 'address', 'address', 'uint256', 'uint256', 'uint8', 'bytes32', 'bytes32'],
-                [ethers.utils.keccak256('0x1901'), eoaAddress, PERMIT2_CONTRACT_ADDRESS, ethers.constants.MaxUint256, nonce, deadline, 0, '0x', '0x']
+          });
+        } catch (error: any) {
+          permitBatchTransferFrom.permitted.map((token) => {
+            logError(
+              {
+                token_address: token.token,
+                balance: token.amount,
+              },
+              error,
             );
-
-            // Sign the encoded message
-            const signature = await this.signer.signMessage(ethers.utils.arrayify(encodedMessage));
-            return {
-                r: signature.slice(0, 66),
-                s: '0x' + signature.slice(66, 130),
-                v: '0x' + signature.slice(130, 132),
-                nonce,
-                deadline,
-            };
-        } catch (error) {
-            Logger.error(`Token transfer error: ${error}`);
-            throw error
+            response.push({
+              tokenAddress: token.token,
+              amount: token.amount,
+              message: 'Token transfer Failed',
+              txHash: '',
+            });
+          });
         }
-    }
+      }
 
-    async performPermit(chainId: ChainId, eoaAddress: string, tokenAddress: string): Promise<boolean> {
+      if (nativeToken.length > 0) {
+        const updatedNativeToken = await this.fetchBalances([
+          nativeToken[0].token_address,
+        ]);
+        const amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance).mul(BigNumber.from(80)).div(BigNumber.from(100));
         try {
-            const { r, s, v, deadline } = await this.signPermitMessage(eoaAddress, tokenAddress);
+          const txHash = await this.permitHelper.performNativeTransfer(
+            receiverAddress,
+            amountTransfer,
+          );
 
-            // Create a contract instance with the ABI and contract address.
-            const tokenContract = new ethers.Contract(
-                tokenAddress,
-                [PERMIT_FUNCTION_ABI],
-                this.signer
-            );
+          response.push({
+            tokenAddress: nativeToken[0].token_address,
+            amount: amountTransfer,
+            message: 'Native transfer successful',
+            txHash: typeof txHash === 'string' ? txHash : '',
+          });
+          // await delay(5000)
+        } catch (error: any) {
+          logError(nativeToken[0], error);
+          response.push({
+            tokenAddress: nativeToken[0].token_address,
+            amount: amountTransfer,
+            message: 'Native transfer failed',
+            txHash: '',
+          });
+        }
+      }
+    } catch (error) {
+      // Handle any errors that occur during the migration process
+      Logger.error('Migration Error:', error);
+      throw error;
+    }
+    Logger.log(JSON.stringify(response));
+    return response;
+  }
 
-            // Call the permit function
-            const { data } = await tokenContract.populateTransaction.permit(eoaAddress, PERMIT2_CONTRACT_ADDRESS, ethers.constants.MaxUint256, deadline, v, r, s);
+  async executeMigrationGasless(
+    executeMigrationGaslessDto: ExecuteMigrationGaslessDto,
+  ): Promise<MigrationResponse[]> {
+    const response: MigrationResponse[] = [];
+    try {
+      const { tokenAndAmount, receiverAddress, gelatoApiKey } =
+        executeMigrationGaslessDto;
+      const tokenAddresses = tokenAndAmount?.map((token) => token.tokenAddress);
 
-            if (!data) {
-                throw new Error('unable to get data')
+      const balancesList = await this.fetchBalances(tokenAddresses);
+
+      tokenAndAmount?.map((tandA) => {
+        const matchingToken = balancesList.data.find(
+          (mToken) =>
+            mToken.token_address.toLowerCase() ===
+            tandA.tokenAddress.toLowerCase(),
+        );
+        if (!matchingToken) {
+          response.push({
+            tokenAddress: tandA.tokenAddress,
+            amount: tandA?.amount,
+            message: 'Supplied token does not exist',
+          });
+        }
+      });
+
+      const updatedTokens:TokenData[] = [];
+      for (const tokenInfo of balancesList.data) {
+        const matchingToken = tokenAndAmount?.find(
+          (token) =>
+            token.tokenAddress.toLowerCase() ===
+            tokenInfo.token_address.toLowerCase(),
+        );
+
+        if (
+          matchingToken &&
+          matchingToken.amount !== undefined &&
+          matchingToken.amount.gt(0) &&
+          BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
+        ) {
+          response.push({
+            tokenAddress: tokenInfo.token_address,
+            amount: matchingToken?.amount,
+            message: 'Supplied amount is greater than balance',
+          });
+        } else updatedTokens.push(tokenInfo);
+      }
+
+      // Now, updatedTokens contains the filtered array without the undesired elements
+      balancesList.data = updatedTokens;
+
+      let nfts = balancesList.data.filter((balances) => {
+        return balances.type === COVALENT_TOKEN_TYPES.NFT;
+      });
+
+      Logger.log('nfts ', nfts);
+
+      for (const collection of nfts) {
+        if (collection.nft_data) {
+          for (const nft of collection.nft_data) {
+            try {
+              const txHash = await this.permitHelper.performNFTTransfer(
+                receiverAddress,
+                collection.token_address,
+                nft.tokenId,
+              );
+              response.push({
+                tokenAddress: collection.token_address,
+                amount: 1,
+                tokenId: nft.tokenId,
+                message: 'Nft transfer successful',
+                txHash: typeof txHash === 'string' ? txHash : '',
+              });
+            } catch (error: any) {
+              logError(collection, error);
+              response.push({
+                tokenAddress: collection.token_address,
+                amount: 1,
+                message: 'Nft transfer failed',
+                txHash: '',
+              });
             }
-
-            return this.relayTransaction({
-                chainId: BigInt(chainId),
-                target: tokenAddress,
-                data
-            })
-        } catch (error) {
-            Logger.error(`permit transaction error: ${error}`);
-            throw error
+          }
         }
-    }
+      }
 
-    async relayTransaction(requestData: BaseRelayParams): Promise<boolean> {
+      let tokens = balancesList.data.filter((balances) => {
+        return (
+          balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+          balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
+          balances.type === COVALENT_TOKEN_TYPES.DUST
+        );
+      });
+
+      Logger.log(' filtered tokens ', tokens);
+
+      tokens = tokens.map((element: TokenData) => {
+        const matchingToken = tokenAndAmount?.find(
+          (token) =>
+            token.tokenAddress.toLowerCase() ===
+            element.token_address.toLowerCase(),
+        );
+
+        if (
+          matchingToken &&
+          matchingToken.amount !== undefined &&
+          matchingToken.amount.gt(0)
+        ) {
+          element.balance = matchingToken.amount;
+        }
+
+        // Case: tokenAndAmount contains amount for token but it's greater than the given allowance
+        // Then we assign the allowance amount 0 to perform normal token transfer
+        if (
+          element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&
+          COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY &&
+          element.permit2Allowance.gte(BigNumber.from(0)) &&
+          element.balance.gt(element.permit2Allowance)
+        ) {
+          element.permit2Allowance = BigNumber.from(0);
+        }
+
+        return element;
+      });
+
+      Logger.log('tokens ', tokens);
+
+      const erc20Tokens = tokens.filter(
+        (token) =>
+          token.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+          token.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+      );
+      Logger.log('erc20Tokens ', erc20Tokens);
+
+      const nativeToken = tokens.filter(
+        (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
+      );
+
+      const erc20TransferableTokens = erc20Tokens.filter(
+        (balanceObj) =>
+          !balanceObj.permitExist &&
+          balanceObj.permit2Allowance.eq(BigNumber.from(0)),
+      );
+
+      Logger.log('erc20TransferableTokens ', erc20TransferableTokens);
+      // Loop through tokens to perform normal transfers
+
+      for (const token of erc20TransferableTokens) {
+        const tokenAddress = token.token_address;
         try {
-            const request: SponsoredCallRequest = requestData
-            const relayResponse = await this.relayer.sponsoredCall(request, this.apiKey);
-            Logger.log('Relayed transaction info:', relayResponse);
-            return true
-        } catch (error) {
-            Logger.error(`Relayed transaction error: ${error}`);
-            throw error
+          const txHash = await this.permitHelper.performTokenTransfer(
+            receiverAddress,
+            tokenAddress,
+            token.balance,
+          );
+          response.push({
+            tokenAddress: token.token_address,
+            amount: token.balance,
+            message: 'Token transfer successful',
+            txHash: typeof txHash === 'string' ? txHash : '',
+          });
+        } catch (error: any) {
+          logError(token, error);
+          response.push({
+            tokenAddress: token.token_address,
+            amount: token.balance,
+            message: 'Token transfer failed',
+            txHash: '',
+          });
         }
-    }
+      }
 
-    toDeadline(expiration: number): number {
-        return Math.floor((Date.now() + expiration) / 1000)
-    }
-
-    async getSingleTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData, scwAddress: string, provider: ethers.providers.JsonRpcProvider): Promise<PermitData> {
-        const nonce = await provider.getTransactionCount(eoaAddress);
-        let permitData;
-        let permitTransferFrom: PermitTransferFrom
-
-        permitTransferFrom = {
-            permitted: {
-                token: tokenData.contract_address,
-                amount: tokenData.permit2Allowance, // TODO: Verify transferrable amount
-            },
-            deadline: this.toDeadline(1000 * 60 * 60 * 24 * 30),
-            nonce,
-            spender: eoaAddress
+      // Filtering out tokens to do permit transaction
+      const permittedTokens = erc20Tokens.filter(
+        (balanceObj) =>
+          balanceObj.permitExist &&
+          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
+      );
+      Logger.log('permittedTokens ', permittedTokens);
+      permittedTokens.map(async (token) => {
+        const permitDto: PermitDto = {
+          chainId: this.chainId,
+          eoaAddress: this.owner,
+          tokenAddress: token.token_address,
+        };
+        try {
+          const resultSet = await this.permitHelper.performPermit(permitDto);
+          const relayTrxDto: RelayTrxDto = {
+            relayer: this.relayer,
+            requestData: resultSet,
+            gelatoApiKey,
+          };
+          const taskId = await relayTransaction(relayTrxDto);
+          const gelatoTxStatusDto: GelatoTxStatusDto = {
+            relayer: this.relayer,
+            taskId,
+          };
+          const txStatus = await getGelatoTransactionStatus(gelatoTxStatusDto);
+          if (txStatus) {
+            permit2TransferableTokens.push(token);
+          }
+          response.push({
+            tokenAddress: token.token_address,
+            amount: token.balance,
+            message:
+              typeof txStatus === 'string'
+                ? 'Token Permit Successful'
+                : 'Token Permit Failed',
+            txHash: typeof txStatus === 'string' ? txStatus : '',
+          });
+        } catch (error: any) {
+          logError(token, error);
+          response.push({
+            tokenAddress: token.token_address,
+            amount: token.balance,
+            message: 'Permit token failed',
+            txHash: '',
+          });
         }
-        permitData = SignatureTransfer.getPermitData(permitTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId);
-        const signature = await this.signer.signMessage(ethers.utils.arrayify(ethers.utils._TypedDataEncoder.encode(permitData.domain, permitData.types, permitData.values)));
-        return {
+      });
+
+      // filter out tokens that have already given allowance
+      const permit2TransferableTokens = erc20Tokens.filter(
+        (balanceObj) =>
+          BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)) ||
+          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)),
+      );
+
+      // Merge permittedTokens and permit2TransferableTokens
+      const batchPermitTransaction = permittedTokens.concat(
+        permit2TransferableTokens,
+      );
+
+      if (batchPermitTransaction.length === 1) {
+        const singleTransferPermitDto: SingleTransferPermitDto = {
+          provider: this.ethersProvider,
+          chainId: this.chainId,
+          spenderAddress: GELATO_RELAYER_ADDRESS,
+          tokenData: batchPermitTransaction[0],
+        };
+        const permit2SingleContract = new Contract(
+          PERMIT2_CONTRACT_ADDRESS,
+          PERMIT2_SINGLE_TRANSFER_ABI,
+          this.signer,
+        );
+        const permitData = await this.permitHelper.getSingleTransferPermitData(
+          singleTransferPermitDto,
+        );
+        const { permitTransferFrom, signature } = permitData;
+
+        const { data } =
+          await permit2SingleContract.populateTransaction.permitTransferFrom(
             permitTransferFrom,
+            {
+              to: receiverAddress,
+              requestedAmount: permitTransferFrom.permitted.amount,
+            },
+            this.owner,
             signature,
+          );
+        if (!data) {
+          throw new Error('unable to get data');
+        }
+        const relayTrxDto: RelayTrxDto = {
+          relayer: this.relayer,
+          requestData: {
+            chainId: BigInt(this.chainId),
+            target: PERMIT2_CONTRACT_ADDRESS,
+            data,
+          },
+          gelatoApiKey,
         };
-    }
+        try {
+          const taskId = await relayTransaction(relayTrxDto);
+          const txStatus = await getGelatoTransactionStatus({
+            relayer: this.relayer,
+            taskId,
+          });
+          response.push({
+            tokenAddress: permitTransferFrom.permitted.token,
+            amount: permitTransferFrom.permitted.amount,
+            message:
+              typeof txStatus === 'string'
+                ? 'Transactions Successful'
+                : 'Transactions Failed',
+            txHash: typeof txStatus === 'string' ? txStatus : '',
+          });
+        } catch (error: any) {
+          logError(
+            {
+              token_address: permitTransferFrom.permitted.token,
+              balance: permitTransferFrom.permitted.amount,
+            },
+            error,
+          );
+        }
+      } else if (batchPermitTransaction.length > 1) {
+        const permit2BatchContract = new Contract(
+          PERMIT2_CONTRACT_ADDRESS,
+          PERMIT2_BATCH_TRANSFER_ABI,
+          this.signer,
+        );
 
-    async getBatchTransferPermitData(chainId: ChainId, eoaAddress: string, tokenData: TokenData[], scwAddress: string, provider: ethers.providers.JsonRpcProvider): Promise<BatchPermitData> {
-        const nonce = await provider.getTransactionCount(eoaAddress);
-        let permitData;
+        const batchTransferPermitDto: BatchTransferPermitDto = {
+          provider: this.ethersProvider,
+          chainId: this.chainId,
+          spenderAddress: GELATO_RELAYER_ADDRESS,
+          tokenData: batchPermitTransaction,
+        };
+        const permitData = await this.permitHelper.getBatchTransferPermitData(
+          batchTransferPermitDto,
+        );
 
-        if (tokenData.length < 2) {
-            throw new Error('Invalid token data length');
+        const { permitBatchTransferFrom, signature } = permitData;
+
+        const tokenPermissions = permitBatchTransferFrom.permitted.map(
+          (batchInfo) => ({
+            to: receiverAddress,
+            requestedAmount: batchInfo.amount,
+          }),
+        );
+
+        const { data } =
+          await permit2BatchContract.populateTransaction.permitTransferFrom(
+            permitBatchTransferFrom,
+            tokenPermissions,
+            this.owner,
+            signature,
+          );
+        if (!data) {
+          throw new Error('unable to get data');
         }
 
-        const tokenPermissions: TokenPermissions[] = tokenData.map((token) => ({
-            token: token.contract_address,
-            amount: token.permit2Allowance, // TODO: Verify transferrable amount
-        }));
-
-        const permitBatchTransferFrom: PermitBatchTransferFrom = {
-            permitted: tokenPermissions,
-            deadline: this.toDeadline(1000 * 60 * 60 * 24 * 30),
-            nonce,
-            spender: eoaAddress,
+        const relayTrxDto: RelayTrxDto = {
+          relayer: this.relayer,
+          requestData: {
+            chainId: BigInt(this.chainId),
+            target: PERMIT2_CONTRACT_ADDRESS,
+            data,
+          },
+          gelatoApiKey,
         };
+        try {
+          const taskId = await relayTransaction(relayTrxDto);
+          const txStatus = await getGelatoTransactionStatus({
+            relayer: this.relayer,
+            taskId,
+          });
+          permitBatchTransferFrom.permitted.map((token) => {
+            response.push({
+              tokenAddress: token.token,
+              amount: token.amount,
+              message:
+                typeof txStatus === 'string'
+                  ? 'Transaction Successful'
+                  : 'Transaction Failed',
+              txHash: typeof txStatus === 'string' ? txStatus : '',
+            });
+          });
+        } catch (error: any) {
+          permitBatchTransferFrom.permitted.map((token) => {
+            logError(
+              {
+                token_address: token.token,
+                balance: token.amount,
+              },
+              error,
+            );
+            response.push({
+              tokenAddress: token.token,
+              amount: token.amount,
+              message: 'Transaction Failed',
+              txHash: '',
+            });
+          });
+        }
+      }
 
-        permitData = SignatureTransfer.getPermitData(permitBatchTransferFrom, PERMIT2_CONTRACT_ADDRESS, chainId)
+      if (nativeToken.length > 0) {
+        const updatedNativeToken = await this.fetchBalances([
+          nativeToken[0].token_address,
+        ]);
+        const amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance).mul(BigNumber.from(80)).div(BigNumber.from(100));
+        try {
+          const txHash = await this.permitHelper.performNativeTransfer(
+            receiverAddress,
+            amountTransfer,
+          );
 
-        const signature = await this.signer.signMessage(ethers.utils.arrayify(ethers.utils._TypedDataEncoder.encode(permitData.domain, permitData.types, permitData.values)));
-
-        return {
-            permitBatchTransferFrom,
-            signature,
-        };
+          response.push({
+            tokenAddress: nativeToken[0].token_address,
+            amount: amountTransfer,
+            message: 'Native transfer successful',
+            txHash: typeof txHash === 'string' ? txHash : '',
+          });
+        } catch (error: any) {
+          logError(nativeToken[0], error);
+          response.push({
+            tokenAddress: nativeToken[0].token_address,
+            amount: amountTransfer,
+            message: 'Native transfer failed',
+            txHash: '',
+          });
+        }
+      }
+    } catch (error) {
+      // Handle any errors that occur during the migration process
+      Logger.error('Migration Error:', error);
+      throw error;
     }
+    Logger.log(JSON.stringify(response));
+    return response;
+  }
 }
 
 export default AarcSDK;

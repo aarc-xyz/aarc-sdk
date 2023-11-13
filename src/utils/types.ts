@@ -1,12 +1,17 @@
-import { Signer } from 'ethers';
+import { BigNumber, BigNumberish, Signer, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
-import { PermitTransferFrom, PermitBatchTransferFrom } from '@uniswap/Permit2-sdk'
-
+import {
+  PermitTransferFrom,
+  PermitBatchTransferFrom,
+} from '../SignatureTransfer';
+import { GelatoRelay } from '@gelatonetwork/relay-sdk';
+import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 
 export type Config = {
-  signer: Signer,
-  apiKey: string
-}
+  rpcUrl: string;
+  signer: Signer;
+  apiKey: string;
+};
 
 export type GetSafeDto = {
   chainId: ChainId;
@@ -14,19 +19,24 @@ export type GetSafeDto = {
 };
 
 export type GetBalancesDto = {
-  chainId: ChainId;
-  eoaAddress: string;
   tokenAddresses?: string[];
 };
 
 export type TokenData = {
-  contract_decimals: number;
-  contract_name: string;
-  contract_ticker_symbol: string;
-  contract_address: string;
-  balance: string;
-  permit2Allowance: number;
-  permit2Exist: boolean;
+  decimals: number;
+  name: string;
+  symbol: string;
+  token_address: string;
+  balance: BigNumber;
+  type: string;
+  permit2Allowance: BigNumber;
+  permitExist: boolean;
+  nft_data: TokenNftData[];
+};
+
+export type TokenNftData = {
+  image: string;
+  tokenId: string;
 };
 
 export type BalancesResponse = {
@@ -35,17 +45,21 @@ export type BalancesResponse = {
   message: string;
 };
 
-
 export type TokenAndAmount = {
-  tokenAddress: string
-  amount: string
-}
+  tokenAddress: string;
+  amount?: BigNumber;
+};
 
 export type ExecuteMigrationDto = {
-  scwAddress: string;
-  tokenAndAmount: TokenAndAmount[]
-}
+  receiverAddress: string;
+  tokenAndAmount?: TokenAndAmount[];
+};
 
+export type ExecuteMigrationGaslessDto = {
+  receiverAddress: string;
+  tokenAndAmount?: TokenAndAmount[];
+  gelatoApiKey: string;
+};
 
 export interface SafeInfoResponse {
   address: string;
@@ -61,9 +75,7 @@ export interface SafeInfoResponse {
 
 export type OwnerResponse = {
   safes: string[];
-}
-
-
+};
 
 export type PermitData = {
   permitTransferFrom: PermitTransferFrom;
@@ -73,4 +85,48 @@ export type PermitData = {
 export type BatchPermitData = {
   permitBatchTransferFrom: PermitBatchTransferFrom;
   signature: string;
+};
+
+export type RelayTrxDto = {
+  relayer: GelatoRelay;
+  requestData: BaseRelayParams;
+  gelatoApiKey: string;
+};
+
+export type GelatoTxStatusDto = {
+  relayer: GelatoRelay;
+  taskId: string;
+};
+
+export type PermitDto = {
+  chainId: ChainId;
+  eoaAddress: string;
+  tokenAddress: string;
+};
+
+export type SingleTransferPermitDto = {
+  provider: ethers.providers.JsonRpcProvider;
+  chainId: ChainId;
+  spenderAddress: string;
+  tokenData: TokenData;
+};
+
+export type BatchTransferPermitDto = {
+  provider: ethers.providers.JsonRpcProvider;
+  chainId: ChainId;
+  spenderAddress: string;
+  tokenData: TokenData[];
+};
+
+export type PermitDomainDto = {
+  permit2Address: string;
+  chainId: number;
+};
+
+export type MigrationResponse = {
+  tokenAddress: string;
+  amount?: BigNumber | BigNumberish;
+  message: string;
+  txHash?: string;
+  tokenId?: string;
 };

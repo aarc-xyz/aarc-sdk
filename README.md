@@ -30,7 +30,7 @@ Import and initialise the Aarc SDK in your project.
 
 ```typescript
 import { ethers } from "ethers";
-import {AarcSDK} from AarcSDK;
+import { AarcSDK } from AarcSDK;
 
 let aarcSDK = new AarcSDK.default({
   rpcUrl: rpcUrl,
@@ -59,16 +59,31 @@ Transfer tokens from EOA to any receiver wallet address:
 
 ```typescript
 await aarcSDK.executeMigration({
-  scwAddress:'RECEIVER_WALLET_ADDRESS',
+  receiverAddress:'RECEIVER_WALLET_ADDRESS',
   tokenAndAmount: // Optional. If not passed, the SDK will migrate all the tokens of the wallet
   [   
     {
       tokenAddress:TOKEN1_ADDRESS,
-      amount:TOKEN1_AMOUNT
+      amount:TOKEN1_AMOUNT // ethers.BigNumber
     },
     ...
   ]
 })
+// Returns the response given below
+```
+
+Output:
+```bash
+[
+  {
+    tokenAddress,
+    amount,
+    message,
+    txHash,
+    tokenId
+  },
+  ...
+]
 ```
 
 ### Moving Assets without gas
@@ -77,17 +92,32 @@ Transfer tokens from EOA to any receiver wallet address without gas fees. Please
 
 ```typescript
 await aarcSDK.executeMigration({
-  scwAddress:RECEIVER_WALLET_ADDRESS,
+  receiverAddress:RECEIVER_WALLET_ADDRESS,
   tokenAndAmount: // Optional. If not passed, the SDK will migrate all the tokens of the wallet
   [   
     {
       tokenAddress:TOKEN1_ADDRESS,
-      amount:TOKEN1_AMOUNT
+      amount:TOKEN1_AMOUNT // ethers.BigNumber
     },
     ...
   ],
   GELATO_RELAYER_API_KEY // Use the link above to get the gelato relayer key
 })
+// Returns the response given below
+```
+
+Output:
+```bash
+[
+  {
+    tokenAddress,
+    amount,
+    message,
+    txHash,
+    tokenId
+  },
+  ...
+]
 ```
 
 ## Smart Wallet Integration

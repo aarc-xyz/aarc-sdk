@@ -30,7 +30,7 @@ Import and initialise the Aarc SDK in your project.
 
 ```typescript
 import { ethers } from "ethers";
-import { AarcSDK } from AarcSDK;
+import { AarcSDK } from "aarc-sdk";
 
 let aarcSDK = new AarcSDK.default({
   rpcUrl: rpcUrl,

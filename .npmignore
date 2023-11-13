@@ -1,0 +1,5 @@
+src
+.env
+.gitattributes
+.eslintrc.js
+.prettierrc

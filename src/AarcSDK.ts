@@ -151,7 +151,7 @@ class AarcSDK {
         }
       });
 
-      const updatedTokens = [];
+      const updatedTokens:TokenData[] = [];
       for (const tokenInfo of balancesList.data) {
         const matchingToken = tokenAndAmount?.find(
           (token) =>
@@ -389,7 +389,7 @@ class AarcSDK {
         const updatedNativeToken = await this.fetchBalances([
           nativeToken[0].token_address,
         ]);
-        const amountTransfer = updatedNativeToken.data[0].balance.mul(BigNumber.from(80)).div(BigNumber.from(100));
+        const amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance).mul(BigNumber.from(80)).div(BigNumber.from(100));
         try {
           const txHash = await this.permitHelper.performNativeTransfer(
             receiverAddress,
@@ -448,7 +448,7 @@ class AarcSDK {
         }
       });
 
-      const updatedTokens = [];
+      const updatedTokens:TokenData[] = [];
       for (const tokenInfo of balancesList.data) {
         const matchingToken = tokenAndAmount?.find(
           (token) =>
@@ -804,7 +804,7 @@ class AarcSDK {
         const updatedNativeToken = await this.fetchBalances([
           nativeToken[0].token_address,
         ]);
-        const amountTransfer = updatedNativeToken.data[0].balance.mul(BigNumber.from(80)).div(BigNumber.from(100));
+        const amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance).mul(BigNumber.from(80)).div(BigNumber.from(100));
         try {
           const txHash = await this.permitHelper.performNativeTransfer(
             receiverAddress,

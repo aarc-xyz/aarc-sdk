@@ -10,6 +10,7 @@ import {
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
+  BalancesResponse,
   Config,
   ExecuteMigrationDto,
   ExecuteMigrationGaslessDto,
@@ -20,7 +21,6 @@ import {
   SingleTransferPermitDto,
   TokenData,
 } from './utils/Types';
-import { BalancesResponse } from './utils/Types';
 import { ChainId } from './utils/ChainTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -389,7 +389,7 @@ class AarcSDK {
         const updatedNativeToken = await this.fetchBalances([
           nativeToken[0].token_address,
         ]);
-        const amountTransfer = updatedNativeToken.data[0].balance.mul(0.8);
+        const amountTransfer = updatedNativeToken.data[0].balance.mul(BigNumber.from(80)).div(BigNumber.from(100));
         try {
           const txHash = await this.permitHelper.performNativeTransfer(
             receiverAddress,
@@ -804,7 +804,7 @@ class AarcSDK {
         const updatedNativeToken = await this.fetchBalances([
           nativeToken[0].token_address,
         ]);
-        const amountTransfer = updatedNativeToken.data[0].balance.mul(0.8);
+        const amountTransfer = updatedNativeToken.data[0].balance.mul(BigNumber.from(80)).div(BigNumber.from(100));
         try {
           const txHash = await this.permitHelper.performNativeTransfer(
             receiverAddress,

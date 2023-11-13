@@ -1,16 +1,17 @@
 import { BigNumber, BigNumberish, Signer, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
-import { PermitTransferFrom, PermitBatchTransferFrom } from '../SignatureTransfer'
-import { GelatoRelay } from "@gelatonetwork/relay-sdk";
-import { BaseRelayParams } from "@gelatonetwork/relay-sdk/dist/lib/types";
-import { type } from 'os';
-
+import {
+  PermitTransferFrom,
+  PermitBatchTransferFrom,
+} from '../SignatureTransfer';
+import { GelatoRelay } from '@gelatonetwork/relay-sdk';
+import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 
 export type Config = {
-  rpcUrl: string,
-  signer: Signer,
-  apiKey: string
-}
+  rpcUrl: string;
+  signer: Signer;
+  apiKey: string;
+};
 
 export type GetSafeDto = {
   chainId: ChainId;
@@ -27,7 +28,7 @@ export type TokenData = {
   symbol: string;
   token_address: string;
   balance: BigNumber;
-  type: string,
+  type: string;
   permit2Allowance: BigNumber;
   permitExist: boolean;
   nft_data: TokenNftData[];
@@ -36,7 +37,7 @@ export type TokenData = {
 export type TokenNftData = {
   image: string;
   tokenId: string;
-}
+};
 
 export type BalancesResponse = {
   code: number;
@@ -44,23 +45,21 @@ export type BalancesResponse = {
   message: string;
 };
 
-
 export type TokenAndAmount = {
-  tokenAddress: string
-  amount?: BigNumber
-}
+  tokenAddress: string;
+  amount?: BigNumber;
+};
 
 export type ExecuteMigrationDto = {
   receiverAddress: string;
-  tokenAndAmount?: TokenAndAmount[]
-}
+  tokenAndAmount?: TokenAndAmount[];
+};
 
 export type ExecuteMigrationGaslessDto = {
   receiverAddress: string;
   tokenAndAmount?: TokenAndAmount[];
   gelatoApiKey: string;
-}
-
+};
 
 export interface SafeInfoResponse {
   address: string;
@@ -76,9 +75,7 @@ export interface SafeInfoResponse {
 
 export type OwnerResponse = {
   safes: string[];
-}
-
-
+};
 
 export type PermitData = {
   permitTransferFrom: PermitTransferFrom;
@@ -91,45 +88,45 @@ export type BatchPermitData = {
 };
 
 export type RelayTrxDto = {
-  relayer: GelatoRelay
-  requestData: BaseRelayParams
-  gelatoApiKey: string
-}
+  relayer: GelatoRelay;
+  requestData: BaseRelayParams;
+  gelatoApiKey: string;
+};
 
 export type GelatoTxStatusDto = {
-  relayer: GelatoRelay
-  taskId: string
-}
+  relayer: GelatoRelay;
+  taskId: string;
+};
 
 export type PermitDto = {
-  chainId: ChainId
-  eoaAddress: string
-  tokenAddress: string
-}
+  chainId: ChainId;
+  eoaAddress: string;
+  tokenAddress: string;
+};
 
 export type SingleTransferPermitDto = {
-  provider: ethers.providers.JsonRpcProvider
-  chainId: ChainId
-  spenderAddress: string
-  tokenData: TokenData
-}
+  provider: ethers.providers.JsonRpcProvider;
+  chainId: ChainId;
+  spenderAddress: string;
+  tokenData: TokenData;
+};
 
 export type BatchTransferPermitDto = {
-  provider: ethers.providers.JsonRpcProvider
-  chainId: ChainId
-  spenderAddress: string
-  tokenData: TokenData[]
-}
+  provider: ethers.providers.JsonRpcProvider;
+  chainId: ChainId;
+  spenderAddress: string;
+  tokenData: TokenData[];
+};
 
 export type PermitDomainDto = {
-  permit2Address: string
-  chainId: number
-}
+  permit2Address: string;
+  chainId: number;
+};
 
 export type MigrationResponse = {
-  tokenAddress: string,
-  amount?: BigNumber | BigNumberish,
-  message: string,
-  txHash?: string
-  tokenId?: string 
-}
+  tokenAddress: string;
+  amount?: BigNumber | BigNumberish;
+  message: string;
+  txHash?: string;
+  tokenId?: string;
+};

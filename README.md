@@ -22,7 +22,7 @@ npm install ethers@5.7.2 aarc-sdk
 
 ## Get the API Key
 
-To use Aarc SDK, an API key is required. Fill out this form to request the API key.
+To use Aarc SDK, an API key is required. Fill out [this form](https://rebrand.ly/aarc-dashboard) to get the API Key on your email instantly!
 
 ## Initialise the SDK
 
@@ -156,4 +156,4 @@ const newBiconomySCWAddress = await aarcSDK.generateBiconomySCW();
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE.md) for details.
 
 ## Support and Feedback
-For support or to share feedback, please schedule a meet here. You can also share your ideas and feedback on the community forum.
+For support or to share feedback, please schedule a 15 min catchup [here](https://calendly.com/arihant-aarc/15min). You can also share your ideas and feedback on the community forum.

@@ -1,5 +1,37 @@
 import { BigNumber, ethers } from 'ethers';
+import { PermitHelper } from '../src/helpers';
 import { AarcSDK } from '../src'; // Adjust the path according to your directory structure
+
+// Mock the PermitHelper class
+
+jest.mock('../src/helpers/PermitHelper', () => {
+    return {
+        PermitHelper: jest.fn().mockImplementation(() => {
+            return {
+                performTokenTransfer: jest.fn().mockResolvedValue('0x1234567890'),
+                permitTransferFrom: jest.fn().mockResolvedValue('0x1234567890'),
+                performNFTTransfer: jest.fn().mockResolvedValue('0x1234567890'),
+                performNativeTransfer: jest.fn().mockResolvedValue('0x1234567890'),
+                getBatchTransferPermitData: jest.fn().mockImplementation(async (batchTransferPermitDto) => {
+                    const { spenderAddress } = batchTransferPermitDto;
+                    // Simulate the behavior of the function based on your test requirements
+                    const signature = 'mockedSignature'; // Replace with your mocked signature
+          
+                    return {
+                      permitBatchTransferFrom: {
+                        permitted: [{"token":"0xf4ca1a280ebccdaebf80e3c128e55de01fabd893","amount":{"type":"BigNumber","hex":"0x989680"}},{"token":"0xbb8db535d685f2742d6e84ec391c63e6a1ce3593","amount":{"type":"BigNumber","hex":"0x174876e800"}}],
+                        spender: spenderAddress,
+                        deadline: 12345678,
+                        nonce: 6623,
+                      },
+                      signature,
+                    };
+                  })
+            };
+        }),
+    };
+});
+
 
 describe("Aarc SDK executeMigration", () => {
     let receiver: string;
@@ -42,24 +74,7 @@ describe("Aarc SDK executeMigration", () => {
             message: 'Success',
         });
 
-        aarcSDK.executeMigration = jest.fn().mockImplementation(async (executeMigrationDto) => {
-            // You can define your mocked response here
-            return [
-                {
-                    tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-                    amount: { type: 'BigNumber', hex: '0x77359400' },
-                    message: 'Supplied token does not exist',
-                },
-                {
-                    tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-                    amount: { type: 'BigNumber', hex: '0x0f4240' },
-                    message: 'Token transfer successful',
-                    txHash: '0x67ecca16738216fdbe3555b8a4cb4fa1110303968dbee712a11cb503226af34f',
-                }
-            ];
-        }),
-
-            await aarcSDK.init();
+        await aarcSDK.init();
 
         const safes = await aarcSDK.getAllSafes()
         receiver = safes.safes[0];
@@ -82,40 +97,21 @@ describe("Aarc SDK executeMigration", () => {
             expect(migrationResponse).toHaveLength(2);
 
             // Verify the content of the response
-            // expect(migrationResponse[0]).toEqual({
-            //     tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-            //     amount: expect.objectContaining({
-            //         _hex: '0x77359400',
-            //     }),
-            //     message: 'Supplied token does not exist',
-            // });
-
-            // Verify the content of the response for the first item in the array
             expect(migrationResponse[0]).toEqual({
                 tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
                 amount: expect.objectContaining({
-                    type: 'BigNumber',
-                    hex: '0x77359400',
+                    _hex: '0x77359400',
                 }),
                 message: 'Supplied token does not exist',
             });
 
-            // expect(migrationResponse[0]).toEqual({
-            //     tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-            //     amount: expect.objectContaining({
-            //         _hex: '0x0f4240',
-            //     }),
-            //     message: 'Token transfer successful',
-            // });
-
             expect(migrationResponse[1]).toEqual({
                 tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
                 amount: expect.objectContaining({
-                    type: 'BigNumber',
-                    hex: '0x0f4240',
+                    _hex: '0x0f4240',
                 }),
                 message: 'Token transfer successful',
-                txHash: '0x67ecca16738216fdbe3555b8a4cb4fa1110303968dbee712a11cb503226af34f',
+                txHash: '0x1234567890'
             });
         } catch (error) {
             throw new Error(`Migration failed unexpectedly: ${error}`);
@@ -142,18 +138,6 @@ describe("Aarc SDK executeMigration", () => {
             message: 'Success',
         });
 
-        // Mock a different implementation for executeMigration
-        aarcSDK.executeMigration = jest.fn().mockImplementation(async (executeMigrationDto) => {
-            return [
-                {
-                    tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-                    amount: { type: 'BigNumber', hex: '0x12345' },
-                    message: 'Migration successful for ETH',
-                    txHash: '0x1234567890',
-                },
-            ];
-        });
-
         const executeMigrationDto = {
             tokenAndAmount: [
                 { tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', amount: BigNumber.from('100') },
@@ -171,11 +155,10 @@ describe("Aarc SDK executeMigration", () => {
             expect(migrationResponse[0]).toEqual({
                 tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
                 amount: expect.objectContaining({
-                    type: 'BigNumber',
-                    hex: '0x12345',
+                    _hex: '0x64',
                 }),
-                message: 'Migration successful for ETH',
-                txHash: '0x1234567890',
+                message: 'Token transfer successful',
+                txHash: '0x1234567890'
             });
         } catch (error) {
             throw new Error(`Migration failed unexpectedly: ${error}`);
@@ -183,7 +166,7 @@ describe("Aarc SDK executeMigration", () => {
     }, 30000);
 
 
-    it('should handle both native and ERC20 token token only', async () => {
+    it('should transfer token and native sucessfully', async () => {
         // Mock a different implementation for fetchBalances
         aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
             code: 200,
@@ -194,7 +177,7 @@ describe("Aarc SDK executeMigration", () => {
                     symbol: 'ETH',
                     token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
                     balance: { type: 'BigNumber', hex: '0x989680' },
-                    type: 'cryptocurrency',
+                    type: 'dust',
                     nft_data: null,
                     permit2Allowance: { type: 'BigNumber', hex: '0x0c9f2c9cd04674edd2f5bf5642' },
                     permitExist: true,
@@ -214,24 +197,6 @@ describe("Aarc SDK executeMigration", () => {
             message: 'Success',
         });
 
-        // Mock a different implementation for executeMigration
-        aarcSDK.executeMigration = jest.fn().mockImplementation(async (executeMigrationDto) => {
-            return [
-                {
-                    tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-                    amount: { type: 'BigNumber', hex: '0x12345' },
-                    message: 'Migration successful for ETH',
-                    txHash: '0x1234567890',
-                },
-                {
-                    tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-                    amount: { type: 'BigNumber', hex: '0x0f4240' },
-                    message: 'Token transfer successful',
-                    txHash: '0x67ecca16738216fdbe3555b8a4cb4fa1110303968dbee712a11cb503226af34f',
-                }
-            ];
-        });
-
         const executeMigrationDto = {
             receiverAddress: receiver,
         };
@@ -244,23 +209,19 @@ describe("Aarc SDK executeMigration", () => {
             expect(migrationResponse).toHaveLength(2);
 
             expect(migrationResponse[0]).toEqual({
+                tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                amount: { type: 'BigNumber', hex: '0x989680' },
+                message: 'Token transfer successful',
+                txHash: '0x1234567890'
+            });
+            
+            expect(migrationResponse[1]).toEqual({
                 tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
                 amount: expect.objectContaining({
-                    type: 'BigNumber',
-                    hex: '0x12345',
+                    _hex: '0x7a1200',
                 }),
-                message: 'Migration successful for ETH',
-                txHash: '0x1234567890',
-            });
-
-            expect(migrationResponse[1]).toEqual({
-                tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-                amount: expect.objectContaining({
-                    type: 'BigNumber',
-                    hex: '0x0f4240',
-                }),
-                message: 'Token transfer successful',
-                txHash: '0x67ecca16738216fdbe3555b8a4cb4fa1110303968dbee712a11cb503226af34f',
+                message: 'Native transfer successful',
+                txHash: '0x1234567890'
             });
 
         } catch (error) {

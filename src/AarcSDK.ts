@@ -218,11 +218,12 @@ class AarcSDK {
         if (collection.nft_data) {
           for (const nft of collection.nft_data) {
             try {
-              const txHash = await this.permitHelper.performNFTTransfer(
-                senderSigner,
-                receiverAddress,
-                collection.token_address,
-                nft.tokenId,
+              const txHash = await this.permitHelper.performNFTTransfer({
+                senderSigner: senderSigner,
+                recipientAddress: receiverAddress,
+                tokenAddress: collection.token_address,
+                tokenId: nft.tokenId,
+              }
               );
               response.push({
                 tokenAddress: collection.token_address,
@@ -271,11 +272,12 @@ class AarcSDK {
       // Loop through tokens to perform normal transfers
       for (const token of erc20TransferableTokens) {
         try {
-          const txHash = await this.permitHelper.performTokenTransfer(
-            senderSigner,
-            receiverAddress,
-            token.token_address,
-            token.balance,
+          const txHash = await this.permitHelper.performTokenTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            tokenAddress: token.token_address,
+            amount: token.balance,
+          }
           );
           response.push({
             tokenAddress: token.token_address,
@@ -303,11 +305,12 @@ class AarcSDK {
       if (permit2TransferableTokens.length === 1) {
         const token = permit2TransferableTokens[0];
         try {
-          const txHash = await this.permitHelper.performTokenTransfer(
-            senderSigner,
-            receiverAddress,
-            token.token_address,
-            token.balance,
+          const txHash = await this.permitHelper.performTokenTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            tokenAddress: token.token_address,
+            amount: token.balance,
+          }
           );
           response.push({
             tokenAddress: token.token_address,
@@ -389,10 +392,11 @@ class AarcSDK {
           .mul(BigNumber.from(80))
           .div(BigNumber.from(100));
         try {
-          const txHash = await this.permitHelper.performNativeTransfer(
-            senderSigner,
-            receiverAddress,
-            amountTransfer,
+          const txHash = await this.permitHelper.performNativeTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            amount: amountTransfer,
+          }
           );
 
           response.push({
@@ -483,11 +487,12 @@ class AarcSDK {
         if (collection.nft_data) {
           for (const nft of collection.nft_data) {
             try {
-              const txHash = await this.permitHelper.performNFTTransfer(
-                senderSigner,
-                receiverAddress,
-                collection.token_address,
-                nft.tokenId,
+              const txHash = await this.permitHelper.performNFTTransfer({
+                senderSigner: senderSigner,
+                recipientAddress: receiverAddress,
+                tokenAddress: collection.token_address,
+                tokenId: nft.tokenId,
+              }
               );
               response.push({
                 tokenAddress: collection.token_address,
@@ -573,11 +578,12 @@ class AarcSDK {
       for (const token of erc20TransferableTokens) {
         const tokenAddress = token.token_address;
         try {
-          const txHash = await this.permitHelper.performTokenTransfer(
-            senderSigner,
-            receiverAddress,
-            tokenAddress,
-            token.balance,
+          const txHash = await this.permitHelper.performTokenTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            tokenAddress: tokenAddress,
+            amount: token.balance,
+          }
           );
           response.push({
             tokenAddress: token.token_address,
@@ -813,10 +819,11 @@ class AarcSDK {
           .mul(BigNumber.from(80))
           .div(BigNumber.from(100));
         try {
-          const txHash = await this.permitHelper.performNativeTransfer(
-            senderSigner,
-            receiverAddress,
-            amountTransfer,
+          const txHash = await this.permitHelper.performNativeTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            amount: amountTransfer,
+          }
           );
 
           response.push({

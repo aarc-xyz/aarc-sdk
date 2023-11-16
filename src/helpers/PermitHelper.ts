@@ -21,6 +21,9 @@ import {
   SingleTransferPermitDto,
   BatchTransferPermitDto,
   PermitDomainDto,
+  TokenTransferDto,
+  NftTransferDto,
+  NativeTransferDto,
 } from '../utils/Types';
 import {
   TypedDataDomain,
@@ -38,58 +41,54 @@ export class PermitHelper {
   }
 
   async performTokenTransfer(
-    signer: Signer,
-    recipient: string,
-    tokenAddress: string,
-    amount: BigNumber,
+    tokenTransferDto: TokenTransferDto,
   ): Promise<boolean> {
+    const { senderSigner, recipientAddress, tokenAddress, amount } = tokenTransferDto;
     Logger.log(`Transferring token ${tokenAddress} with amount ${amount}`);
     // Create a contract instance with the ABI and contract address.
     const tokenContract = new ethers.Contract(
       tokenAddress,
       ERC20_ABI,
-      signer,
+      senderSigner,
     );
 
     const gasEstimated = await tokenContract.estimateGas.transfer(
-      recipient,
+      recipientAddress,
       amount,
     );
     Logger.log('gasEstimated', gasEstimated);
 
     // Perform the token transfer.
-    const tx = await tokenContract.transfer(recipient, amount, {
+    const tx = await tokenContract.transfer(recipientAddress, amount, {
       gasLimit: gasEstimated.mul(130).div(100),
     });
     return tx.hash;
   }
 
   async performNFTTransfer(
-    signer: Signer,
-    recipient: string,
-    tokenAddress: string,
-    tokenId: string,
+    nftTransferDto: NftTransferDto,
   ): Promise<boolean> {
+    const { senderSigner, recipientAddress, tokenAddress, tokenId } = nftTransferDto;
     Logger.log(`Transferring NFT ${tokenAddress} with tokenId ${tokenId}`);
 
     // Create a contract instance with the ABI and contract address.
     const tokenContract = new ethers.Contract(
       tokenAddress,
       ERC721_ABI,
-      signer,
+      senderSigner,
     );
 
     const gasEstimated = await tokenContract.estimateGas.safeTransferFrom(
-      await signer.getAddress(),
-      recipient,
+      await senderSigner.getAddress(),
+      recipientAddress,
       BigNumber.from(tokenId),
     );
     Logger.log('gasEstimated', gasEstimated);
 
     // Perform the token transfer.
     const tx = await tokenContract.safeTransferFrom(
-      await signer.getAddress(),
-      recipient,
+      await senderSigner.getAddress(),
+      recipientAddress,
       tokenId,
       {
         gasLimit: gasEstimated.mul(130).div(100),
@@ -100,22 +99,18 @@ export class PermitHelper {
   }
 
   async performNativeTransfer(
-    signer: Signer,
-    recipient: string,
-    amount: BigNumber,
+    nativeTransferDto: NativeTransferDto,
   ): Promise<boolean | string> {
-    const tx = await signer.sendTransaction({
-      to: recipient,
+    const { senderSigner, recipientAddress, amount } = nativeTransferDto;
+    const tx = await senderSigner.sendTransaction({
+      to: recipientAddress,
       value: amount,
     });
     return tx.hash;
   }
 
   async signPermitMessage(
-    signer: Signer,
-    chainId: ChainId,
-    owner: string,
-    tokenAddress: string,
+    permitDto: PermitDto,
   ): Promise<{
     r: string;
     s: string;
@@ -124,6 +119,7 @@ export class PermitHelper {
     deadline: number;
   }> {
     try {
+      const { signer, chainId, eoaAddress, tokenAddress } = permitDto;
       const deadline = Math.floor(Date.now() / 1000) + 3600;
       // Create a contract instance with the ABI and contract address.
       const tokenContract = new ethers.Contract(
@@ -131,7 +127,7 @@ export class PermitHelper {
         ERC20_ABI,
         signer,
       );
-      const nonce = await tokenContract.nonces(owner);
+      const nonce = await tokenContract.nonces(eoaAddress);
 
       // set the domain parameters
       const domain = {
@@ -143,7 +139,7 @@ export class PermitHelper {
 
       // set the Permit type values
       const values = {
-        owner: owner,
+        owner: eoaAddress,
         spender: PERMIT2_CONTRACT_ADDRESS,
         value: ethers.constants.MaxUint256,
         nonce: nonce,
@@ -171,11 +167,7 @@ export class PermitHelper {
   async performPermit(permitDto: PermitDto) {
     try {
       const { signer, chainId, eoaAddress, tokenAddress } = permitDto;
-      const { r, s, v, deadline } = await this.signPermitMessage(
-        signer,
-        chainId,
-        eoaAddress,
-        tokenAddress,
+      const { r, s, v, deadline } = await this.signPermitMessage(permitDto
       );
 
       // Create a contract instance with the ABI and contract address.

@@ -63,6 +63,26 @@ export type ExecuteMigrationGaslessDto = {
   gelatoApiKey: string;
 };
 
+export type TokenTransferDto = {
+  senderSigner: Signer;
+  recipientAddress: string;
+  tokenAddress: string,
+  amount: BigNumber;
+};
+
+export type NftTransferDto = {
+  senderSigner: Signer;
+  recipientAddress: string;
+  tokenAddress: string,
+  tokenId: string;
+};
+
+export type NativeTransferDto = {
+  senderSigner: Signer;
+  recipientAddress: string;
+  amount: BigNumber;
+};
+
 export interface SafeInfoResponse {
   address: string;
   nonce: number;

@@ -63,6 +63,10 @@ class AarcSDK {
     this.permitHelper = new PermitHelper(rpcUrl);
   }
 
+  async getAllBiconomySCWs(owner: string) {
+    return await this.biconomy.getAllBiconomySCWs(this.chainId, owner);
+  }
+
   async generateBiconomySCW(signer: Signer) {
     return await this.biconomy.generateBiconomySCW(signer);
   }

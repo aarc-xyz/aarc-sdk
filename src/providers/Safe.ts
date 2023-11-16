@@ -43,5 +43,43 @@ class Safe {
     );
     return smartWalletAddress;
   }
+
+  async deploySafeSCW(owner: string, saltNonce?:number): Promise<boolean> {
+    // Create a SafeFactory instance using the EthersAdapter
+    const safeFactory = await SafeFactory.create({
+      ethAdapter: this.ethAdapter,
+    });
+    const config = {
+      owners: [owner],
+      threshold: 1,
+    };
+
+    const callback = (txHash: string): void => {
+      Logger.log('txHash ', txHash);
+      Logger.log('Safe Deployed Sucessfully');
+    };
+    try {
+      await safeFactory.deploySafe({
+        saltNonce: saltNonce? saltNonce.toString() : "0",
+        safeAccountConfig: config,
+        callback,
+      });
+    } catch (error: any) {
+      if (
+        error instanceof Error &&
+        error.message.includes('execution reverted: Create2 call failed')
+      ) {
+        // Handle the specific error message here
+        Logger.log('Safe is already deployed');
+        // Perform specific actions or additional logging based on this error
+        return true;
+      } else {
+        // Handle other errors if needed
+        Logger.error('An error occurred while deploying safe', error);
+        return false;
+      }
+    }
+    return true;
+  }
 }
 export default Safe;

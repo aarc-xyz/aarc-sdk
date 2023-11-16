@@ -1,1 +1,1 @@
-export * as AarcSDK from './AarcSDK';
+export { default as AarcSDK } from './AarcSDK';

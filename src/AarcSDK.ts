@@ -77,6 +77,10 @@ class AarcSDK {
     return this.safe.generateSafeSCW();
   }
 
+  deploySafeSCW() {
+    return this.safe.deploySafeSCW();
+  }
+
   async init(): Promise<AarcSDK> {
     try {
       const chainId = await this.signer.getChainId();
@@ -151,7 +155,7 @@ class AarcSDK {
         }
       });
 
-      const updatedTokens:TokenData[] = [];
+      const updatedTokens: TokenData[] = [];
       for (const tokenInfo of balancesList.data) {
         const matchingToken = tokenAndAmount?.find(
           (token) =>
@@ -162,7 +166,7 @@ class AarcSDK {
         if (
           matchingToken &&
           matchingToken.amount !== undefined &&
-          matchingToken.amount.gt(0) &&
+          BigNumber.from(matchingToken.amount).gt(0) &&
           BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
         ) {
           response.push({
@@ -196,7 +200,7 @@ class AarcSDK {
         if (
           matchingToken &&
           matchingToken.amount !== undefined &&
-          matchingToken.amount.gt(0)
+          BigNumber.from(matchingToken.amount).gt(0)
         ) {
           element.balance = matchingToken.amount;
         }
@@ -389,7 +393,11 @@ class AarcSDK {
         const updatedNativeToken = await this.fetchBalances([
           nativeToken[0].token_address,
         ]);
-        const amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance).mul(BigNumber.from(80)).div(BigNumber.from(100));
+        const amountTransfer = BigNumber.from(
+          updatedNativeToken.data[0].balance,
+        )
+          .mul(BigNumber.from(80))
+          .div(BigNumber.from(100));
         try {
           const txHash = await this.permitHelper.performNativeTransfer(
             receiverAddress,
@@ -448,7 +456,7 @@ class AarcSDK {
         }
       });
 
-      const updatedTokens:TokenData[] = [];
+      const updatedTokens: TokenData[] = [];
       for (const tokenInfo of balancesList.data) {
         const matchingToken = tokenAndAmount?.find(
           (token) =>
@@ -804,7 +812,11 @@ class AarcSDK {
         const updatedNativeToken = await this.fetchBalances([
           nativeToken[0].token_address,
         ]);
-        const amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance).mul(BigNumber.from(80)).div(BigNumber.from(100));
+        const amountTransfer = BigNumber.from(
+          updatedNativeToken.data[0].balance,
+        )
+          .mul(BigNumber.from(80))
+          .div(BigNumber.from(100));
         try {
           const txHash = await this.permitHelper.performNativeTransfer(
             receiverAddress,

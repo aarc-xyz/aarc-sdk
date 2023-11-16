@@ -8,10 +8,10 @@ jest.mock('../src/helpers/PermitHelper', () => {
     return {
         PermitHelper: jest.fn().mockImplementation(() => {
             return {
-                performTokenTransfer: jest.fn().mockResolvedValue('0x1234567890'),
-                permitTransferFrom: jest.fn().mockResolvedValue('0x1234567890'),
-                performNFTTransfer: jest.fn().mockResolvedValue('0x1234567890'),
-                performNativeTransfer: jest.fn().mockResolvedValue('0x1234567890'),
+                performTokenTransfer: jest.fn().mockResolvedValue('token-transfer-0x1234567890'),
+                permitTransferFrom: jest.fn().mockResolvedValue('permit-token-transfer-0x1234567890'),
+                performNFTTransfer: jest.fn().mockResolvedValue('nft-transfer-0x1234567890'),
+                performNativeTransfer: jest.fn().mockResolvedValue('native-transfer-0x1234567890'),
                 getBatchTransferPermitData: jest.fn().mockImplementation(async (batchTransferPermitDto) => {
                     const { spenderAddress } = batchTransferPermitDto;
                     // Simulate the behavior of the function based on your test requirements
@@ -96,6 +96,16 @@ describe("Aarc SDK executeMigration", () => {
             expect(Array.isArray(migrationResponse)).toBe(true);
             expect(migrationResponse).toHaveLength(2);
 
+            expect(aarcSDK.permitHelper.performTokenTransfer).toHaveBeenCalled();
+
+            expect(aarcSDK.permitHelper.performTokenTransfer).toHaveBeenCalledTimes(1);
+
+            expect(aarcSDK.permitHelper.performTokenTransfer).toHaveBeenCalledWith(
+                receiver,
+                '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                BigNumber.from(0x0f4240)
+            );
+
             // Verify the content of the response
             expect(migrationResponse[0]).toEqual({
                 tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
@@ -111,7 +121,7 @@ describe("Aarc SDK executeMigration", () => {
                     _hex: '0x0f4240',
                 }),
                 message: 'Token transfer successful',
-                txHash: '0x1234567890'
+                txHash: 'token-transfer-0x1234567890'
             });
         } catch (error) {
             throw new Error(`Migration failed unexpectedly: ${error}`);
@@ -129,7 +139,7 @@ describe("Aarc SDK executeMigration", () => {
                     symbol: 'ETH',
                     token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
                     balance: { type: 'BigNumber', hex: '0x989680' },
-                    type: 'cryptocurrency',
+                    type: 'dust',
                     nft_data: null,
                     permit2Allowance: { type: 'BigNumber', hex: '0x0c9f2c9cd04674edd2f5bf5642' },
                     permitExist: true,
@@ -152,13 +162,22 @@ describe("Aarc SDK executeMigration", () => {
             expect(Array.isArray(migrationResponse)).toBe(true);
             expect(migrationResponse).toHaveLength(1);
 
+            expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalled();
+
+            expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalledWith(
+                receiver,
+                BigNumber.from('0x50')
+            );
+
+            expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalledTimes(1);
+
             expect(migrationResponse[0]).toEqual({
                 tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
                 amount: expect.objectContaining({
-                    _hex: '0x64',
+                    _hex: '0x50',
                 }),
-                message: 'Token transfer successful',
-                txHash: '0x1234567890'
+                message: 'Native transfer successful',
+                txHash: 'native-transfer-0x1234567890'
             });
         } catch (error) {
             throw new Error(`Migration failed unexpectedly: ${error}`);
@@ -208,11 +227,31 @@ describe("Aarc SDK executeMigration", () => {
             expect(Array.isArray(migrationResponse)).toBe(true);
             expect(migrationResponse).toHaveLength(2);
 
+            expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalled();
+
+            expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalledWith(
+                receiver,
+                BigNumber.from('0x7a1200')
+            );
+
+            expect(aarcSDK.permitHelper.performTokenTransfer).toHaveBeenCalled();
+
+            expect(aarcSDK.permitHelper.performTokenTransfer).toHaveBeenCalledTimes(1);
+
+
+            expect(aarcSDK.permitHelper.performTokenTransfer).toHaveBeenCalledWith(
+                receiver,
+                '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                { type: 'BigNumber', hex: '0x989680' }
+            );
+
+            expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalledTimes(1);
+
             expect(migrationResponse[0]).toEqual({
                 tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
                 amount: { type: 'BigNumber', hex: '0x989680' },
                 message: 'Token transfer successful',
-                txHash: '0x1234567890'
+                txHash: 'token-transfer-0x1234567890'
             });
             
             expect(migrationResponse[1]).toEqual({
@@ -221,7 +260,7 @@ describe("Aarc SDK executeMigration", () => {
                     _hex: '0x7a1200',
                 }),
                 message: 'Native transfer successful',
-                txHash: '0x1234567890'
+                txHash: 'native-transfer-0x1234567890'
             });
 
         } catch (error) {

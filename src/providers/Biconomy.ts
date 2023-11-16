@@ -12,23 +12,21 @@ import {
 import NodeClient from '@biconomy/node-client';
 
 class Biconomy {
-  signer: Signer;
   nodeClient: NodeClient;
 
-  constructor(_signer: Signer) {
-    this.signer = _signer;
+  constructor() {
     this.nodeClient = new NodeClient({ txServiceUrl: BICONOMY_TX_SERVICE_URL });
   }
 
-  async generateBiconomySCW(): Promise<string> {
+  async generateBiconomySCW(signer: Signer): Promise<string> {
     try {
       const module = await ECDSAOwnershipValidationModule.create({
-        signer: this.signer,
+        signer: signer,
         moduleAddress: DEFAULT_ECDSA_OWNERSHIP_MODULE,
       });
 
       let biconomySmartAccount = await BiconomySmartAccountV2.create({
-        chainId: await this.signer.getChainId(),
+        chainId: await signer.getChainId(),
         entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
         defaultValidationModule: module,
         activeValidationModule: module,

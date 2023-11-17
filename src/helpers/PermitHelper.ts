@@ -24,7 +24,7 @@ import {
   TokenTransferDto,
   NftTransferDto,
   NativeTransferDto,
-} from '../utils/Types';
+} from '../utils/AarcTypes';
 import {
   TypedDataDomain,
   TypedDataSigner,

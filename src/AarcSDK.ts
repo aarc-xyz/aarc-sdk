@@ -21,7 +21,7 @@ import {
   SingleTransferPermitDto,
   TokenData,
   TokenNftData,
-} from './utils/Types';
+} from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';

@@ -73,8 +73,8 @@ class AarcSDK {
   }
 
   // Forward the methods from Safe
-  getAllSafes(eoaAddress: string) {
-    return this.safe.getAllSafes(this.chainId, eoaAddress);
+  getAllSafes(owner: string) {
+    return this.safe.getAllSafes(this.chainId, owner);
   }
 
   generateSafeSCW(config: {owners: string[], threshold: number}, saltNonce?: number) {

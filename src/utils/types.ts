@@ -45,21 +45,22 @@ export type BalancesResponse = {
   message: string;
 };
 
-export type TokenAndAmount = {
+export type TransferTokenDetails = {
   tokenAddress: string;
-  amount?: BigNumber;
+  amount?: BigNumber; // for ERC20
+  tokenIds?: string[]; // for ERC721
 };
 
 export type ExecuteMigrationDto = {
   senderSigner: Signer;
   receiverAddress: string;
-  tokenAndAmount?: TokenAndAmount[];
+  transferTokenDetails?: TransferTokenDetails[];
 };
 
 export type ExecuteMigrationGaslessDto = {
   senderSigner: Signer;
   receiverAddress: string;
-  tokenAndAmount?: TokenAndAmount[];
+  transferTokenDetails?: TransferTokenDetails[];
   gelatoApiKey: string;
 };
 

@@ -21,7 +21,6 @@ import {
   SingleTransferPermitDto,
   TokenData,
 } from './utils/Types';
-import { ChainId } from './utils/ChainTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';
@@ -33,69 +32,56 @@ import {
   relayTransaction,
 } from './helpers/GelatoHelper';
 import { logError } from './helpers';
+import { ChainId } from './utils/ChainTypes';
 
 class AarcSDK {
   biconomy: Biconomy;
   safe: Safe;
-  chainId!: number;
-  owner!: string;
-  ethAdapter!: EthersAdapter;
-  signer: Signer;
+  chainId: number;
   apiKey: string;
   relayer: GelatoRelay;
   ethersProvider!: ethers.providers.JsonRpcProvider;
   permitHelper: PermitHelper;
 
   constructor(config: Config) {
-    const { rpcUrl, signer, apiKey } = config;
+    const { rpcUrl, apiKey, chainId } = config;
     Logger.log('Aarc SDK initiated');
-    // Create an EthersAdapter using the provided signer or provider
-    this.ethAdapter = new EthersAdapter({
-      ethers,
-      signerOrProvider: signer,
-    });
-    this.biconomy = new Biconomy(signer);
-    this.safe = new Safe(signer, this.ethAdapter);
-    this.signer = signer;
+
+    this.biconomy = new Biconomy();
+    this.safe = new Safe(rpcUrl);
+
+    if (Object.values(ChainId).includes(chainId)) {
+      this.chainId = chainId;
+    } else {
+      throw new Error('Invalid chain id');
+    }
     this.apiKey = apiKey;
     this.ethersProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
+    
     // instantiating Gelato Relay SDK
     this.relayer = new GelatoRelay();
-    this.permitHelper = new PermitHelper(signer);
+    this.permitHelper = new PermitHelper(rpcUrl);
   }
 
-  async generateBiconomySCW() {
-    return await this.biconomy.generateBiconomySCW();
+  async getAllBiconomySCWs(owner: string) {
+    return await this.biconomy.getAllBiconomySCWs(this.chainId, owner);
+  }
+
+  async generateBiconomySCW(signer: Signer) {
+    return await this.biconomy.generateBiconomySCW(signer);
   }
 
   // Forward the methods from Safe
-  getAllSafes() {
-    return this.safe.getAllSafes();
+  getAllSafes(eoaAddress: string) {
+    return this.safe.getAllSafes(this.chainId, eoaAddress);
   }
 
-  generateSafeSCW() {
-    return this.safe.generateSafeSCW();
+  generateSafeSCW(config: {owners: string[], threshold: number}, saltNonce?: number) {
+    return this.safe.generateSafeSCW(config, saltNonce);
   }
 
-  deploySafeSCW() {
-    return this.safe.deploySafeSCW();
-  }
-
-  async init(): Promise<AarcSDK> {
-    try {
-      const chainId = await this.signer.getChainId();
-      if (Object.values(ChainId).includes(chainId)) {
-        this.chainId = chainId;
-      } else {
-        throw new Error('Invalid chain id');
-      }
-      this.owner = await this.signer.getAddress();
-      Logger.log('EOA address', this.owner);
-      return this;
-    } catch (error) {
-      Logger.error('error while initiating sdk');
-      throw error;
-    }
+  deploySafeSCW(owner: string, saltNonce?:number) {
+    return this.safe.deploySafeSCW(owner, saltNonce);
   }
 
   /**
@@ -103,7 +89,7 @@ class AarcSDK {
    * @param balancesDto
    * @returns
    */
-  async fetchBalances(tokenAddresses?: string[]): Promise<BalancesResponse> {
+  async fetchBalances(eoaAddress: string, tokenAddresses?: string[]): Promise<BalancesResponse> {
     try {
       // Make the API call using the sendRequest function
       let response: BalancesResponse = await sendRequest({
@@ -114,7 +100,7 @@ class AarcSDK {
         },
         body: {
           chainId: String(this.chainId),
-          address: this.owner,
+          address: eoaAddress,
           tokenAddresses: tokenAddresses,
         },
       });
@@ -135,10 +121,11 @@ class AarcSDK {
     try {
       Logger.log('executeMigration ');
 
-      const { tokenAndAmount, receiverAddress } = executeMigrationDto;
+      const { tokenAndAmount, receiverAddress, senderSigner } = executeMigrationDto;
+      const owner = await senderSigner.getAddress();
       const tokenAddresses = tokenAndAmount?.map((token) => token.tokenAddress);
 
-      let balancesList = await this.fetchBalances(tokenAddresses);
+      let balancesList = await this.fetchBalances(owner, tokenAddresses);
 
       tokenAndAmount?.map((tandA) => {
         const matchingToken = balancesList.data.find(
@@ -231,10 +218,12 @@ class AarcSDK {
         if (collection.nft_data) {
           for (const nft of collection.nft_data) {
             try {
-              const txHash = await this.permitHelper.performNFTTransfer(
-                receiverAddress,
-                collection.token_address,
-                nft.tokenId,
+              const txHash = await this.permitHelper.performNFTTransfer({
+                senderSigner: senderSigner,
+                recipientAddress: receiverAddress,
+                tokenAddress: collection.token_address,
+                tokenId: nft.tokenId,
+              }
               );
               response.push({
                 tokenAddress: collection.token_address,
@@ -283,10 +272,12 @@ class AarcSDK {
       // Loop through tokens to perform normal transfers
       for (const token of erc20TransferableTokens) {
         try {
-          const txHash = await this.permitHelper.performTokenTransfer(
-            receiverAddress,
-            token.token_address,
-            token.balance,
+          const txHash = await this.permitHelper.performTokenTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            tokenAddress: token.token_address,
+            amount: token.balance,
+          }
           );
           response.push({
             tokenAddress: token.token_address,
@@ -308,16 +299,18 @@ class AarcSDK {
       const permit2Contract = new Contract(
         PERMIT2_CONTRACT_ADDRESS,
         PERMIT2_BATCH_TRANSFER_ABI,
-        this.signer,
+        senderSigner,
       );
 
       if (permit2TransferableTokens.length === 1) {
         const token = permit2TransferableTokens[0];
         try {
-          const txHash = await this.permitHelper.performTokenTransfer(
-            receiverAddress,
-            token.token_address,
-            token.balance,
+          const txHash = await this.permitHelper.performTokenTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            tokenAddress: token.token_address,
+            amount: token.balance,
+          }
           );
           response.push({
             tokenAddress: token.token_address,
@@ -338,9 +331,9 @@ class AarcSDK {
 
       if (permit2TransferableTokens.length > 1) {
         const batchTransferPermitDto: BatchTransferPermitDto = {
-          provider: this.ethersProvider,
+          signer: senderSigner,
           chainId: this.chainId,
-          spenderAddress: this.owner,
+          spenderAddress: owner,
           tokenData: permit2TransferableTokens,
         };
         const permitData = await this.permitHelper.getBatchTransferPermitData(
@@ -359,7 +352,7 @@ class AarcSDK {
           const txInfo = await permit2Contract.permitTransferFrom(
             permitData.permitBatchTransferFrom,
             tokenPermissions,
-            this.owner,
+            owner,
             signature,
           );
           permitBatchTransferFrom.permitted.map((token) => {
@@ -390,18 +383,20 @@ class AarcSDK {
       }
 
       if (nativeToken.length > 0) {
-        const updatedNativeToken = await this.fetchBalances([
-          nativeToken[0].token_address,
-        ]);
+        const updatedNativeToken = await this.fetchBalances(owner, 
+          [nativeToken[0].token_address,]
+        );
         const amountTransfer = BigNumber.from(
           updatedNativeToken.data[0].balance,
         )
           .mul(BigNumber.from(80))
           .div(BigNumber.from(100));
         try {
-          const txHash = await this.permitHelper.performNativeTransfer(
-            receiverAddress,
-            amountTransfer,
+          const txHash = await this.permitHelper.performNativeTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            amount: amountTransfer,
+          }
           );
 
           response.push({
@@ -435,11 +430,12 @@ class AarcSDK {
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
     try {
-      const { tokenAndAmount, receiverAddress, gelatoApiKey } =
+      const { senderSigner, tokenAndAmount, receiverAddress, gelatoApiKey } =
         executeMigrationGaslessDto;
+      const owner = await senderSigner.getAddress();
       const tokenAddresses = tokenAndAmount?.map((token) => token.tokenAddress);
 
-      const balancesList = await this.fetchBalances(tokenAddresses);
+      const balancesList = await this.fetchBalances(owner, tokenAddresses);
 
       tokenAndAmount?.map((tandA) => {
         const matchingToken = balancesList.data.find(
@@ -491,10 +487,12 @@ class AarcSDK {
         if (collection.nft_data) {
           for (const nft of collection.nft_data) {
             try {
-              const txHash = await this.permitHelper.performNFTTransfer(
-                receiverAddress,
-                collection.token_address,
-                nft.tokenId,
+              const txHash = await this.permitHelper.performNFTTransfer({
+                senderSigner: senderSigner,
+                recipientAddress: receiverAddress,
+                tokenAddress: collection.token_address,
+                tokenId: nft.tokenId,
+              }
               );
               response.push({
                 tokenAddress: collection.token_address,
@@ -580,10 +578,12 @@ class AarcSDK {
       for (const token of erc20TransferableTokens) {
         const tokenAddress = token.token_address;
         try {
-          const txHash = await this.permitHelper.performTokenTransfer(
-            receiverAddress,
-            tokenAddress,
-            token.balance,
+          const txHash = await this.permitHelper.performTokenTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            tokenAddress: tokenAddress,
+            amount: token.balance,
+          }
           );
           response.push({
             tokenAddress: token.token_address,
@@ -611,8 +611,9 @@ class AarcSDK {
       Logger.log('permittedTokens ', permittedTokens);
       permittedTokens.map(async (token) => {
         const permitDto: PermitDto = {
+          signer: senderSigner,
           chainId: this.chainId,
-          eoaAddress: this.owner,
+          eoaAddress: owner,
           tokenAddress: token.token_address,
         };
         try {
@@ -665,7 +666,7 @@ class AarcSDK {
 
       if (batchPermitTransaction.length === 1) {
         const singleTransferPermitDto: SingleTransferPermitDto = {
-          provider: this.ethersProvider,
+          signer: senderSigner,
           chainId: this.chainId,
           spenderAddress: GELATO_RELAYER_ADDRESS,
           tokenData: batchPermitTransaction[0],
@@ -673,7 +674,7 @@ class AarcSDK {
         const permit2SingleContract = new Contract(
           PERMIT2_CONTRACT_ADDRESS,
           PERMIT2_SINGLE_TRANSFER_ABI,
-          this.signer,
+          senderSigner,
         );
         const permitData = await this.permitHelper.getSingleTransferPermitData(
           singleTransferPermitDto,
@@ -687,7 +688,7 @@ class AarcSDK {
               to: receiverAddress,
               requestedAmount: permitTransferFrom.permitted.amount,
             },
-            this.owner,
+            owner,
             signature,
           );
         if (!data) {
@@ -730,11 +731,11 @@ class AarcSDK {
         const permit2BatchContract = new Contract(
           PERMIT2_CONTRACT_ADDRESS,
           PERMIT2_BATCH_TRANSFER_ABI,
-          this.signer,
+          senderSigner,
         );
 
         const batchTransferPermitDto: BatchTransferPermitDto = {
-          provider: this.ethersProvider,
+          signer: senderSigner,
           chainId: this.chainId,
           spenderAddress: GELATO_RELAYER_ADDRESS,
           tokenData: batchPermitTransaction,
@@ -756,7 +757,7 @@ class AarcSDK {
           await permit2BatchContract.populateTransaction.permitTransferFrom(
             permitBatchTransferFrom,
             tokenPermissions,
-            this.owner,
+            owner,
             signature,
           );
         if (!data) {
@@ -809,7 +810,7 @@ class AarcSDK {
       }
 
       if (nativeToken.length > 0) {
-        const updatedNativeToken = await this.fetchBalances([
+        const updatedNativeToken = await this.fetchBalances(owner, [
           nativeToken[0].token_address,
         ]);
         const amountTransfer = BigNumber.from(
@@ -818,9 +819,11 @@ class AarcSDK {
           .mul(BigNumber.from(80))
           .div(BigNumber.from(100));
         try {
-          const txHash = await this.permitHelper.performNativeTransfer(
-            receiverAddress,
-            amountTransfer,
+          const txHash = await this.permitHelper.performNativeTransfer({
+            senderSigner: senderSigner,
+            recipientAddress: receiverAddress,
+            amount: amountTransfer,
+          }
           );
 
           response.push({

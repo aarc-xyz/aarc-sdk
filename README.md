@@ -22,7 +22,7 @@ npm install ethers@5.7.2 aarc-sdk
 
 ## Get the API Key
 
-To use Aarc SDK, an API key is required. Fill out this form to request the API key.
+To use Aarc SDK, an API key is required. Fill out [this form](https://rebrand.ly/aarc-dashboard) to get the API Key on your email instantly!
 
 ## Initialise the SDK
 
@@ -66,8 +66,8 @@ await aarcSDK.executeMigration({
   [   
     {
       tokenAddress:TOKEN1_ADDRESS,
-      amount:TOKEN1_AMOUNT, // ethers.BigNumber in case of erc20 and native token
-      tokenIds: string[] // tokenIds for nfts
+      amount?:TOKEN1_AMOUNT, // ethers.BigNumber in case of erc20 and native token
+      tokenIds?: string[] // tokenIds for nfts
     },
     ...
   ]
@@ -101,8 +101,8 @@ await aarcSDK.executeMigration({
   [   
     {
       tokenAddress:TOKEN1_ADDRESS,
-      amount:TOKEN1_AMOUNT, // ethers.BigNumber in case of erc20 and native token
-      tokenIds: string[] // tokenIds for nfts
+      amount?:TOKEN1_AMOUNT, // ethers.BigNumber in case of erc20 and native token
+      tokenIds?: string[] // tokenIds for nfts
     },
     ...
   ],
@@ -163,7 +163,9 @@ Creating a New Biconomy Wallet:
 
 Similar to the Safe wallet, you can create a Biconomy smart wallet. The address provided is also a counterfactual address, requiring later deployment. The migration process can target this address immediately.
 ```typescript
-const newBiconomySCWAddress = await aarcSDK.generateBiconomySCW();
+const newBiconomySCWAddress = await aarcSDK.generateBiconomySCW(
+  signer // wallet owner's ethers.signer object
+);
 // Returns a counterfactual address for the new Biconomy wallet
 ```
 
@@ -173,4 +175,4 @@ const newBiconomySCWAddress = await aarcSDK.generateBiconomySCW();
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE.md) for details.
 
 ## Support and Feedback
-For support or to share feedback, please schedule a meet here. You can also share your ideas and feedback on the community forum.
+For support or to share feedback, please schedule a 15 min catchup [here](https://calendly.com/arihant-aarc/15min). You can also share your ideas and feedback on the [community forum](https://aarc.featurebase.app/).

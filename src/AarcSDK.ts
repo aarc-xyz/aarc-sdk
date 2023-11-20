@@ -476,30 +476,52 @@ class AarcSDK {
         }
       });
 
-      const updatedTokens: TokenData[] = [];
-      for (const tokenInfo of balancesList.data) {
-        const matchingToken = transferTokenDetails?.find(
-          (token) =>
-            token.tokenAddress.toLowerCase() ===
-            tokenInfo.token_address.toLowerCase(),
-        );
+      if (transferTokenDetails){
+        const updatedTokens: TokenData[] = [];
+        for (const tokenInfo of balancesList.data) {
+          const matchingToken = transferTokenDetails?.find(
+            (token) =>
+              token.tokenAddress.toLowerCase() ===
+              tokenInfo.token_address.toLowerCase(),
+          );
 
-        if (
-          matchingToken &&
-          matchingToken.amount !== undefined &&
-          matchingToken.amount.gt(0) &&
-          BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
-        ) {
-          response.push({
-            tokenAddress: tokenInfo.token_address,
-            amount: matchingToken?.amount,
-            message: 'Supplied amount is greater than balance',
-          });
-        } else updatedTokens.push(tokenInfo);
+          if (
+            matchingToken &&
+            matchingToken.amount !== undefined &&
+            BigNumber.from(matchingToken.amount).gt(0) &&
+            BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
+          ) {
+            response.push({
+              tokenAddress: tokenInfo.token_address,
+              amount: matchingToken?.amount,
+              message: 'Supplied amount is greater than balance',
+            });
+          } else if (
+            matchingToken &&
+            matchingToken.tokenIds !== undefined &&
+            tokenInfo.nft_data !== undefined
+          ){
+            const nftTokenIds: TokenNftData[] = [];
+            for (const tokenId of matchingToken.tokenIds) {
+              const tokenExist = tokenInfo.nft_data.find((nftData) => nftData.tokenId === tokenId);
+              if(tokenExist){
+                nftTokenIds.push(tokenExist);
+              } else {
+                response.push({
+                  tokenAddress: tokenInfo.token_address,
+                  tokenId: tokenId,
+                  message: 'Supplied NFT does not exist',
+                });
+              }
+            }
+            tokenInfo.nft_data = nftTokenIds;
+            updatedTokens.push(tokenInfo);
+          } else if(matchingToken) updatedTokens.push(tokenInfo);
+        }
+
+        // Now, updatedTokens contains the filtered array without the undesired elements
+        balancesList.data = updatedTokens;
       }
-
-      // Now, updatedTokens contains the filtered array without the undesired elements
-      balancesList.data = updatedTokens;
 
       let nfts = balancesList.data.filter((balances) => {
         return balances.type === COVALENT_TOKEN_TYPES.NFT;
@@ -558,7 +580,7 @@ class AarcSDK {
         if (
           matchingToken &&
           matchingToken.amount !== undefined &&
-          matchingToken.amount.gt(0)
+          BigNumber.from(matchingToken.amount).gt(0)
         ) {
           element.balance = matchingToken.amount;
         }
@@ -568,8 +590,8 @@ class AarcSDK {
         if (
           element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&
           COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY &&
-          element.permit2Allowance.gte(BigNumber.from(0)) &&
-          element.balance.gt(element.permit2Allowance)
+          BigNumber.from(element.permit2Allowance).gte(BigNumber.from(0)) &&
+          BigNumber.from(element.balance).gt(element.permit2Allowance)
         ) {
           element.permit2Allowance = BigNumber.from(0);
         }

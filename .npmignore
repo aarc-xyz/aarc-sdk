@@ -5,3 +5,5 @@ src
 .prettierrc
 tests
 .github
+jest.config.*
+```

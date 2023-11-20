@@ -20,7 +20,8 @@ import {
   RelayTrxDto,
   SingleTransferPermitDto,
   TokenData,
-} from './utils/Types';
+  TokenNftData,
+} from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';
@@ -72,8 +73,8 @@ class AarcSDK {
   }
 
   // Forward the methods from Safe
-  getAllSafes(eoaAddress: string) {
-    return this.safe.getAllSafes(this.chainId, eoaAddress);
+  getAllSafes(owner: string) {
+    return this.safe.getAllSafes(this.chainId, owner);
   }
 
   generateSafeSCW(config: {owners: string[], threshold: number}, saltNonce?: number) {
@@ -121,13 +122,13 @@ class AarcSDK {
     try {
       Logger.log('executeMigration ');
 
-      const { tokenAndAmount, receiverAddress, senderSigner } = executeMigrationDto;
+      const { transferTokenDetails, receiverAddress, senderSigner } = executeMigrationDto;
       const owner = await senderSigner.getAddress();
-      const tokenAddresses = tokenAndAmount?.map((token) => token.tokenAddress);
+      const tokenAddresses = transferTokenDetails?.map((token) => token.tokenAddress);
 
       let balancesList = await this.fetchBalances(owner, tokenAddresses);
 
-      tokenAndAmount?.map((tandA) => {
+      transferTokenDetails?.map((tandA) => {
         const matchingToken = balancesList.data.find(
           (mToken) =>
             mToken.token_address.toLowerCase() ===
@@ -142,30 +143,52 @@ class AarcSDK {
         }
       });
 
-      const updatedTokens: TokenData[] = [];
-      for (const tokenInfo of balancesList.data) {
-        const matchingToken = tokenAndAmount?.find(
-          (token) =>
-            token.tokenAddress.toLowerCase() ===
-            tokenInfo.token_address.toLowerCase(),
-        );
+      if (transferTokenDetails){
+        const updatedTokens: TokenData[] = [];
+        for (const tokenInfo of balancesList.data) {
+          const matchingToken = transferTokenDetails?.find(
+            (token) =>
+              token.tokenAddress.toLowerCase() ===
+              tokenInfo.token_address.toLowerCase(),
+          );
 
-        if (
-          matchingToken &&
-          matchingToken.amount !== undefined &&
-          BigNumber.from(matchingToken.amount).gt(0) &&
-          BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
-        ) {
-          response.push({
-            tokenAddress: tokenInfo.token_address,
-            amount: matchingToken?.amount,
-            message: 'Supplied amount is greater than balance',
-          });
-        } else updatedTokens.push(tokenInfo);
+          if (
+            matchingToken &&
+            matchingToken.amount !== undefined &&
+            BigNumber.from(matchingToken.amount).gt(0) &&
+            BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
+          ) {
+            response.push({
+              tokenAddress: tokenInfo.token_address,
+              amount: matchingToken?.amount,
+              message: 'Supplied amount is greater than balance',
+            });
+          } else if (
+            matchingToken &&
+            matchingToken.tokenIds !== undefined &&
+            tokenInfo.nft_data !== undefined
+          ){
+            const nftTokenIds: TokenNftData[] = [];
+            for (const tokenId of matchingToken.tokenIds) {
+              const tokenExist = tokenInfo.nft_data.find((nftData) => nftData.tokenId === tokenId);
+              if(tokenExist){
+                nftTokenIds.push(tokenExist);
+              } else {
+                response.push({
+                  tokenAddress: tokenInfo.token_address,
+                  tokenId: tokenId,
+                  message: 'Supplied NFT does not exist',
+                });
+              }
+            }
+            tokenInfo.nft_data = nftTokenIds;
+            updatedTokens.push(tokenInfo);
+          } else if(matchingToken) updatedTokens.push(tokenInfo);
+        }
+
+        // Now, updatedTokens contains the filtered array without the undesired elements
+        balancesList.data = updatedTokens;
       }
-
-      // Now, updatedTokens contains the filtered array without the undesired elements
-      balancesList.data = updatedTokens;
 
       let tokens = balancesList.data.filter((balances) => {
         return (
@@ -178,7 +201,7 @@ class AarcSDK {
       Logger.log(' filtered tokens ', tokens);
 
       tokens = tokens.map((element: TokenData) => {
-        const matchingToken = tokenAndAmount?.find(
+        const matchingToken = transferTokenDetails?.find(
           (token) =>
             token.tokenAddress.toLowerCase() ===
             element.token_address.toLowerCase(),
@@ -192,13 +215,13 @@ class AarcSDK {
           element.balance = matchingToken.amount;
         }
 
-        // Case: tokenAndAmount contains amount for token but it's greater than the given allowance
+        // Case: transferTokenDetails contains amount for token but it's greater than the given allowance
         // Then we assign the allowance amount 0 to perform normal token transfer
         if (
           element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&
           COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY &&
-          element.permit2Allowance.gte(BigNumber.from(0)) &&
-          element.balance.gt(element.permit2Allowance)
+          BigNumber.from(element.permit2Allowance).gte(BigNumber.from(0)) &&
+          BigNumber.from(element.balance).gt(element.permit2Allowance)
         ) {
           element.permit2Allowance = BigNumber.from(0);
         }
@@ -214,6 +237,7 @@ class AarcSDK {
 
       Logger.log('nfts ', nfts);
 
+      // token address, tokenIds: array of tokenIds
       for (const collection of nfts) {
         if (collection.nft_data) {
           for (const nft of collection.nft_data) {
@@ -430,14 +454,14 @@ class AarcSDK {
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
     try {
-      const { senderSigner, tokenAndAmount, receiverAddress, gelatoApiKey } =
+      const { senderSigner, transferTokenDetails, receiverAddress, gelatoApiKey } =
         executeMigrationGaslessDto;
       const owner = await senderSigner.getAddress();
-      const tokenAddresses = tokenAndAmount?.map((token) => token.tokenAddress);
+      const tokenAddresses = transferTokenDetails?.map((token) => token.tokenAddress);
 
       const balancesList = await this.fetchBalances(owner, tokenAddresses);
 
-      tokenAndAmount?.map((tandA) => {
+      transferTokenDetails?.map((tandA) => {
         const matchingToken = balancesList.data.find(
           (mToken) =>
             mToken.token_address.toLowerCase() ===
@@ -454,7 +478,7 @@ class AarcSDK {
 
       const updatedTokens: TokenData[] = [];
       for (const tokenInfo of balancesList.data) {
-        const matchingToken = tokenAndAmount?.find(
+        const matchingToken = transferTokenDetails?.find(
           (token) =>
             token.tokenAddress.toLowerCase() ===
             tokenInfo.token_address.toLowerCase(),
@@ -525,7 +549,7 @@ class AarcSDK {
       Logger.log(' filtered tokens ', tokens);
 
       tokens = tokens.map((element: TokenData) => {
-        const matchingToken = tokenAndAmount?.find(
+        const matchingToken = transferTokenDetails?.find(
           (token) =>
             token.tokenAddress.toLowerCase() ===
             element.token_address.toLowerCase(),
@@ -539,7 +563,7 @@ class AarcSDK {
           element.balance = matchingToken.amount;
         }
 
-        // Case: tokenAndAmount contains amount for token but it's greater than the given allowance
+        // Case: transferTokenDetails contains amount for token but it's greater than the given allowance
         // Then we assign the allowance amount 0 to perform normal token transfer
         if (
           element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&

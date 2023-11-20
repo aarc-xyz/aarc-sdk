@@ -1,7 +1,7 @@
 import { SponsoredCallRequest } from '@gelatonetwork/relay-sdk';
 import { TaskState } from '@gelatonetwork/relay-sdk/dist/lib/status/types';
 import { Logger } from '../utils/Logger';
-import { GelatoTxStatusDto, RelayTrxDto } from '../utils/Types';
+import { GelatoTxStatusDto, RelayTrxDto } from '../utils/AarcTypes';
 
 export const relayTransaction = async (
   relayTrxDto: RelayTrxDto,

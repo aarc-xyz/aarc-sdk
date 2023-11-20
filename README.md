@@ -32,9 +32,9 @@ Import and initialise the Aarc SDK in your project.
 import { ethers } from "ethers";
 import { AarcSDK } from "aarc-sdk";
 
-let aarcSDK = new AarcSDK.default({
+let aarcSDK = new AarcSDK({
   rpcUrl: rpcUrl,
-  signer: signer, // the user's ethers.signer object
+  chainId: chainId,
   apiKey: "YOUR_API_KEY",
 });
 
@@ -49,6 +49,7 @@ Retrieve balances of all tokens in an EOA wallet:
 
 ```typescript
 let balances = await aarcSDK.fetchBalances(
+  eoaAddress: string,
   tokenAddress: string[] // Optional: Array of specific token addresses
 );
 ```
@@ -59,12 +60,14 @@ Transfer tokens from EOA to any receiver wallet address:
 
 ```typescript
 await aarcSDK.executeMigration({
+  senderSigner: signer, // ethers.signer object
   receiverAddress:'RECEIVER_WALLET_ADDRESS',
-  tokenAndAmount: // Optional. If not passed, the SDK will migrate all the tokens of the wallet
+  transferTokenDetails: // Optional. If not passed, the SDK will migrate all the tokens of the wallet
   [   
     {
       tokenAddress:TOKEN1_ADDRESS,
-      amount:TOKEN1_AMOUNT // ethers.BigNumber
+      amount:TOKEN1_AMOUNT, // ethers.BigNumber in case of erc20 and native token
+      tokenIds: string[] // tokenIds for nfts
     },
     ...
   ]
@@ -92,12 +95,14 @@ Transfer tokens from EOA to any receiver wallet address without gas fees. Please
 
 ```typescript
 await aarcSDK.executeMigration({
+  senderSigner: signer, // ethers.signer object
   receiverAddress:RECEIVER_WALLET_ADDRESS,
-  tokenAndAmount: // Optional. If not passed, the SDK will migrate all the tokens of the wallet
+  transferTokenDetails: // Optional. If not passed, the SDK will migrate all the tokens of the wallet
   [   
     {
       tokenAddress:TOKEN1_ADDRESS,
-      amount:TOKEN1_AMOUNT // ethers.BigNumber
+      amount:TOKEN1_AMOUNT, // ethers.BigNumber in case of erc20 and native token
+      tokenIds: string[] // tokenIds for nfts
     },
     ...
   ],
@@ -129,7 +134,7 @@ Fetching Existing Safes:
 
 Retrieve a list of all Safe smart wallets associated with the user's EOA:
 ```typescript
-const safes = await aarcSDK.getAllSafes();
+const safes = await aarcSDK.getAllSafes(owner: string); // owner's eoaAddress
 // This returns an array of Safe wallet addresses
 ```
 
@@ -137,11 +142,23 @@ Creating a New Safe Wallet:
 
 Generate a new Safe smart wallet. The address returned is a counterfactual address, and the wallet needs to be deployed later. Asset migration can be directed to this address even before deployment.
 ```typescript
-const newSafeAddress = await aarcSDK.generateSafeSCW();
+const newSafeAddress = await aarcSDK.generateSafeSCW(
+  config: {owners: string[], threshold: number},
+  saltNonce?: number // default value is 0
+);
 // Returns a counterfactual address for the new Safe wallet
 ```
 
 ### Biconomy Smart Wallet
+
+Fetching Existing Safes:
+
+Retrieve a list of all Biconomy smart wallets associated with the user's EOA:
+```typescript
+const biconomySWs = await aarcSDK.getAllBiconomySCWs(owner: string); // owner's eoaAddress
+// This returns an array of Biconomy wallet addresses
+```
+
 Creating a New Biconomy Wallet:
 
 Similar to the Safe wallet, you can create a Biconomy smart wallet. The address provided is also a counterfactual address, requiring later deployment. The migration process can target this address immediately.

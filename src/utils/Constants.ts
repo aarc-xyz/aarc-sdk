@@ -1,4 +1,4 @@
-import { ethers } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 
 export const BASE_URL = 'https://migrator.aarc.xyz';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
@@ -68,3 +68,10 @@ export const PERMIT_FUNCTION_TYPES = {
     },
   ],
 };
+
+export const enum GAS_UNITS {
+  TRANSFER = 27329,
+  BATCH_PERMIT = 103453,
+  NFT_TRANSFER = 41046,
+  APPROVE = 46271,
+}

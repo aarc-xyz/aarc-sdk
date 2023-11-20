@@ -3,3 +3,7 @@ src
 .gitattributes
 .eslintrc.js
 .prettierrc
+tests
+.github
+jest.config.*
+```

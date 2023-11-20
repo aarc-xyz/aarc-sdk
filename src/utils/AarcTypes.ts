@@ -8,8 +8,8 @@ import { GelatoRelay } from '@gelatonetwork/relay-sdk';
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 
 export type Config = {
+  chainId: number;
   rpcUrl: string;
-  signer: Signer;
   apiKey: string;
 };
 
@@ -45,20 +45,43 @@ export type BalancesResponse = {
   message: string;
 };
 
-export type TokenAndAmount = {
+export type TransferTokenDetails = {
   tokenAddress: string;
-  amount?: BigNumber;
+  amount?: BigNumber; // for ERC20
+  tokenIds?: string[]; // for ERC721
 };
 
 export type ExecuteMigrationDto = {
+  senderSigner: Signer;
   receiverAddress: string;
-  tokenAndAmount?: TokenAndAmount[];
+  transferTokenDetails?: TransferTokenDetails[];
 };
 
 export type ExecuteMigrationGaslessDto = {
+  senderSigner: Signer;
   receiverAddress: string;
-  tokenAndAmount?: TokenAndAmount[];
+  transferTokenDetails?: TransferTokenDetails[];
   gelatoApiKey: string;
+};
+
+export type TokenTransferDto = {
+  senderSigner: Signer;
+  recipientAddress: string;
+  tokenAddress: string,
+  amount: BigNumber;
+};
+
+export type NftTransferDto = {
+  senderSigner: Signer;
+  recipientAddress: string;
+  tokenAddress: string,
+  tokenId: string;
+};
+
+export type NativeTransferDto = {
+  senderSigner: Signer;
+  recipientAddress: string;
+  amount: BigNumber;
 };
 
 export interface SafeInfoResponse {
@@ -99,20 +122,21 @@ export type GelatoTxStatusDto = {
 };
 
 export type PermitDto = {
+  signer: Signer;
   chainId: ChainId;
   eoaAddress: string;
   tokenAddress: string;
 };
 
 export type SingleTransferPermitDto = {
-  provider: ethers.providers.JsonRpcProvider;
+  signer: Signer;
   chainId: ChainId;
   spenderAddress: string;
   tokenData: TokenData;
 };
 
 export type BatchTransferPermitDto = {
-  provider: ethers.providers.JsonRpcProvider;
+  signer: Signer;
   chainId: ChainId;
   spenderAddress: string;
   tokenData: TokenData[];

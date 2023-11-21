@@ -37,8 +37,6 @@ let aarcSDK = new AarcSDK({
   chainId: chainId,
   apiKey: "YOUR_API_KEY",
 });
-
-await aarcSDK.init();
 ```
 
 # Usage

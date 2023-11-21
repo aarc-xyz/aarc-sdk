@@ -1,6 +1,6 @@
 import { BigNumber, ethers } from 'ethers';
 import { Logger } from '../utils/Logger';
-import { ETHEREUM_ADDRESS } from '../utils/Constants';
+import { ETHEREUM_ADDRESS, GAS_UNITS } from '../utils/Constants';
 import { ERC20_ABI } from '../utils/abis/ERC20.abi';
 import { PERMIT2_BATCH_TRANSFER_ABI } from '../utils/abis/Permit2BatchTransfer.abi';
 
@@ -29,7 +29,10 @@ export const calculateTotalGasNeeded = async (
               transaction.signature,
             )
           ).data;
-        } else {
+        } else if (
+          transaction.type === 'cryptocurrency' ||
+          transaction.type === 'stablecoin'
+        ) {
           const contract = new ethers.Contract(
             transaction.tokenAddress,
             ERC20_ABI,
@@ -56,7 +59,20 @@ export const calculateTotalGasNeeded = async (
       };
       Logger.log('actual estimating trx ', tx);
 
-      const gasCost = await estimateGasForTransaction(provider, tx);
+      let gasCost = BigNumber.from(0);
+
+      if (transaction.type === 'nft') {
+        gasCost = BigNumber.from(GAS_UNITS['nft']);
+      } else if (transaction.type === 'dust') {
+        gasCost = BigNumber.from(GAS_UNITS['nft']);
+      } else if (
+        transaction.type === 'cryptocurrency' ||
+        transaction.type === 'stablecoin'
+      ) {
+        gasCost = BigNumber.from(GAS_UNITS['cryptocurrency']);
+      } else {
+        gasCost = await estimateGasForTransaction(provider, tx);
+      }
       totalGasCost = totalGasCost.add(gasCost);
       transaction.gasCost = gasCost;
       validTransactions.push(transaction);

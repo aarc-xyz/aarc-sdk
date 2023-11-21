@@ -70,8 +70,9 @@ export const PERMIT_FUNCTION_TYPES = {
 };
 
 export const enum GAS_UNITS {
-  TRANSFER = 27329,
-  BATCH_PERMIT = 103453,
-  NFT_TRANSFER = 41046,
+  cryptocurrency = 25000,
+  stablecoin = 25000,
+  dust = 21000,
+  nft = 60000,
   APPROVE = 46271,
 }

@@ -1,4 +1,3 @@
-import { EthersAdapter } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
@@ -21,8 +20,8 @@ import {
   RelayTrxDto,
   SingleTransferPermitDto,
   TokenData,
-} from './utils/Types';
-import { ChainId } from './utils/ChainTypes';
+  TokenNftData,
+} from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';
@@ -34,71 +33,60 @@ import {
   relayTransaction,
 } from './helpers/GelatoHelper';
 import { logError } from './helpers';
-import { estimateGas } from '@safe-global/protocol-kit/dist/src/utils';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
+import { ChainId } from './utils/ChainTypes';
 
 class AarcSDK {
   biconomy: Biconomy;
   safe: Safe;
-  chainId!: number;
-  owner!: string;
-  ethAdapter!: EthersAdapter;
-  signer: Signer;
+  chainId: number;
   apiKey: string;
   relayer: GelatoRelay;
   ethersProvider!: ethers.providers.JsonRpcProvider;
   permitHelper: PermitHelper;
 
   constructor(config: Config) {
-    const { rpcUrl, signer, apiKey } = config;
+    const { rpcUrl, apiKey, chainId } = config;
     Logger.log('Aarc SDK initiated');
-    // Create an EthersAdapter using the provided signer or provider
-    this.ethAdapter = new EthersAdapter({
-      ethers,
-      signerOrProvider: signer,
-    });
-    this.biconomy = new Biconomy(signer);
-    this.safe = new Safe(signer, this.ethAdapter);
-    this.signer = signer;
+
+    this.biconomy = new Biconomy();
+    this.safe = new Safe(rpcUrl);
+
+    if (Object.values(ChainId).includes(chainId)) {
+      this.chainId = chainId;
+    } else {
+      throw new Error('Invalid chain id');
+    }
     this.apiKey = apiKey;
     this.ethersProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
+
     // instantiating Gelato Relay SDK
     this.relayer = new GelatoRelay();
-    this.permitHelper = new PermitHelper(signer);
+    this.permitHelper = new PermitHelper(rpcUrl);
   }
 
-  async generateBiconomySCW() {
-    return await this.biconomy.generateBiconomySCW();
+  async getAllBiconomySCWs(owner: string) {
+    return await this.biconomy.getAllBiconomySCWs(this.chainId, owner);
+  }
+
+  async generateBiconomySCW(signer: Signer) {
+    return await this.biconomy.generateBiconomySCW(signer);
   }
 
   // Forward the methods from Safe
-  getAllSafes() {
-    return this.safe.getAllSafes();
+  getAllSafes(owner: string) {
+    return this.safe.getAllSafes(this.chainId, owner);
   }
 
-  generateSafeSCW() {
-    return this.safe.generateSafeSCW();
+  generateSafeSCW(
+    config: { owners: string[]; threshold: number },
+    saltNonce?: number,
+  ) {
+    return this.safe.generateSafeSCW(config, saltNonce);
   }
 
-  deploySafeSCW() {
-    return this.safe.deploySafeSCW();
-  }
-
-  async init(): Promise<AarcSDK> {
-    try {
-      const chainId = await this.signer.getChainId();
-      if (Object.values(ChainId).includes(chainId)) {
-        this.chainId = chainId;
-      } else {
-        throw new Error('Invalid chain id');
-      }
-      this.owner = await this.signer.getAddress();
-      Logger.log('EOA address', this.owner);
-      return this;
-    } catch (error) {
-      Logger.error('error while initiating sdk');
-      throw error;
-    }
+  deploySafeSCW(owner: string, saltNonce?: number) {
+    return this.safe.deploySafeSCW(owner, saltNonce);
   }
 
   /**
@@ -106,7 +94,10 @@ class AarcSDK {
    * @param balancesDto
    * @returns
    */
-  async fetchBalances(tokenAddresses?: string[]): Promise<BalancesResponse> {
+  async fetchBalances(
+    eoaAddress: string,
+    tokenAddresses?: string[],
+  ): Promise<BalancesResponse> {
     try {
       // Make the API call using the sendRequest function
       let response: BalancesResponse = await sendRequest({
@@ -117,7 +108,7 @@ class AarcSDK {
         },
         body: {
           chainId: String(this.chainId),
-          address: this.owner,
+          address: eoaAddress,
           tokenAddresses: tokenAddresses,
         },
       });
@@ -140,12 +131,32 @@ class AarcSDK {
     try {
       Logger.log('executeMigration ');
 
-      const { tokenAndAmount, receiverAddress } = executeMigrationDto;
-      const tokenAddresses = tokenAndAmount?.map((token) => token.tokenAddress);
+      const { receiverAddress, senderSigner } = executeMigrationDto;
+      let { transferTokenDetails } = executeMigrationDto;
+      const owner = await senderSigner.getAddress();
 
-      let balancesList = await this.fetchBalances(tokenAddresses);
+      const tokenAddresses = transferTokenDetails?.map(
+        (token) => token.tokenAddress,
+      );
 
-      tokenAndAmount?.map((tandA) => {
+      if (tokenAddresses && tokenAddresses.length > 0) {
+        const isExist = tokenAddresses.find(
+          (token) => token === ETHEREUM_ADDRESS,
+        );
+        if (!isExist) {
+          tokenAddresses.push(ETHEREUM_ADDRESS);
+        }
+      }
+
+      let balancesList = await this.fetchBalances(owner, tokenAddresses);
+
+      remainingBalance = BigNumber.from(
+        balancesList.data?.find(
+          (token) => token.token_address.toLowerCase() === ETHEREUM_ADDRESS,
+        )?.balance || BigNumber.from(0),
+      );
+
+      transferTokenDetails?.map((tandA) => {
         const matchingToken = balancesList.data.find(
           (mToken) =>
             mToken.token_address.toLowerCase() ===
@@ -160,30 +171,54 @@ class AarcSDK {
         }
       });
 
-      const updatedTokens: TokenData[] = [];
-      for (const tokenInfo of balancesList.data) {
-        const matchingToken = tokenAndAmount?.find(
-          (token) =>
-            token.tokenAddress.toLowerCase() ===
-            tokenInfo.token_address.toLowerCase(),
-        );
+      if (transferTokenDetails) {
+        const updatedTokens: TokenData[] = [];
+        for (const tokenInfo of balancesList.data) {
+          const matchingToken = transferTokenDetails?.find(
+            (token) =>
+              token.tokenAddress.toLowerCase() ===
+              tokenInfo.token_address.toLowerCase(),
+          );
 
-        if (
-          matchingToken &&
-          matchingToken.amount !== undefined &&
-          BigNumber.from(matchingToken.amount).gt(0) &&
-          BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
-        ) {
-          response.push({
-            tokenAddress: tokenInfo.token_address,
-            amount: matchingToken?.amount,
-            message: 'Supplied amount is greater than balance',
-          });
-        } else updatedTokens.push(tokenInfo);
+          if (
+            matchingToken &&
+            matchingToken.amount !== undefined &&
+            BigNumber.from(matchingToken.amount).gt(0) &&
+            BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
+          ) {
+            response.push({
+              tokenAddress: tokenInfo.token_address,
+              amount: matchingToken?.amount,
+              message: 'Supplied amount is greater than balance',
+            });
+          } else if (
+            matchingToken &&
+            matchingToken.tokenIds !== undefined &&
+            tokenInfo.nft_data !== undefined
+          ) {
+            const nftTokenIds: TokenNftData[] = [];
+            for (const tokenId of matchingToken.tokenIds) {
+              const tokenExist = tokenInfo.nft_data.find(
+                (nftData) => nftData.tokenId === tokenId,
+              );
+              if (tokenExist) {
+                nftTokenIds.push(tokenExist);
+              } else {
+                response.push({
+                  tokenAddress: tokenInfo.token_address,
+                  tokenId: tokenId,
+                  message: 'Supplied NFT does not exist',
+                });
+              }
+            }
+            tokenInfo.nft_data = nftTokenIds;
+            updatedTokens.push(tokenInfo);
+          } else if (matchingToken) updatedTokens.push(tokenInfo);
+        }
+
+        // Now, updatedTokens contains the filtered array without the undesired elements
+        balancesList.data = updatedTokens;
       }
-
-      // Now, updatedTokens contains the filtered array without the undesired elements
-      balancesList.data = updatedTokens;
 
       let tokens = balancesList.data.filter((balances) => {
         return (
@@ -193,16 +228,10 @@ class AarcSDK {
         );
       });
 
-      remainingBalance = BigNumber.from(
-        balancesList.data?.find(
-          (token) => token.token_address.toLowerCase() === ETHEREUM_ADDRESS,
-        )?.balance || BigNumber.from(0),
-      );
-
       Logger.log(' filtered tokens ', tokens);
 
       tokens = tokens.map((element: TokenData) => {
-        const matchingToken = tokenAndAmount?.find(
+        const matchingToken = transferTokenDetails?.find(
           (token) =>
             token.tokenAddress.toLowerCase() ===
             element.token_address.toLowerCase(),
@@ -216,13 +245,13 @@ class AarcSDK {
           element.balance = matchingToken.amount;
         }
 
-        // Case: tokenAndAmount contains amount for token but it's greater than the given allowance
+        // Case: transferTokenDetails contains amount for token but it's greater than the given allowance
         // Then we assign the allowance amount 0 to perform normal token transfer
         if (
           element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&
           COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY &&
-          element.permit2Allowance.gte(BigNumber.from(0)) &&
-          element.balance.gt(element.permit2Allowance)
+          BigNumber.from(element.permit2Allowance).gte(BigNumber.from(0)) &&
+          BigNumber.from(element.balance).gt(element.permit2Allowance)
         ) {
           element.permit2Allowance = BigNumber.from(0);
         }
@@ -238,11 +267,12 @@ class AarcSDK {
 
       Logger.log('nfts ', nfts);
 
+      // token address, tokenIds: array of tokenIds
       for (const collection of nfts) {
         if (collection.nft_data) {
           for (const nft of collection.nft_data) {
             transactions.push({
-              from: this.owner,
+              from: owner,
               to: receiverAddress,
               tokenAddress: collection.token_address,
               amount: 1,
@@ -280,7 +310,7 @@ class AarcSDK {
       // Loop through tokens to perform normal transfers
       for (const token of erc20TransferableTokens) {
         transactions.push({
-          from: this.owner,
+          from: owner,
           to: receiverAddress,
           tokenAddress: token.token_address,
           amount: token.balance,
@@ -292,12 +322,14 @@ class AarcSDK {
       const permit2Contract = new Contract(
         PERMIT2_CONTRACT_ADDRESS,
         PERMIT2_BATCH_TRANSFER_ABI,
-        this.signer,
+        senderSigner,
       );
 
       if (permit2TransferableTokens.length === 1) {
         const token = permit2TransferableTokens[0];
         transactions.push({
+          from: owner,
+          to: receiverAddress,
           tokenAddress: token.token_address,
           amount: token.balance,
           tokenId: null,
@@ -307,9 +339,9 @@ class AarcSDK {
 
       if (permit2TransferableTokens.length > 1) {
         const batchTransferPermitDto: BatchTransferPermitDto = {
-          provider: this.ethersProvider,
+          signer: senderSigner,
           chainId: this.chainId,
-          spenderAddress: this.owner,
+          spenderAddress: owner,
           tokenData: permit2TransferableTokens,
         };
         const permitData = await this.permitHelper.getBatchTransferPermitData(
@@ -325,7 +357,7 @@ class AarcSDK {
         );
         transactions.push({
           tokenAddress: PERMIT2_CONTRACT_ADDRESS,
-          from: this.owner,
+          from: owner,
           to: receiverAddress,
           tokenPermissions,
           batchDto: permitBatchTransferFrom,
@@ -336,16 +368,29 @@ class AarcSDK {
       }
 
       if (nativeToken.length > 0) {
-        const updatedNativeToken = await this.fetchBalances([
-          nativeToken[0].token_address,
-        ]);
-        const amountTransfer = BigNumber.from(
-          updatedNativeToken.data[0].balance,
-        )
-          .mul(BigNumber.from(80))
-          .div(BigNumber.from(100));
+        const matchingToken = transferTokenDetails?.find(
+          (token) => token.tokenAddress.toLowerCase() === ETHEREUM_ADDRESS,
+        );
+
+        let amountTransfer = BigNumber.from(0);
+
+        if (
+          matchingToken &&
+          matchingToken.amount !== undefined &&
+          BigNumber.from(matchingToken.amount).gt(0)
+        ) {
+          amountTransfer = matchingToken.amount;
+        } else {
+          const updatedNativeToken = await this.fetchBalances(owner, [
+            nativeToken[0].token_address,
+          ]);
+          amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)
+            .mul(BigNumber.from(80))
+            .div(BigNumber.from(100));
+        }
+
         transactions.push({
-          from: this.owner,
+          from: owner,
           to: receiverAddress,
           tokenAddress: nativeToken[0].token_address,
           amount: amountTransfer,
@@ -453,13 +498,12 @@ class AarcSDK {
         }
         if (tx.type === COVALENT_TOKEN_TYPES.NFT) {
           try {
-            if (!tx.tokenId) continue;
-
-            const txHash = await this.permitHelper.performNFTTransfer(
-              receiverAddress,
-              tx.tokenAddress,
-              tx.tokenId,
-            );
+            const txHash = await this.permitHelper.performNFTTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              tokenAddress: tx.tokenAddress,
+              tokenId: tx.tokenId,
+            });
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
@@ -479,11 +523,12 @@ class AarcSDK {
         }
         if (tx.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) {
           try {
-            const txHash = await this.permitHelper.performTokenTransfer(
-              receiverAddress,
-              tx.tokenAddress,
-              tx.amount,
-            );
+            const txHash = await this.permitHelper.performTokenTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+            });
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.balance,
@@ -504,10 +549,11 @@ class AarcSDK {
           try {
             Logger.log('Transferring Native Tokens');
             Logger.log('tx ', tx);
-            const txHash = await this.permitHelper.performNativeTransfer(
-              tx.to,
-              tx.amount,
-            );
+            const txHash = await this.permitHelper.performNativeTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              amount: tx.amount,
+            });
 
             response.push({
               tokenAddress: tx.tokenAddress,
@@ -541,14 +587,38 @@ class AarcSDK {
     executeMigrationGaslessDto: ExecuteMigrationGaslessDto,
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
+    let remainingBalance = BigNumber.from(0);
+    const transactions = [];
+
     try {
-      const { tokenAndAmount, receiverAddress, gelatoApiKey } =
-        executeMigrationGaslessDto;
-      const tokenAddresses = tokenAndAmount?.map((token) => token.tokenAddress);
+      const {
+        senderSigner,
+        transferTokenDetails,
+        receiverAddress,
+        gelatoApiKey,
+      } = executeMigrationGaslessDto;
+      const owner = await senderSigner.getAddress();
+      const tokenAddresses = transferTokenDetails?.map(
+        (token) => token.tokenAddress,
+      );
 
-      const balancesList = await this.fetchBalances(tokenAddresses);
+      if (tokenAddresses && tokenAddresses.length > 0) {
+        const isExist = tokenAddresses.find(
+          (token) => token === ETHEREUM_ADDRESS,
+        );
+        if (!isExist) {
+          tokenAddresses.push(ETHEREUM_ADDRESS);
+        }
+      }
 
-      tokenAndAmount?.map((tandA) => {
+      const balancesList = await this.fetchBalances(owner, tokenAddresses);
+      remainingBalance = BigNumber.from(
+        balancesList.data?.find(
+          (token) => token.token_address.toLowerCase() === ETHEREUM_ADDRESS,
+        )?.balance || BigNumber.from(0),
+      );
+
+      transferTokenDetails?.map((tandA) => {
         const matchingToken = balancesList.data.find(
           (mToken) =>
             mToken.token_address.toLowerCase() ===
@@ -563,30 +633,54 @@ class AarcSDK {
         }
       });
 
-      const updatedTokens: TokenData[] = [];
-      for (const tokenInfo of balancesList.data) {
-        const matchingToken = tokenAndAmount?.find(
-          (token) =>
-            token.tokenAddress.toLowerCase() ===
-            tokenInfo.token_address.toLowerCase(),
-        );
+      if (transferTokenDetails) {
+        const updatedTokens: TokenData[] = [];
+        for (const tokenInfo of balancesList.data) {
+          const matchingToken = transferTokenDetails?.find(
+            (token) =>
+              token.tokenAddress.toLowerCase() ===
+              tokenInfo.token_address.toLowerCase(),
+          );
 
-        if (
-          matchingToken &&
-          matchingToken.amount !== undefined &&
-          matchingToken.amount.gt(0) &&
-          BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
-        ) {
-          response.push({
-            tokenAddress: tokenInfo.token_address,
-            amount: matchingToken?.amount,
-            message: 'Supplied amount is greater than balance',
-          });
-        } else updatedTokens.push(tokenInfo);
+          if (
+            matchingToken &&
+            matchingToken.amount !== undefined &&
+            BigNumber.from(matchingToken.amount).gt(0) &&
+            BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
+          ) {
+            response.push({
+              tokenAddress: tokenInfo.token_address,
+              amount: matchingToken?.amount,
+              message: 'Supplied amount is greater than balance',
+            });
+          } else if (
+            matchingToken &&
+            matchingToken.tokenIds !== undefined &&
+            tokenInfo.nft_data !== undefined
+          ) {
+            const nftTokenIds: TokenNftData[] = [];
+            for (const tokenId of matchingToken.tokenIds) {
+              const tokenExist = tokenInfo.nft_data.find(
+                (nftData) => nftData.tokenId === tokenId,
+              );
+              if (tokenExist) {
+                nftTokenIds.push(tokenExist);
+              } else {
+                response.push({
+                  tokenAddress: tokenInfo.token_address,
+                  tokenId: tokenId,
+                  message: 'Supplied NFT does not exist',
+                });
+              }
+            }
+            tokenInfo.nft_data = nftTokenIds;
+            updatedTokens.push(tokenInfo);
+          } else if (matchingToken) updatedTokens.push(tokenInfo);
+        }
+
+        // Now, updatedTokens contains the filtered array without the undesired elements
+        balancesList.data = updatedTokens;
       }
-
-      // Now, updatedTokens contains the filtered array without the undesired elements
-      balancesList.data = updatedTokens;
 
       let nfts = balancesList.data.filter((balances) => {
         return balances.type === COVALENT_TOKEN_TYPES.NFT;
@@ -597,28 +691,14 @@ class AarcSDK {
       for (const collection of nfts) {
         if (collection.nft_data) {
           for (const nft of collection.nft_data) {
-            try {
-              const txHash = await this.permitHelper.performNFTTransfer(
-                receiverAddress,
-                collection.token_address,
-                nft.tokenId,
-              );
-              response.push({
-                tokenAddress: collection.token_address,
-                amount: 1,
-                tokenId: nft.tokenId,
-                message: 'Nft transfer successful',
-                txHash: typeof txHash === 'string' ? txHash : '',
-              });
-            } catch (error: any) {
-              logError(collection, error);
-              response.push({
-                tokenAddress: collection.token_address,
-                amount: 1,
-                message: 'Nft transfer failed',
-                txHash: '',
-              });
-            }
+            transactions.push({
+              from: owner,
+              to: receiverAddress,
+              tokenAddress: collection.token_address,
+              amount: 1,
+              tokenId: nft.tokenId,
+              type: COVALENT_TOKEN_TYPES.NFT,
+            });
           }
         }
       }
@@ -634,7 +714,7 @@ class AarcSDK {
       Logger.log(' filtered tokens ', tokens);
 
       tokens = tokens.map((element: TokenData) => {
-        const matchingToken = tokenAndAmount?.find(
+        const matchingToken = transferTokenDetails?.find(
           (token) =>
             token.tokenAddress.toLowerCase() ===
             element.token_address.toLowerCase(),
@@ -643,18 +723,18 @@ class AarcSDK {
         if (
           matchingToken &&
           matchingToken.amount !== undefined &&
-          matchingToken.amount.gt(0)
+          BigNumber.from(matchingToken.amount).gt(0)
         ) {
           element.balance = matchingToken.amount;
         }
 
-        // Case: tokenAndAmount contains amount for token but it's greater than the given allowance
+        // Case: transferTokenDetails contains amount for token but it's greater than the given allowance
         // Then we assign the allowance amount 0 to perform normal token transfer
         if (
           element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&
           COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY &&
-          element.permit2Allowance.gte(BigNumber.from(0)) &&
-          element.balance.gt(element.permit2Allowance)
+          BigNumber.from(element.permit2Allowance).gte(BigNumber.from(0)) &&
+          BigNumber.from(element.balance).gt(element.permit2Allowance)
         ) {
           element.permit2Allowance = BigNumber.from(0);
         }
@@ -685,28 +765,14 @@ class AarcSDK {
       // Loop through tokens to perform normal transfers
 
       for (const token of erc20TransferableTokens) {
-        const tokenAddress = token.token_address;
-        try {
-          const txHash = await this.permitHelper.performTokenTransfer(
-            receiverAddress,
-            tokenAddress,
-            token.balance,
-          );
-          response.push({
-            tokenAddress: token.token_address,
-            amount: token.balance,
-            message: 'Token transfer successful',
-            txHash: typeof txHash === 'string' ? txHash : '',
-          });
-        } catch (error: any) {
-          logError(token, error);
-          response.push({
-            tokenAddress: token.token_address,
-            amount: token.balance,
-            message: 'Token transfer failed',
-            txHash: '',
-          });
-        }
+        transactions.push({
+          from: owner,
+          to: receiverAddress,
+          tokenAddress: token.token_address,
+          amount: token.balance,
+          tokenId: null,
+          type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+        });
       }
 
       // Filtering out tokens to do permit transaction
@@ -718,8 +784,9 @@ class AarcSDK {
       Logger.log('permittedTokens ', permittedTokens);
       permittedTokens.map(async (token) => {
         const permitDto: PermitDto = {
+          signer: senderSigner,
           chainId: this.chainId,
-          eoaAddress: this.owner,
+          eoaAddress: owner,
           tokenAddress: token.token_address,
         };
         try {
@@ -772,7 +839,7 @@ class AarcSDK {
 
       if (batchPermitTransaction.length === 1) {
         const singleTransferPermitDto: SingleTransferPermitDto = {
-          provider: this.ethersProvider,
+          signer: senderSigner,
           chainId: this.chainId,
           spenderAddress: GELATO_RELAYER_ADDRESS,
           tokenData: batchPermitTransaction[0],
@@ -780,7 +847,7 @@ class AarcSDK {
         const permit2SingleContract = new Contract(
           PERMIT2_CONTRACT_ADDRESS,
           PERMIT2_SINGLE_TRANSFER_ABI,
-          this.signer,
+          senderSigner,
         );
         const permitData = await this.permitHelper.getSingleTransferPermitData(
           singleTransferPermitDto,
@@ -794,7 +861,7 @@ class AarcSDK {
               to: receiverAddress,
               requestedAmount: permitTransferFrom.permitted.amount,
             },
-            this.owner,
+            owner,
             signature,
           );
         if (!data) {
@@ -837,11 +904,11 @@ class AarcSDK {
         const permit2BatchContract = new Contract(
           PERMIT2_CONTRACT_ADDRESS,
           PERMIT2_BATCH_TRANSFER_ABI,
-          this.signer,
+          senderSigner,
         );
 
         const batchTransferPermitDto: BatchTransferPermitDto = {
-          provider: this.ethersProvider,
+          signer: senderSigner,
           chainId: this.chainId,
           spenderAddress: GELATO_RELAYER_ADDRESS,
           tokenData: batchPermitTransaction,
@@ -863,7 +930,7 @@ class AarcSDK {
           await permit2BatchContract.populateTransaction.permitTransferFrom(
             permitBatchTransferFrom,
             tokenPermissions,
-            this.owner,
+            owner,
             signature,
           );
         if (!data) {
@@ -916,35 +983,144 @@ class AarcSDK {
       }
 
       if (nativeToken.length > 0) {
-        const updatedNativeToken = await this.fetchBalances([
-          nativeToken[0].token_address,
-        ]);
-        const amountTransfer = BigNumber.from(
-          updatedNativeToken.data[0].balance,
-        )
-          .mul(BigNumber.from(80))
-          .div(BigNumber.from(100));
-        try {
-          const txHash = await this.permitHelper.performNativeTransfer(
-            receiverAddress,
-            amountTransfer,
-          );
+        const matchingToken = transferTokenDetails?.find(
+          (token) => token.tokenAddress.toLowerCase() === ETHEREUM_ADDRESS,
+        );
 
+        let amountTransfer = BigNumber.from(0);
+
+        if (
+          matchingToken &&
+          matchingToken.amount !== undefined &&
+          BigNumber.from(matchingToken.amount).gt(0)
+        ) {
+          amountTransfer = matchingToken.amount;
+        } else {
+          const updatedNativeToken = await this.fetchBalances(owner, [
+            nativeToken[0].token_address,
+          ]);
+          amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)
+            .mul(BigNumber.from(80))
+            .div(BigNumber.from(100));
+        }
+
+        transactions.push({
+          from: owner,
+          to: receiverAddress,
+          tokenAddress: nativeToken[0].token_address,
+          amount: amountTransfer,
+          tokenId: null,
+          type: COVALENT_TOKEN_TYPES.DUST,
+        });
+      }
+
+      Logger.log('all trx ', transactions);
+      const { validTransactions, totalGasCost } = await calculateTotalGasNeeded(
+        this.ethersProvider,
+        transactions,
+      );
+      Logger.log('validTransactions ', validTransactions);
+      Logger.log('totalGasCost ', totalGasCost);
+
+      validTransactions.sort((a, b) => {
+        const gasCostA = a.gasCost?.toNumber() || 0;
+        const gasCostB = b.gasCost?.toNumber() || 0;
+        return gasCostA - gasCostB;
+      });
+
+      for (const tx of validTransactions) {
+        Logger.log(' Managing sorted trx ');
+        Logger.log(' tx ', tx);
+
+        if (tx.gasCost?.gt(remainingBalance)) {
+          Logger.log(
+            `Transaction skipped. Insufficient balance for gas cost: ${tx.gasCost}`,
+          );
           response.push({
-            tokenAddress: nativeToken[0].token_address,
-            amount: amountTransfer,
-            message: 'Native transfer successful',
-            txHash: typeof txHash === 'string' ? txHash : '',
-          });
-        } catch (error: any) {
-          logError(nativeToken[0], error);
-          response.push({
-            tokenAddress: nativeToken[0].token_address,
-            amount: amountTransfer,
-            message: 'Native transfer failed',
+            tokenAddress: tx.tokenAddress,
+            amount: tx.amount,
+            message: 'Insufficient balance for transaction',
             txHash: '',
           });
+          continue; // Skip this transaction if gas cost exceeds available balance
         }
+        if (tx.type === COVALENT_TOKEN_TYPES.NFT) {
+          try {
+            const txHash = await this.permitHelper.performNFTTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              tokenAddress: tx.tokenAddress,
+              tokenId: tx.tokenId,
+            });
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              tokenId: tx.tokenId,
+              message: 'Nft transfer successful',
+              txHash: typeof txHash === 'string' ? txHash : '',
+            });
+          } catch (error: any) {
+            logError(tx, error);
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Nft transfer failed',
+              txHash: '',
+            });
+          }
+        }
+        if (tx.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) {
+          try {
+            const txHash = await this.permitHelper.performTokenTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+            });
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.balance,
+              message: 'Token transfer successful',
+              txHash: typeof txHash === 'string' ? txHash : '',
+            });
+          } catch (error: any) {
+            logError(tx, error);
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.balance,
+              message: 'Token transfer failed',
+              txHash: '',
+            });
+          }
+        }
+        if (tx.type === COVALENT_TOKEN_TYPES.DUST) {
+          try {
+            Logger.log('Transferring Native Tokens');
+            Logger.log('tx ', tx);
+            const txHash = await this.permitHelper.performNativeTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              amount: tx.amount,
+            });
+
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Native transfer successful',
+              txHash: typeof txHash === 'string' ? txHash : '',
+            });
+          } catch (error: any) {
+            logError(tx, error);
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Native transfer failed',
+              txHash: '',
+            });
+          }
+        }
+        // Deduct the gas cost from the remaining balance after the transaction
+        remainingBalance = remainingBalance.sub(tx.gasCost);
       }
     } catch (error) {
       // Handle any errors that occur during the migration process

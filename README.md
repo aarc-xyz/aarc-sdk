@@ -151,7 +151,7 @@ const newSafeAddress = await aarcSDK.generateSafeSCW(
 
 ### Biconomy Smart Wallet
 
-Fetching Existing Safes:
+Fetching Biconomy Smart Wallets:
 
 Retrieve a list of all Biconomy smart wallets associated with the user's EOA:
 ```typescript

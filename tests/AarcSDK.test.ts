@@ -97,8 +97,7 @@ describe("Aarc SDK executeMigration", () => {
             recipientAddress: receiver,
             tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
             amount: BigNumber.from(0x0f4240)
-        }
-        );
+        });
 
         // Verify the content of the response
         expect(migrationResponse[0]).toEqual({

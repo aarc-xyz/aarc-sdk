@@ -21,6 +21,7 @@ import {
   SingleTransferPermitDto,
   TokenData,
   TokenNftData,
+  TransferTokenDetails,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -122,7 +123,7 @@ class AarcSDK {
     try {
       Logger.log('executeMigration ');
 
-      const { transferTokenDetails, receiverAddress, senderSigner } = executeMigrationDto;
+      let { transferTokenDetails, receiverAddress, senderSigner } = executeMigrationDto;
       const owner = await senderSigner.getAddress();
       const tokenAddresses = transferTokenDetails?.map((token) => token.tokenAddress);
 
@@ -141,10 +142,36 @@ class AarcSDK {
             message: 'Supplied token does not exist',
           });
         }
+        tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
       });
 
       if (transferTokenDetails){
         const updatedTokens: TokenData[] = [];
+        const transferTokenUniqueValues: TransferTokenDetails[] = [];
+        for (const tokenA of transferTokenDetails){
+          const matchingToken = transferTokenUniqueValues.find(
+            (token) =>
+              token.tokenAddress.toLowerCase() ===
+              tokenA.tokenAddress.toLowerCase(),
+          );
+          if(!matchingToken) transferTokenUniqueValues.push(tokenA);
+          else if (matchingToken && matchingToken.amount !== undefined && tokenA.amount !== undefined){
+            response.push({
+              tokenAddress: tokenA.tokenAddress,
+              amount: tokenA?.amount,
+              message: 'Duplicate token address',
+            });
+          } else if (matchingToken && matchingToken.tokenIds !== undefined && tokenA.tokenIds !== undefined){
+            for (const tokenId of tokenA.tokenIds) {
+              response.push({
+                tokenAddress: tokenA.tokenAddress,
+                tokenId: tokenId,
+                message: 'Duplicate token address',
+              });
+            }
+          }
+        }
+        transferTokenDetails = transferTokenUniqueValues;
         for (const tokenInfo of balancesList.data) {
           const matchingToken = transferTokenDetails?.find(
             (token) =>
@@ -454,7 +481,7 @@ class AarcSDK {
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
     try {
-      const { senderSigner, transferTokenDetails, receiverAddress, gelatoApiKey } =
+      let { senderSigner, transferTokenDetails, receiverAddress, gelatoApiKey } =
         executeMigrationGaslessDto;
       const owner = await senderSigner.getAddress();
       const tokenAddresses = transferTokenDetails?.map((token) => token.tokenAddress);
@@ -474,10 +501,37 @@ class AarcSDK {
             message: 'Supplied token does not exist',
           });
         }
+        tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
       });
 
       if (transferTokenDetails){
         const updatedTokens: TokenData[] = [];
+        const transferTokenUniqueValues: TransferTokenDetails[] = [];
+        for (const tokenA of transferTokenDetails){
+          const matchingToken = transferTokenUniqueValues.find(
+            (token) =>
+              token.tokenAddress.toLowerCase() ===
+              tokenA.tokenAddress.toLowerCase(),
+          );
+          if(!matchingToken) transferTokenUniqueValues.push(tokenA);
+          else if (matchingToken && matchingToken.amount !== undefined && tokenA.amount !== undefined){
+            response.push({
+              tokenAddress: tokenA.tokenAddress,
+              amount: tokenA?.amount,
+              message: 'Duplicate token address',
+            });
+          } else if (matchingToken && matchingToken.tokenIds !== undefined && tokenA.tokenIds !== undefined){
+            for (const tokenId of tokenA.tokenIds) {
+              response.push({
+                tokenAddress: tokenA.tokenAddress,
+                tokenId: tokenId,
+                message: 'Duplicate token address',
+              });
+            }
+          }
+        }
+        transferTokenDetails = transferTokenUniqueValues;
+        
         for (const tokenInfo of balancesList.data) {
           const matchingToken = transferTokenDetails?.find(
             (token) =>

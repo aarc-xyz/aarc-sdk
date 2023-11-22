@@ -22,7 +22,7 @@ npm install ethers@5.7.2 aarc-sdk
 
 ## Get the API Key
 
-To use Aarc SDK, an API key is required. Fill out [this form](https://rebrand.ly/aarc-dashboard) to get the API Key on your email instantly!
+To use Aarc SDK, an API key is required. Fill out [this form](https://rebrand.ly/aarc-api) to get the API Key on your email instantly!
 
 ## Initialise the SDK
 

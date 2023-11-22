@@ -6,4 +6,3 @@ src
 tests
 .github
 jest.config.*
-```

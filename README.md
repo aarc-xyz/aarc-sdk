@@ -106,7 +106,7 @@ await aarcSDK.executeMigration({
     },
     ...
   ],
-  GELATO_RELAYER_API_KEY // Use the link above to get the gelato relayer key
+  gelatoApiKey: GELATO_RELAYER_API_KEY // Use the link above to get the gelato relayer key
 })
 // Returns the response given below
 ```

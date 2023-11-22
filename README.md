@@ -29,7 +29,6 @@ To use Aarc SDK, an API key is required. Fill out [this form](https://rebrand.ly
 Import and initialise the Aarc SDK in your project.
 
 ```typescript
-import { ethers } from "ethers";
 import { AarcSDK } from "aarc-sdk";
 
 let aarcSDK = new AarcSDK({

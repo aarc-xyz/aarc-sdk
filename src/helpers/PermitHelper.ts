@@ -126,7 +126,7 @@ export class PermitHelper {
         ERC20_ABI,
         signer,
       );
-      const nonce = await this.getPermit2Nonce(eoaAddress);
+      const nonce = await tokenContract.nonces(eoaAddress);
 
       // set the domain parameters
       const domain = {

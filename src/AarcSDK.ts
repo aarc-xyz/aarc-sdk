@@ -531,7 +531,7 @@ class AarcSDK {
             });
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.balance,
+              amount: tx.amount,
               message: 'Token transfer successful',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
@@ -539,7 +539,7 @@ class AarcSDK {
             logError(tx, error);
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.balance,
+              amount: tx.amount,
               message: 'Token transfer failed',
               txHash: '',
             });

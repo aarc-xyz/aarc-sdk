@@ -22,14 +22,13 @@ npm install ethers@5.7.2 aarc-sdk
 
 ## Get the API Key
 
-To use Aarc SDK, an API key is required. Fill out [this form](https://rebrand.ly/aarc-dashboard) to get the API Key on your email instantly!
+To use Aarc SDK, an API key is required. Fill out [this form](https://rebrand.ly/aarc-api) to get the API Key on your email instantly!
 
 ## Initialise the SDK
 
 Import and initialise the Aarc SDK in your project.
 
 ```typescript
-import { ethers } from "ethers";
 import { AarcSDK } from "aarc-sdk";
 
 let aarcSDK = new AarcSDK({
@@ -37,8 +36,6 @@ let aarcSDK = new AarcSDK({
   chainId: chainId,
   apiKey: "YOUR_API_KEY",
 });
-
-await aarcSDK.init();
 ```
 
 # Usage
@@ -106,7 +103,7 @@ await aarcSDK.executeMigration({
     },
     ...
   ],
-  GELATO_RELAYER_API_KEY // Use the link above to get the gelato relayer key
+  gelatoApiKey: GELATO_RELAYER_API_KEY // Use the link above to get the gelato relayer key
 })
 // Returns the response given below
 ```
@@ -151,7 +148,7 @@ const newSafeAddress = await aarcSDK.generateSafeSCW(
 
 ### Biconomy Smart Wallet
 
-Fetching Existing Safes:
+Fetching Biconomy Smart Wallets:
 
 Retrieve a list of all Biconomy smart wallets associated with the user's EOA:
 ```typescript

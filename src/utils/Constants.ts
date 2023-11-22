@@ -1,4 +1,5 @@
 import { BigNumber, ethers } from 'ethers';
+import { ChainId } from './ChainTypes';
 
 export const BASE_URL = 'https://migrator.aarc.xyz';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
@@ -6,7 +7,31 @@ export const BICONOMY_TX_SERVICE_URL =
   'https://sdk-backend.prod.biconomy.io/v1';
 export const PERMIT_FUNCTION_ABI =
   'function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)';
-export const ETHEREUM_ADDRESS = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+
+interface NativeTokenAddresses {
+  [ChainId.GOERLI]: string;
+  [ChainId.POLYGON_MUMBAI]: string;
+  [ChainId.MAINNET]: string;
+  [ChainId.POLYGON_MAINNET]: string;
+  [ChainId.ARBITRUM]: string;
+  [ChainId.BASE]: string;
+  [ChainId.BASE_TESTNET]: string;
+  [ChainId.OPTIMISM]: string;
+  [ChainId.POLYGON_ZKEVM]: string;
+}
+
+// Update nativeTokenAddresses object with specific ChainId keys
+export const nativeTokenAddresses: NativeTokenAddresses = {
+  [ChainId.MAINNET]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.POLYGON_MAINNET]: '0x0000000000000000000000000000000000001010',
+  [ChainId.GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.POLYGON_MUMBAI]: '0x0000000000000000000000000000000000001010',
+  [ChainId.ARBITRUM]: '0x0000000000000000000000000000000000001010',
+  [ChainId.BASE]: '0x0000000000000000000000000000000000001010',
+  [ChainId.BASE_TESTNET]: '0x0000000000000000000000000000000000001010',
+  [ChainId.OPTIMISM]: '0x0000000000000000000000000000000000001010',
+  [ChainId.POLYGON_ZKEVM]: '0x0000000000000000000000000000000000001010',
+};
 export const PERMIT2_CONTRACT_ADDRESS =
   '0x000000000022D473030F116dDEE9F6B43aC78BA3';
 

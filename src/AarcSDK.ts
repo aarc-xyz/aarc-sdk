@@ -6,7 +6,7 @@ import {
   PERMIT2_CONTRACT_ADDRESS,
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
-  ETHEREUM_ADDRESS,
+  nativeTokenAddresses,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -141,10 +141,10 @@ class AarcSDK {
 
       if (tokenAddresses && tokenAddresses.length > 0) {
         const isExist = tokenAddresses.find(
-          (token) => token === ETHEREUM_ADDRESS,
+          (token) => token === nativeTokenAddresses[this.chainId as ChainId],
         );
         if (!isExist) {
-          tokenAddresses.push(ETHEREUM_ADDRESS);
+          tokenAddresses.push(nativeTokenAddresses[this.chainId as ChainId]);
         }
       }
 
@@ -152,7 +152,9 @@ class AarcSDK {
 
       remainingBalance = BigNumber.from(
         balancesList.data?.find(
-          (token) => token.token_address.toLowerCase() === ETHEREUM_ADDRESS,
+          (token) =>
+            token.token_address.toLowerCase() ===
+            nativeTokenAddresses[this.chainId as ChainId],
         )?.balance || BigNumber.from(0),
       );
 
@@ -190,6 +192,7 @@ class AarcSDK {
               tokenAddress: tokenInfo.token_address,
               amount: matchingToken?.amount,
               message: 'Supplied amount is greater than balance',
+              txHash: '',
             });
           } else if (
             matchingToken &&
@@ -369,7 +372,9 @@ class AarcSDK {
 
       if (nativeToken.length > 0) {
         const matchingToken = transferTokenDetails?.find(
-          (token) => token.tokenAddress.toLowerCase() === ETHEREUM_ADDRESS,
+          (token) =>
+            token.tokenAddress.toLowerCase() ===
+            nativeTokenAddresses[this.chainId as ChainId],
         );
 
         let amountTransfer = BigNumber.from(0);
@@ -402,6 +407,7 @@ class AarcSDK {
       const { validTransactions, totalGasCost } = await calculateTotalGasNeeded(
         this.ethersProvider,
         transactions,
+        this.chainId,
       );
       Logger.log('validTransactions ', validTransactions);
       Logger.log('totalGasCost ', totalGasCost);
@@ -412,6 +418,8 @@ class AarcSDK {
       );
 
       Logger.log('remainingBalance ', remainingBalance);
+
+      Logger.log('permitBatchTransaction ', permitBatchTransaction);
 
       // Process permit-batch transaction if it exists and there's enough balance
       if (permitBatchTransaction) {
@@ -440,6 +448,7 @@ class AarcSDK {
               BigNumber.from(permitBatchTransaction.gasCost),
             );
           } catch (error) {
+            Logger.log('error ', error);
             permitBatchTransaction.batchDto.permitted.map((token: any) => {
               logError(
                 {
@@ -604,17 +613,19 @@ class AarcSDK {
 
       if (tokenAddresses && tokenAddresses.length > 0) {
         const isExist = tokenAddresses.find(
-          (token) => token === ETHEREUM_ADDRESS,
+          (token) => token === nativeTokenAddresses[this.chainId as ChainId],
         );
         if (!isExist) {
-          tokenAddresses.push(ETHEREUM_ADDRESS);
+          tokenAddresses.push(nativeTokenAddresses[this.chainId as ChainId]);
         }
       }
 
       const balancesList = await this.fetchBalances(owner, tokenAddresses);
       remainingBalance = BigNumber.from(
         balancesList.data?.find(
-          (token) => token.token_address.toLowerCase() === ETHEREUM_ADDRESS,
+          (token) =>
+            token.token_address.toLowerCase() ===
+            nativeTokenAddresses[this.chainId as ChainId],
         )?.balance || BigNumber.from(0),
       );
 
@@ -652,6 +663,7 @@ class AarcSDK {
               tokenAddress: tokenInfo.token_address,
               amount: matchingToken?.amount,
               message: 'Supplied amount is greater than balance',
+              txHash: '',
             });
           } else if (
             matchingToken &&
@@ -984,7 +996,9 @@ class AarcSDK {
 
       if (nativeToken.length > 0) {
         const matchingToken = transferTokenDetails?.find(
-          (token) => token.tokenAddress.toLowerCase() === ETHEREUM_ADDRESS,
+          (token) =>
+            token.tokenAddress.toLowerCase() ===
+            nativeTokenAddresses[this.chainId as ChainId],
         );
 
         let amountTransfer = BigNumber.from(0);
@@ -1018,6 +1032,7 @@ class AarcSDK {
       const { validTransactions, totalGasCost } = await calculateTotalGasNeeded(
         this.ethersProvider,
         transactions,
+        this.chainId,
       );
       Logger.log('validTransactions ', validTransactions);
       Logger.log('totalGasCost ', totalGasCost);

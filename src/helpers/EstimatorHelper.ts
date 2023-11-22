@@ -1,20 +1,22 @@
 import { BigNumber, ethers } from 'ethers';
 import { Logger } from '../utils/Logger';
-import { ETHEREUM_ADDRESS, GAS_UNITS } from '../utils/Constants';
+import { GAS_UNITS, nativeTokenAddresses } from '../utils/Constants';
 import { ERC20_ABI } from '../utils/abis/ERC20.abi';
 import { PERMIT2_BATCH_TRANSFER_ABI } from '../utils/abis/Permit2BatchTransfer.abi';
+import { ChainId } from '../utils/ChainTypes';
 
 // Function to calculate total gas needed for all transactions
 export const calculateTotalGasNeeded = async (
   provider: ethers.providers.JsonRpcProvider,
   transactions: any[],
+  chainId: ChainId,
 ): Promise<{ validTransactions: any[]; totalGasCost: BigNumber }> => {
   let totalGasCost = BigNumber.from(0);
   const validTransactions = [];
 
   for (const transaction of transactions) {
     try {
-      if (transaction.to !== ETHEREUM_ADDRESS) {
+      if (transaction.to !== nativeTokenAddresses[chainId as ChainId]) {
         if (transaction.type === 'permitbatch') {
           const contract = new ethers.Contract(
             transaction.tokenAddress,
@@ -52,7 +54,7 @@ export const calculateTotalGasNeeded = async (
       const tx = {
         from: transaction.from,
         to:
-          transaction.to !== ETHEREUM_ADDRESS
+          transaction.to !== nativeTokenAddresses[chainId as ChainId]
             ? transaction.tokenAddress
             : transaction.to,
         data: transaction.data,

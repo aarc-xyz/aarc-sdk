@@ -1,4 +1,3 @@
-import { EthersAdapter } from '@safe-global/protocol-kit';
 import { Logger } from './utils/Logger';
 import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
@@ -7,6 +6,7 @@ import {
   PERMIT2_CONTRACT_ADDRESS,
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
+  nativeTokenAddresses,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -34,6 +34,7 @@ import {
   relayTransaction,
 } from './helpers/GelatoHelper';
 import { logError, removeDuplicateTokens } from './helpers';
+import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
 
 class AarcSDK {
@@ -59,7 +60,7 @@ class AarcSDK {
     }
     this.apiKey = apiKey;
     this.ethersProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
-    
+
     // instantiating Gelato Relay SDK
     this.relayer = new GelatoRelay();
     this.permitHelper = new PermitHelper(rpcUrl);
@@ -78,11 +79,14 @@ class AarcSDK {
     return this.safe.getAllSafes(this.chainId, owner);
   }
 
-  generateSafeSCW(config: {owners: string[], threshold: number}, saltNonce?: number) {
+  generateSafeSCW(
+    config: { owners: string[]; threshold: number },
+    saltNonce?: number,
+  ) {
     return this.safe.generateSafeSCW(config, saltNonce);
   }
 
-  deploySafeSCW(owner: string, saltNonce?:number) {
+  deploySafeSCW(owner: string, saltNonce?: number) {
     return this.safe.deploySafeSCW(owner, saltNonce);
   }
 
@@ -91,7 +95,10 @@ class AarcSDK {
    * @param balancesDto
    * @returns
    */
-  async fetchBalances(eoaAddress: string, tokenAddresses?: string[]): Promise<BalancesResponse> {
+  async fetchBalances(
+    eoaAddress: string,
+    tokenAddresses?: string[],
+  ): Promise<BalancesResponse> {
     try {
       // Make the API call using the sendRequest function
       let response: BalancesResponse = await sendRequest({
@@ -120,14 +127,37 @@ class AarcSDK {
     executeMigrationDto: ExecuteMigrationDto,
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
+    const transactions = [];
+    let remainingBalance = BigNumber.from(0);
     try {
       Logger.log('executeMigration ');
 
-      let { transferTokenDetails, receiverAddress, senderSigner } = executeMigrationDto;
+      const { receiverAddress, senderSigner } = executeMigrationDto;
+      let { transferTokenDetails } = executeMigrationDto;
       const owner = await senderSigner.getAddress();
-      const tokenAddresses = transferTokenDetails?.map((token) => token.tokenAddress);
+
+      const tokenAddresses = transferTokenDetails?.map(
+        (token) => token.tokenAddress,
+      );
+
+      if (tokenAddresses && tokenAddresses.length > 0) {
+        const isExist = tokenAddresses.find(
+          (token) => token === nativeTokenAddresses[this.chainId as ChainId],
+        );
+        if (!isExist) {
+          tokenAddresses.push(nativeTokenAddresses[this.chainId as ChainId]);
+        }
+      }
 
       let balancesList = await this.fetchBalances(owner, tokenAddresses);
+
+      remainingBalance = BigNumber.from(
+        balancesList.data?.find(
+          (token) =>
+            token.token_address.toLowerCase() ===
+            nativeTokenAddresses[this.chainId as ChainId],
+        )?.balance || BigNumber.from(0),
+      );
 
       transferTokenDetails?.map((tandA) => {
         const matchingToken = balancesList.data.find(
@@ -145,7 +175,7 @@ class AarcSDK {
         tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
       });
 
-      if (transferTokenDetails){
+      if (transferTokenDetails) {
         const updatedTokens: TokenData[] = [];
 
         const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
@@ -169,16 +199,19 @@ class AarcSDK {
               tokenAddress: tokenInfo.token_address,
               amount: matchingToken?.amount,
               message: 'Supplied amount is greater than balance',
+              txHash: '',
             });
           } else if (
             matchingToken &&
             matchingToken.tokenIds !== undefined &&
             tokenInfo.nft_data !== undefined
-          ){
+          ) {
             const nftTokenIds: TokenNftData[] = [];
             for (const tokenId of matchingToken.tokenIds) {
-              const tokenExist = tokenInfo.nft_data.find((nftData) => nftData.tokenId === tokenId);
-              if(tokenExist){
+              const tokenExist = tokenInfo.nft_data.find(
+                (nftData) => nftData.tokenId === tokenId,
+              );
+              if (tokenExist) {
                 nftTokenIds.push(tokenExist);
               } else {
                 response.push({
@@ -190,7 +223,7 @@ class AarcSDK {
             }
             tokenInfo.nft_data = nftTokenIds;
             updatedTokens.push(tokenInfo);
-          } else if(matchingToken) updatedTokens.push(tokenInfo);
+          } else if (matchingToken) updatedTokens.push(tokenInfo);
         }
 
         // Now, updatedTokens contains the filtered array without the undesired elements
@@ -248,30 +281,14 @@ class AarcSDK {
       for (const collection of nfts) {
         if (collection.nft_data) {
           for (const nft of collection.nft_data) {
-            try {
-              const txHash = await this.permitHelper.performNFTTransfer({
-                senderSigner: senderSigner,
-                recipientAddress: receiverAddress,
-                tokenAddress: collection.token_address,
-                tokenId: nft.tokenId,
-              }
-              );
-              response.push({
-                tokenAddress: collection.token_address,
-                amount: 1,
-                tokenId: nft.tokenId,
-                message: 'Nft transfer successful',
-                txHash: typeof txHash === 'string' ? txHash : '',
-              });
-            } catch (error: any) {
-              logError(collection, error);
-              response.push({
-                tokenAddress: collection.token_address,
-                amount: 1,
-                message: 'Nft transfer failed',
-                txHash: '',
-              });
-            }
+            transactions.push({
+              from: owner,
+              to: receiverAddress,
+              tokenAddress: collection.token_address,
+              amount: 1,
+              tokenId: nft.tokenId,
+              type: COVALENT_TOKEN_TYPES.NFT,
+            });
           }
         }
       }
@@ -302,29 +319,14 @@ class AarcSDK {
 
       // Loop through tokens to perform normal transfers
       for (const token of erc20TransferableTokens) {
-        try {
-          const txHash = await this.permitHelper.performTokenTransfer({
-            senderSigner: senderSigner,
-            recipientAddress: receiverAddress,
-            tokenAddress: token.token_address,
-            amount: token.balance,
-          }
-          );
-          response.push({
-            tokenAddress: token.token_address,
-            amount: token.balance,
-            message: 'Token transfer successful',
-            txHash: typeof txHash === 'string' ? txHash : '',
-          });
-        } catch (error: any) {
-          logError(token, error);
-          response.push({
-            tokenAddress: token.token_address,
-            amount: token.balance,
-            message: 'Token transfer failed',
-            txHash: '',
-          });
-        }
+        transactions.push({
+          from: owner,
+          to: receiverAddress,
+          tokenAddress: token.token_address,
+          amount: token.balance,
+          tokenId: null,
+          type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+        });
       }
 
       const permit2Contract = new Contract(
@@ -335,29 +337,14 @@ class AarcSDK {
 
       if (permit2TransferableTokens.length === 1) {
         const token = permit2TransferableTokens[0];
-        try {
-          const txHash = await this.permitHelper.performTokenTransfer({
-            senderSigner: senderSigner,
-            recipientAddress: receiverAddress,
-            tokenAddress: token.token_address,
-            amount: token.balance,
-          }
-          );
-          response.push({
-            tokenAddress: token.token_address,
-            amount: token.balance,
-            message: 'Token transfer successful',
-            txHash: typeof txHash === 'string' ? txHash : '',
-          });
-        } catch (error: any) {
-          logError(token, error);
-          response.push({
-            tokenAddress: token.token_address,
-            amount: token.balance,
-            message: 'Token transfer failed',
-            txHash: '',
-          });
-        }
+        transactions.push({
+          from: owner,
+          to: receiverAddress,
+          tokenAddress: token.token_address,
+          amount: token.balance,
+          tokenId: null,
+          type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+        });
       }
 
       if (permit2TransferableTokens.length > 1) {
@@ -378,74 +365,230 @@ class AarcSDK {
             requestedAmount: batchInfo.amount,
           }),
         );
+        transactions.push({
+          tokenAddress: PERMIT2_CONTRACT_ADDRESS,
+          from: owner,
+          to: receiverAddress,
+          tokenPermissions,
+          batchDto: permitBatchTransferFrom,
+          signature,
+          tokenId: null,
+          type: 'permitbatch',
+        });
+      }
 
-        try {
-          const txInfo = await permit2Contract.permitTransferFrom(
-            permitData.permitBatchTransferFrom,
-            tokenPermissions,
-            owner,
-            signature,
-          );
-          permitBatchTransferFrom.permitted.map((token) => {
-            response.push({
-              tokenAddress: token.token,
-              amount: token.amount,
-              message: 'Token transfer successful',
-              txHash: txInfo.hash,
-            });
-          });
-        } catch (error: any) {
-          permitBatchTransferFrom.permitted.map((token) => {
-            logError(
-              {
-                token_address: token.token,
-                balance: token.amount,
-              },
-              error,
+      if (nativeToken.length > 0) {
+        const matchingToken = transferTokenDetails?.find(
+          (token) =>
+            token.tokenAddress.toLowerCase() ===
+            nativeTokenAddresses[this.chainId as ChainId],
+        );
+
+        let amountTransfer = BigNumber.from(0);
+
+        if (
+          matchingToken &&
+          matchingToken.amount !== undefined &&
+          BigNumber.from(matchingToken.amount).gt(0)
+        ) {
+          amountTransfer = matchingToken.amount;
+        } else {
+          const updatedNativeToken = await this.fetchBalances(owner, [
+            nativeToken[0].token_address,
+          ]);
+          amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)
+            .mul(BigNumber.from(80))
+            .div(BigNumber.from(100));
+        }
+
+        transactions.push({
+          from: owner,
+          to: receiverAddress,
+          tokenAddress: nativeToken[0].token_address,
+          amount: amountTransfer,
+          tokenId: null,
+          type: COVALENT_TOKEN_TYPES.DUST,
+        });
+      }
+      Logger.log('all trx ', transactions);
+      const { validTransactions, totalGasCost } = await calculateTotalGasNeeded(
+        this.ethersProvider,
+        transactions,
+        this.chainId,
+      );
+      Logger.log('validTransactions ', validTransactions);
+      Logger.log('totalGasCost ', totalGasCost);
+
+      // Find permit-batch transaction
+      const permitBatchTransaction = validTransactions.find(
+        (tx) => tx.type === 'permitbatch',
+      );
+
+      Logger.log('remainingBalance ', remainingBalance);
+
+      Logger.log('permitBatchTransaction ', permitBatchTransaction);
+
+      // Process permit-batch transaction if it exists and there's enough balance
+      if (permitBatchTransaction) {
+        if (permitBatchTransaction.gasCost.lte(remainingBalance)) {
+          try {
+            Logger.log('Doing Permit Batch Transaction');
+            Logger.log(JSON.stringify(permitBatchTransaction));
+
+            const txInfo = await permit2Contract.permitTransferFrom(
+              permitBatchTransaction.batchDto,
+              permitBatchTransaction.tokenPermissions,
+              permitBatchTransaction.from,
+              permitBatchTransaction.signature,
             );
+
+            permitBatchTransaction.batchDto.permitted.map((token: any) => {
+              response.push({
+                tokenAddress: token.token,
+                amount: token.amount,
+                message: 'Token transfer successful',
+                txHash: txInfo.hash,
+              });
+            });
+
+            remainingBalance = remainingBalance.sub(
+              BigNumber.from(permitBatchTransaction.gasCost),
+            );
+          } catch (error) {
+            Logger.log('error ', error);
+            permitBatchTransaction.batchDto.permitted.map((token: any) => {
+              logError(
+                {
+                  token_address: token.token,
+                  balance: token.amount,
+                },
+                error,
+              );
+              response.push({
+                tokenAddress: token.token,
+                amount: token.amount,
+                message: 'Token transfer failed',
+                txHash: '',
+              });
+            });
+          }
+        } else {
+          permitBatchTransaction.batchDto.permitted.map((token: any) => {
             response.push({
               tokenAddress: token.token,
               amount: token.amount,
-              message: 'Token transfer Failed',
+              message: 'Token transfer failed',
               txHash: '',
             });
           });
         }
       }
 
-      if (nativeToken.length > 0) {
-        const updatedNativeToken = await this.fetchBalances(owner, 
-          [nativeToken[0].token_address,]
-        );
-        const amountTransfer = BigNumber.from(
-          updatedNativeToken.data[0].balance,
-        )
-          .mul(BigNumber.from(80))
-          .div(BigNumber.from(100));
-        try {
-          const txHash = await this.permitHelper.performNativeTransfer({
-            senderSigner: senderSigner,
-            recipientAddress: receiverAddress,
-            amount: amountTransfer,
-          }
-          );
+      // Sort other transactions (excluding permitbatch) by gasCost in ascending order
+      const sortedTransactions = validTransactions.filter(
+        (tx) => tx !== permitBatchTransaction,
+      );
+      sortedTransactions.sort((a, b) => {
+        const gasCostA = a.gasCost?.toNumber() || 0;
+        const gasCostB = b.gasCost?.toNumber() || 0;
+        return gasCostA - gasCostB;
+      });
 
+      Logger.log('sortedTransactions ', JSON.stringify(sortedTransactions));
+
+      for (const tx of sortedTransactions) {
+        Logger.log(' Managing sorted trx ');
+        Logger.log(' tx ', tx);
+
+        if (tx.gasCost?.gt(remainingBalance)) {
+          Logger.log(
+            `Transaction skipped. Insufficient balance for gas cost: ${tx.gasCost}`,
+          );
           response.push({
-            tokenAddress: nativeToken[0].token_address,
-            amount: amountTransfer,
-            message: 'Native transfer successful',
-            txHash: typeof txHash === 'string' ? txHash : '',
-          });
-          // await delay(5000)
-        } catch (error: any) {
-          logError(nativeToken[0], error);
-          response.push({
-            tokenAddress: nativeToken[0].token_address,
-            amount: amountTransfer,
-            message: 'Native transfer failed',
+            tokenAddress: tx.tokenAddress,
+            amount: tx.amount,
+            message: 'Insufficient balance for transaction',
             txHash: '',
           });
+          continue; // Skip this transaction if gas cost exceeds available balance
         }
+        if (tx.type === COVALENT_TOKEN_TYPES.NFT) {
+          try {
+            const txHash = await this.permitHelper.performNFTTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              tokenAddress: tx.tokenAddress,
+              tokenId: tx.tokenId,
+            });
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              tokenId: tx.tokenId,
+              message: 'Nft transfer successful',
+              txHash: typeof txHash === 'string' ? txHash : '',
+            });
+          } catch (error: any) {
+            logError(tx, error);
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Nft transfer failed',
+              txHash: '',
+            });
+          }
+        }
+        if (tx.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) {
+          try {
+            const txHash = await this.permitHelper.performTokenTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+            });
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Token transfer successful',
+              txHash: typeof txHash === 'string' ? txHash : '',
+            });
+          } catch (error: any) {
+            logError(tx, error);
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Token transfer failed',
+              txHash: '',
+            });
+          }
+        }
+        if (tx.type === COVALENT_TOKEN_TYPES.DUST) {
+          try {
+            Logger.log('Transferring Native Tokens');
+            Logger.log('tx ', tx);
+            const txHash = await this.permitHelper.performNativeTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              amount: tx.amount,
+            });
+
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Native transfer successful',
+              txHash: typeof txHash === 'string' ? txHash : '',
+            });
+          } catch (error: any) {
+            logError(tx, error);
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Native transfer failed',
+              txHash: '',
+            });
+          }
+        }
+        // Deduct the gas cost from the remaining balance after the transaction
+        remainingBalance = remainingBalance.sub(tx.gasCost);
       }
     } catch (error) {
       // Handle any errors that occur during the migration process
@@ -460,13 +603,38 @@ class AarcSDK {
     executeMigrationGaslessDto: ExecuteMigrationGaslessDto,
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
+    let remainingBalance = BigNumber.from(0);
+    const transactions = [];
+
     try {
-      let { senderSigner, transferTokenDetails, receiverAddress, gelatoApiKey } =
-        executeMigrationGaslessDto;
+      const {
+        senderSigner,
+        transferTokenDetails,
+        receiverAddress,
+        gelatoApiKey,
+      } = executeMigrationGaslessDto;
       const owner = await senderSigner.getAddress();
-      const tokenAddresses = transferTokenDetails?.map((token) => token.tokenAddress);
+      const tokenAddresses = transferTokenDetails?.map(
+        (token) => token.tokenAddress,
+      );
+
+      if (tokenAddresses && tokenAddresses.length > 0) {
+        const isExist = tokenAddresses.find(
+          (token) => token === nativeTokenAddresses[this.chainId as ChainId],
+        );
+        if (!isExist) {
+          tokenAddresses.push(nativeTokenAddresses[this.chainId as ChainId]);
+        }
+      }
 
       const balancesList = await this.fetchBalances(owner, tokenAddresses);
+      remainingBalance = BigNumber.from(
+        balancesList.data?.find(
+          (token) =>
+            token.token_address.toLowerCase() ===
+            nativeTokenAddresses[this.chainId as ChainId],
+        )?.balance || BigNumber.from(0),
+      );
 
       transferTokenDetails?.map((tandA) => {
         const matchingToken = balancesList.data.find(
@@ -484,7 +652,7 @@ class AarcSDK {
         tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
       });
 
-      if (transferTokenDetails){
+      if (transferTokenDetails) {
         const updatedTokens: TokenData[] = [];
 
         const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
@@ -508,16 +676,19 @@ class AarcSDK {
               tokenAddress: tokenInfo.token_address,
               amount: matchingToken?.amount,
               message: 'Supplied amount is greater than balance',
+              txHash: '',
             });
           } else if (
             matchingToken &&
             matchingToken.tokenIds !== undefined &&
             tokenInfo.nft_data !== undefined
-          ){
+          ) {
             const nftTokenIds: TokenNftData[] = [];
             for (const tokenId of matchingToken.tokenIds) {
-              const tokenExist = tokenInfo.nft_data.find((nftData) => nftData.tokenId === tokenId);
-              if(tokenExist){
+              const tokenExist = tokenInfo.nft_data.find(
+                (nftData) => nftData.tokenId === tokenId,
+              );
+              if (tokenExist) {
                 nftTokenIds.push(tokenExist);
               } else {
                 response.push({
@@ -529,7 +700,7 @@ class AarcSDK {
             }
             tokenInfo.nft_data = nftTokenIds;
             updatedTokens.push(tokenInfo);
-          } else if(matchingToken) updatedTokens.push(tokenInfo);
+          } else if (matchingToken) updatedTokens.push(tokenInfo);
         }
 
         // Now, updatedTokens contains the filtered array without the undesired elements
@@ -545,30 +716,14 @@ class AarcSDK {
       for (const collection of nfts) {
         if (collection.nft_data) {
           for (const nft of collection.nft_data) {
-            try {
-              const txHash = await this.permitHelper.performNFTTransfer({
-                senderSigner: senderSigner,
-                recipientAddress: receiverAddress,
-                tokenAddress: collection.token_address,
-                tokenId: nft.tokenId,
-              }
-              );
-              response.push({
-                tokenAddress: collection.token_address,
-                amount: 1,
-                tokenId: nft.tokenId,
-                message: 'Nft transfer successful',
-                txHash: typeof txHash === 'string' ? txHash : '',
-              });
-            } catch (error: any) {
-              logError(collection, error);
-              response.push({
-                tokenAddress: collection.token_address,
-                amount: 1,
-                message: 'Nft transfer failed',
-                txHash: '',
-              });
-            }
+            transactions.push({
+              from: owner,
+              to: receiverAddress,
+              tokenAddress: collection.token_address,
+              amount: 1,
+              tokenId: nft.tokenId,
+              type: COVALENT_TOKEN_TYPES.NFT,
+            });
           }
         }
       }
@@ -635,30 +790,14 @@ class AarcSDK {
       // Loop through tokens to perform normal transfers
 
       for (const token of erc20TransferableTokens) {
-        const tokenAddress = token.token_address;
-        try {
-          const txHash = await this.permitHelper.performTokenTransfer({
-            senderSigner: senderSigner,
-            recipientAddress: receiverAddress,
-            tokenAddress: tokenAddress,
-            amount: token.balance,
-          }
-          );
-          response.push({
-            tokenAddress: token.token_address,
-            amount: token.balance,
-            message: 'Token transfer successful',
-            txHash: typeof txHash === 'string' ? txHash : '',
-          });
-        } catch (error: any) {
-          logError(token, error);
-          response.push({
-            tokenAddress: token.token_address,
-            amount: token.balance,
-            message: 'Token transfer failed',
-            txHash: '',
-          });
-        }
+        transactions.push({
+          from: owner,
+          to: receiverAddress,
+          tokenAddress: token.token_address,
+          amount: token.balance,
+          tokenId: null,
+          type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+        });
       }
 
       // Filtering out tokens to do permit transaction
@@ -869,37 +1008,147 @@ class AarcSDK {
       }
 
       if (nativeToken.length > 0) {
-        const updatedNativeToken = await this.fetchBalances(owner, [
-          nativeToken[0].token_address,
-        ]);
-        const amountTransfer = BigNumber.from(
-          updatedNativeToken.data[0].balance,
-        )
-          .mul(BigNumber.from(80))
-          .div(BigNumber.from(100));
-        try {
-          const txHash = await this.permitHelper.performNativeTransfer({
-            senderSigner: senderSigner,
-            recipientAddress: receiverAddress,
-            amount: amountTransfer,
-          }
-          );
+        const matchingToken = transferTokenDetails?.find(
+          (token) =>
+            token.tokenAddress.toLowerCase() ===
+            nativeTokenAddresses[this.chainId as ChainId],
+        );
 
+        let amountTransfer = BigNumber.from(0);
+
+        if (
+          matchingToken &&
+          matchingToken.amount !== undefined &&
+          BigNumber.from(matchingToken.amount).gt(0)
+        ) {
+          amountTransfer = matchingToken.amount;
+        } else {
+          const updatedNativeToken = await this.fetchBalances(owner, [
+            nativeToken[0].token_address,
+          ]);
+          amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)
+            .mul(BigNumber.from(80))
+            .div(BigNumber.from(100));
+        }
+
+        transactions.push({
+          from: owner,
+          to: receiverAddress,
+          tokenAddress: nativeToken[0].token_address,
+          amount: amountTransfer,
+          tokenId: null,
+          type: COVALENT_TOKEN_TYPES.DUST,
+        });
+      }
+
+      Logger.log('all trx ', transactions);
+      const { validTransactions, totalGasCost } = await calculateTotalGasNeeded(
+        this.ethersProvider,
+        transactions,
+        this.chainId,
+      );
+      Logger.log('validTransactions ', validTransactions);
+      Logger.log('totalGasCost ', totalGasCost);
+
+      validTransactions.sort((a, b) => {
+        const gasCostA = a.gasCost?.toNumber() || 0;
+        const gasCostB = b.gasCost?.toNumber() || 0;
+        return gasCostA - gasCostB;
+      });
+
+      for (const tx of validTransactions) {
+        Logger.log(' Managing sorted trx ');
+        Logger.log(' tx ', tx);
+
+        if (tx.gasCost?.gt(remainingBalance)) {
+          Logger.log(
+            `Transaction skipped. Insufficient balance for gas cost: ${tx.gasCost}`,
+          );
           response.push({
-            tokenAddress: nativeToken[0].token_address,
-            amount: amountTransfer,
-            message: 'Native transfer successful',
-            txHash: typeof txHash === 'string' ? txHash : '',
-          });
-        } catch (error: any) {
-          logError(nativeToken[0], error);
-          response.push({
-            tokenAddress: nativeToken[0].token_address,
-            amount: amountTransfer,
-            message: 'Native transfer failed',
+            tokenAddress: tx.tokenAddress,
+            amount: tx.amount,
+            message: 'Insufficient balance for transaction',
             txHash: '',
           });
+          continue; // Skip this transaction if gas cost exceeds available balance
         }
+        if (tx.type === COVALENT_TOKEN_TYPES.NFT) {
+          try {
+            const txHash = await this.permitHelper.performNFTTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              tokenAddress: tx.tokenAddress,
+              tokenId: tx.tokenId,
+            });
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              tokenId: tx.tokenId,
+              message: 'Nft transfer successful',
+              txHash: typeof txHash === 'string' ? txHash : '',
+            });
+          } catch (error: any) {
+            logError(tx, error);
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Nft transfer failed',
+              txHash: '',
+            });
+          }
+        }
+        if (tx.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) {
+          try {
+            const txHash = await this.permitHelper.performTokenTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+            });
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.balance,
+              message: 'Token transfer successful',
+              txHash: typeof txHash === 'string' ? txHash : '',
+            });
+          } catch (error: any) {
+            logError(tx, error);
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.balance,
+              message: 'Token transfer failed',
+              txHash: '',
+            });
+          }
+        }
+        if (tx.type === COVALENT_TOKEN_TYPES.DUST) {
+          try {
+            Logger.log('Transferring Native Tokens');
+            Logger.log('tx ', tx);
+            const txHash = await this.permitHelper.performNativeTransfer({
+              senderSigner: senderSigner,
+              recipientAddress: receiverAddress,
+              amount: tx.amount,
+            });
+
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Native transfer successful',
+              txHash: typeof txHash === 'string' ? txHash : '',
+            });
+          } catch (error: any) {
+            logError(tx, error);
+            response.push({
+              tokenAddress: tx.tokenAddress,
+              amount: tx.amount,
+              message: 'Native transfer failed',
+              txHash: '',
+            });
+          }
+        }
+        // Deduct the gas cost from the remaining balance after the transaction
+        remainingBalance = remainingBalance.sub(tx.gasCost);
       }
     } catch (error) {
       // Handle any errors that occur during the migration process

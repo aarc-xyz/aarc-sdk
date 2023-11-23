@@ -6,7 +6,7 @@
   "scripts": {
     "unbuild": "rimraf build *.tsbuildinfo",
     "build": "rimraf build && tsc",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.test.ts\"",
     "test": "jest"
   },
   "keywords": [

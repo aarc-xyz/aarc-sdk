@@ -182,6 +182,7 @@ class AarcSDK {
           if (
             matchingToken &&
             matchingToken.amount !== undefined &&
+            matchingToken.tokenIds == undefined &&
             BigNumber.from(matchingToken.amount).gt(0) &&
             BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
           ) {
@@ -531,7 +532,7 @@ class AarcSDK {
           }
         }
         transferTokenDetails = transferTokenUniqueValues;
-        
+
         for (const tokenInfo of balancesList.data) {
           const matchingToken = transferTokenDetails?.find(
             (token) =>
@@ -542,6 +543,7 @@ class AarcSDK {
           if (
             matchingToken &&
             matchingToken.amount !== undefined &&
+            matchingToken.tokenIds == undefined &&
             BigNumber.from(matchingToken.amount).gt(0) &&
             BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
           ) {

@@ -460,7 +460,7 @@ class AarcSDK {
               response.push({
                 tokenAddress: token.token,
                 amount: token.amount,
-                message: 'Token transfer Failed',
+                message: 'Token transfer failed',
                 txHash: '',
               });
             });
@@ -470,7 +470,7 @@ class AarcSDK {
             response.push({
               tokenAddress: token.token,
               amount: token.amount,
-              message: 'Token transfer Failed',
+              message: 'Token transfer failed',
               txHash: '',
             });
           });

@@ -13,6 +13,7 @@ import {
   PERMIT_FUNCTION_TYPES,
   PERMIT_FUNCTION_ABI,
   PERMIT2_DOMAIN_NAME,
+  GELATO_RELAYER_ADDRESS,
 } from '../utils/Constants';
 import {
   PermitData,
@@ -43,7 +44,8 @@ export class PermitHelper {
   async performTokenTransfer(
     tokenTransferDto: TokenTransferDto,
   ): Promise<boolean> {
-    const { senderSigner, recipientAddress, tokenAddress, amount } = tokenTransferDto;
+    const { senderSigner, recipientAddress, tokenAddress, amount } =
+      tokenTransferDto;
     Logger.log(`Transferring token ${tokenAddress} with amount ${amount}`);
     // Create a contract instance with the ABI and contract address.
     const tokenContract = new ethers.Contract(
@@ -65,10 +67,9 @@ export class PermitHelper {
     return tx.hash;
   }
 
-  async performNFTTransfer(
-    nftTransferDto: NftTransferDto,
-  ): Promise<boolean> {
-    const { senderSigner, recipientAddress, tokenAddress, tokenId } = nftTransferDto;
+  async performNFTTransfer(nftTransferDto: NftTransferDto): Promise<boolean> {
+    const { senderSigner, recipientAddress, tokenAddress, tokenId } =
+      nftTransferDto;
     Logger.log(`Transferring NFT ${tokenAddress} with tokenId ${tokenId}`);
 
     // Create a contract instance with the ABI and contract address.
@@ -109,9 +110,7 @@ export class PermitHelper {
     return tx.hash;
   }
 
-  async signPermitMessage(
-    permitDto: PermitDto,
-  ): Promise<{
+  async signPermitMessage(permitDto: PermitDto): Promise<{
     r: string;
     s: string;
     v: number;
@@ -167,8 +166,7 @@ export class PermitHelper {
   async performPermit(permitDto: PermitDto) {
     try {
       const { signer, chainId, eoaAddress, tokenAddress } = permitDto;
-      const { r, s, v, deadline } = await this.signPermitMessage(permitDto
-      );
+      const { r, s, v, deadline } = await this.signPermitMessage(permitDto);
 
       // Create a contract instance with the ABI and contract address.
       const tokenContract = new ethers.Contract(
@@ -236,9 +234,11 @@ export class PermitHelper {
       JSON.stringify(permitData),
     );
 
-    const signature = await (
-      signer as Signer & TypedDataSigner
-    )._signTypedData(permitData.domain, permitData.types, permitData.values);
+    const signature = await (signer as Signer & TypedDataSigner)._signTypedData(
+      permitData.domain,
+      permitData.types,
+      permitData.values,
+    );
 
     return {
       permitTransferFrom,
@@ -282,9 +282,11 @@ export class PermitHelper {
       JSON.stringify(permitData),
     );
 
-    const signature = await (
-      signer as Signer & TypedDataSigner
-    )._signTypedData(permitData.domain, permitData.types, permitData.values);
+    const signature = await (signer as Signer & TypedDataSigner)._signTypedData(
+      permitData.domain,
+      permitData.types,
+      permitData.values,
+    );
 
     return {
       permitBatchTransferFrom,

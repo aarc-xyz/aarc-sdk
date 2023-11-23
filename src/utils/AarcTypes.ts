@@ -3,7 +3,7 @@ import { ChainId } from './ChainTypes';
 import {
   PermitTransferFrom,
   PermitBatchTransferFrom,
-} from '../SignatureTransfer';
+} from '@uniswap/permit2-sdk';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 
@@ -67,14 +67,14 @@ export type ExecuteMigrationGaslessDto = {
 export type TokenTransferDto = {
   senderSigner: Signer;
   recipientAddress: string;
-  tokenAddress: string,
+  tokenAddress: string;
   amount: BigNumber;
 };
 
 export type NftTransferDto = {
   senderSigner: Signer;
   recipientAddress: string;
-  tokenAddress: string,
+  tokenAddress: string;
   tokenId: string;
 };
 

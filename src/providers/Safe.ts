@@ -15,15 +15,16 @@ class Safe {
     });
   }
 
-  async getAllSafes(chainId: number, eoaAddress: string): Promise<OwnerResponse> {
+  async getAllSafes(
+    chainId: number,
+    eoaAddress: string,
+  ): Promise<OwnerResponse> {
     try {
       const safeService = new SafeApiKit({
         txServiceUrl: SAFE_TX_SERVICE_URLS[chainId],
         ethAdapter: this.ethAdapter,
       });
-      const safes = await safeService.getSafesByOwner(
-        eoaAddress,
-      );
+      const safes = await safeService.getSafesByOwner(eoaAddress);
       return safes;
     } catch (error) {
       Logger.log('error while getting safes');
@@ -31,7 +32,10 @@ class Safe {
     }
   }
 
-  async generateSafeSCW(config: {owners: string[], threshold: number}, saltNonce?: number): Promise<string> {
+  async generateSafeSCW(
+    config: { owners: string[]; threshold: number },
+    saltNonce?: number,
+  ): Promise<string> {
     // Create a SafeFactory instance using the EthersAdapter
     const safeFactory = await SafeFactory.create({
       ethAdapter: this.ethAdapter,
@@ -39,12 +43,12 @@ class Safe {
     // Configure the Safe parameters and predict the Safe address
     const smartWalletAddress = await safeFactory.predictSafeAddress(
       config,
-      saltNonce? saltNonce.toString() : "0",
+      saltNonce ? saltNonce.toString() : '0',
     );
     return smartWalletAddress;
   }
 
-  async deploySafeSCW(owner: string, saltNonce?:number): Promise<boolean> {
+  async deploySafeSCW(owner: string, saltNonce?: number): Promise<boolean> {
     // Create a SafeFactory instance using the EthersAdapter
     const safeFactory = await SafeFactory.create({
       ethAdapter: this.ethAdapter,
@@ -60,7 +64,7 @@ class Safe {
     };
     try {
       await safeFactory.deploySafe({
-        saltNonce: saltNonce? saltNonce.toString() : "0",
+        saltNonce: saltNonce ? saltNonce.toString() : '0',
         safeAccountConfig: config,
         callback,
       });

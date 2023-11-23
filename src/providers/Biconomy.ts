@@ -19,24 +19,29 @@ class Biconomy {
     this.nodeClient = new NodeClient({ txServiceUrl: BICONOMY_TX_SERVICE_URL });
   }
 
-  async getAllBiconomySCWs(chainId: number, owner: string){
-    try{
-        let accounts: ISmartAccount[] = [];
-        let params = {
-            chainId: chainId,
-            owner: owner,
-            index: 0,
-        }
-        let account = await this.nodeClient.getSmartAccountsByOwner(params);
-        while (account && account.data && account.data.length > 0 && account.data[0].isDeployed){
-          accounts.push(...account.data);
-          params.index += 1;
-          account = await this.nodeClient.getSmartAccountsByOwner(params);
-        }
-        return accounts;
-    } catch (error){
-        Logger.error('error while getting biconomy smart accounts');
-        throw error;
+  async getAllBiconomySCWs(chainId: number, owner: string) {
+    try {
+      let accounts: ISmartAccount[] = [];
+      let params = {
+        chainId: chainId,
+        owner: owner,
+        index: 0,
+      };
+      let account = await this.nodeClient.getSmartAccountsByOwner(params);
+      while (
+        account &&
+        account.data &&
+        account.data.length > 0 &&
+        account.data[0].isDeployed
+      ) {
+        accounts.push(...account.data);
+        params.index += 1;
+        account = await this.nodeClient.getSmartAccountsByOwner(params);
+      }
+      return accounts;
+    } catch (error) {
+      Logger.error('error while getting biconomy smart accounts');
+      throw error;
     }
   }
 

@@ -3,7 +3,7 @@ import { ChainId } from './ChainTypes';
 import {
   PermitTransferFrom,
   PermitBatchTransferFrom,
-} from '../SignatureTransfer';
+} from '@uniswap/permit2-sdk';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 

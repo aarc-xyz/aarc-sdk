@@ -33,7 +33,7 @@ import {
   getGelatoTransactionStatus,
   relayTransaction,
 } from './helpers/GelatoHelper';
-import { logError } from './helpers';
+import { logError, removeDuplicateTokens } from './helpers';
 import { ChainId } from './utils/ChainTypes';
 
 class AarcSDK {
@@ -147,31 +147,10 @@ class AarcSDK {
 
       if (transferTokenDetails){
         const updatedTokens: TokenData[] = [];
-        const transferTokenUniqueValues: TransferTokenDetails[] = [];
-        for (const tokenA of transferTokenDetails){
-          const matchingToken = transferTokenUniqueValues.find(
-            (token) =>
-              token.tokenAddress.toLowerCase() ===
-              tokenA.tokenAddress.toLowerCase(),
-          );
-          if(!matchingToken) transferTokenUniqueValues.push(tokenA);
-          else if (matchingToken && matchingToken.amount !== undefined && tokenA.amount !== undefined){
-            response.push({
-              tokenAddress: tokenA.tokenAddress,
-              amount: tokenA?.amount,
-              message: 'Duplicate token address',
-            });
-          } else if (matchingToken && matchingToken.tokenIds !== undefined && tokenA.tokenIds !== undefined){
-            for (const tokenId of tokenA.tokenIds) {
-              response.push({
-                tokenAddress: tokenA.tokenAddress,
-                tokenId: tokenId,
-                message: 'Duplicate token address',
-              });
-            }
-          }
-        }
-        transferTokenDetails = transferTokenUniqueValues;
+
+        const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
+        transferTokenDetails = removeDuplicatesResult.transferTokenDetails;
+
         for (const tokenInfo of balancesList.data) {
           const matchingToken = transferTokenDetails?.find(
             (token) =>
@@ -507,31 +486,9 @@ class AarcSDK {
 
       if (transferTokenDetails){
         const updatedTokens: TokenData[] = [];
-        const transferTokenUniqueValues: TransferTokenDetails[] = [];
-        for (const tokenA of transferTokenDetails){
-          const matchingToken = transferTokenUniqueValues.find(
-            (token) =>
-              token.tokenAddress.toLowerCase() ===
-              tokenA.tokenAddress.toLowerCase(),
-          );
-          if(!matchingToken) transferTokenUniqueValues.push(tokenA);
-          else if (matchingToken && matchingToken.amount !== undefined && tokenA.amount !== undefined){
-            response.push({
-              tokenAddress: tokenA.tokenAddress,
-              amount: tokenA?.amount,
-              message: 'Duplicate token address',
-            });
-          } else if (matchingToken && matchingToken.tokenIds !== undefined && tokenA.tokenIds !== undefined){
-            for (const tokenId of tokenA.tokenIds) {
-              response.push({
-                tokenAddress: tokenA.tokenAddress,
-                tokenId: tokenId,
-                message: 'Duplicate token address',
-              });
-            }
-          }
-        }
-        transferTokenDetails = transferTokenUniqueValues;
+
+        const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
+        transferTokenDetails = removeDuplicatesResult.transferTokenDetails;
 
         for (const tokenInfo of balancesList.data) {
           const matchingToken = transferTokenDetails?.find(

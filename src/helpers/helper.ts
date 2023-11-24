@@ -2,7 +2,9 @@ import { BigNumber } from 'ethers';
 import { MigrationResponse, TokenData, TokenNftData, TransferTokenDetails } from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 import { BalancesResponse } from '../utils/AarcTypes';
-import { COVALENT_TOKEN_TYPES } from '../utils/Constants';
+import { COVALENT_TOKEN_TYPES, nativeTokenAddresses } from '../utils/Constants';
+import { ChainId } from '../utils/ChainTypes';
+import AarcSDK from '../AarcSDK';
 
 
 export const delay = (ms: number) => {
@@ -178,6 +180,46 @@ export const processERC20TransferrableTokens = (erc20Tokens:TokenData[], transac
       amount: token.balance,
       tokenId: null,
       type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+    });
+  }
+}
+
+export const processNativeTransfer = async (tokens:TokenData[], transferTokenDetails: TransferTokenDetails[] | undefined, transactions: any[], sdkObject: AarcSDK, owner: string, receiverAddress: string) => {
+  const nativeToken = tokens.filter(
+    (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
+  );
+
+  if (nativeToken.length > 0) {
+    const matchingToken = transferTokenDetails?.find(
+      (token) =>
+        token.tokenAddress.toLowerCase() ===
+        nativeTokenAddresses[sdkObject.chainId as ChainId],
+    );
+
+    let amountTransfer = BigNumber.from(0);
+
+    if (
+      matchingToken &&
+      matchingToken.amount !== undefined &&
+      BigNumber.from(matchingToken.amount).gt(0)
+    ) {
+      amountTransfer = matchingToken.amount;
+    } else {
+      const updatedNativeToken = await sdkObject.fetchBalances(owner, [
+        nativeToken[0].token_address,
+      ]);
+      amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)
+        .mul(BigNumber.from(80))
+        .div(BigNumber.from(100));
+    }
+
+    transactions.push({
+      from: owner,
+      to: receiverAddress,
+      tokenAddress: nativeToken[0].token_address,
+      amount: amountTransfer,
+      tokenId: null,
+      type: COVALENT_TOKEN_TYPES.DUST,
     });
   }
 }

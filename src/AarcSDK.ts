@@ -30,7 +30,7 @@ import {
   getGelatoTransactionStatus,
   relayTransaction,
 } from './helpers/GelatoHelper';
-import { logError, processERC20TransferrableTokens, processNftTransactions, processTokenData, processTransferTokenDetails } from './helpers';
+import { logError, processERC20TransferrableTokens, processNativeTransfer, processNftTransactions, processTokenData, processTransferTokenDetails } from './helpers';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
 
@@ -242,45 +242,8 @@ class AarcSDK {
         });
       }
 
-      const nativeToken = tokens.filter(
-        (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
-      );
-        
-      Logger.log(' nativeToken ', nativeToken);
+      await processNativeTransfer(tokens, transferTokenDetails, transactions, this, owner, receiverAddress);
 
-      if (nativeToken.length > 0) {
-        const matchingToken = transferTokenDetails?.find(
-          (token) =>
-            token.tokenAddress.toLowerCase() ===
-            nativeTokenAddresses[this.chainId as ChainId],
-        );
-
-        let amountTransfer = BigNumber.from(0);
-
-        if (
-          matchingToken &&
-          matchingToken.amount !== undefined &&
-          BigNumber.from(matchingToken.amount).gt(0)
-        ) {
-          amountTransfer = matchingToken.amount;
-        } else {
-          const updatedNativeToken = await this.fetchBalances(owner, [
-            nativeToken[0].token_address,
-          ]);
-          amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)
-            .mul(BigNumber.from(80))
-            .div(BigNumber.from(100));
-        }
-
-        transactions.push({
-          from: owner,
-          to: receiverAddress,
-          tokenAddress: nativeToken[0].token_address,
-          amount: amountTransfer,
-          tokenId: null,
-          type: COVALENT_TOKEN_TYPES.DUST,
-        });
-      }
       Logger.log('all trx ', transactions);
       const { validTransactions, totalGasCost } = await calculateTotalGasNeeded(
         this.ethersProvider,
@@ -547,10 +510,6 @@ class AarcSDK {
       );
       Logger.log('erc20Tokens ', erc20Tokens);
 
-      const nativeToken = tokens.filter(
-        (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
-      );
-
       processERC20TransferrableTokens(erc20Tokens, transactions, owner, receiverAddress);
 
       // Filtering out tokens to do permit transaction
@@ -760,39 +719,7 @@ class AarcSDK {
         }
       }
 
-      if (nativeToken.length > 0) {
-        const matchingToken = transferTokenDetails?.find(
-          (token) =>
-            token.tokenAddress.toLowerCase() ===
-            nativeTokenAddresses[this.chainId as ChainId],
-        );
-
-        let amountTransfer = BigNumber.from(0);
-
-        if (
-          matchingToken &&
-          matchingToken.amount !== undefined &&
-          BigNumber.from(matchingToken.amount).gt(0)
-        ) {
-          amountTransfer = matchingToken.amount;
-        } else {
-          const updatedNativeToken = await this.fetchBalances(owner, [
-            nativeToken[0].token_address,
-          ]);
-          amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)
-            .mul(BigNumber.from(80))
-            .div(BigNumber.from(100));
-        }
-
-        transactions.push({
-          from: owner,
-          to: receiverAddress,
-          tokenAddress: nativeToken[0].token_address,
-          amount: amountTransfer,
-          tokenId: null,
-          type: COVALENT_TOKEN_TYPES.DUST,
-        });
-      }
+      await processNativeTransfer(tokens, transferTokenDetails, transactions, this, owner, receiverAddress);
 
       Logger.log('all trx ', transactions);
       const { validTransactions, totalGasCost } = await calculateTotalGasNeeded(

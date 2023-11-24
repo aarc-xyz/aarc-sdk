@@ -19,9 +19,6 @@ import {
   PermitDto,
   RelayTrxDto,
   SingleTransferPermitDto,
-  TokenData,
-  TokenNftData,
-  TransferTokenDetails,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -33,7 +30,7 @@ import {
   getGelatoTransactionStatus,
   relayTransaction,
 } from './helpers/GelatoHelper';
-import { logError, removeDuplicateTokens } from './helpers';
+import { logError, processERC20TransferrableTokens, processNftTransactions, processTokenData, processTransferTokenDetails } from './helpers';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
 
@@ -127,7 +124,7 @@ class AarcSDK {
     executeMigrationDto: ExecuteMigrationDto,
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
-    const transactions = [];
+    const transactions: any[] = [];
     let remainingBalance = BigNumber.from(0);
     try {
       Logger.log('executeMigration ');
@@ -176,122 +173,15 @@ class AarcSDK {
       });
 
       if (transferTokenDetails) {
-        const updatedTokens: TokenData[] = [];
-
-        const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
-        transferTokenDetails = removeDuplicatesResult.transferTokenDetails;
-
-        for (const tokenInfo of balancesList.data) {
-          const matchingToken = transferTokenDetails?.find(
-            (token) =>
-              token.tokenAddress.toLowerCase() ===
-              tokenInfo.token_address.toLowerCase(),
-          );
-
-          if (
-            matchingToken &&
-            matchingToken.amount !== undefined &&
-            matchingToken.tokenIds == undefined &&
-            BigNumber.from(matchingToken.amount).gt(0) &&
-            BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
-          ) {
-            response.push({
-              tokenAddress: tokenInfo.token_address,
-              amount: matchingToken?.amount,
-              message: 'Supplied amount is greater than balance',
-              txHash: '',
-            });
-          } else if (
-            matchingToken &&
-            matchingToken.tokenIds !== undefined &&
-            tokenInfo.nft_data !== undefined
-          ) {
-            const nftTokenIds: TokenNftData[] = [];
-            for (const tokenId of matchingToken.tokenIds) {
-              const tokenExist = tokenInfo.nft_data.find(
-                (nftData) => nftData.tokenId === tokenId,
-              );
-              if (tokenExist) {
-                nftTokenIds.push(tokenExist);
-              } else {
-                response.push({
-                  tokenAddress: tokenInfo.token_address,
-                  tokenId: tokenId,
-                  message: 'Supplied NFT does not exist',
-                });
-              }
-            }
-            tokenInfo.nft_data = nftTokenIds;
-            updatedTokens.push(tokenInfo);
-          } else if (matchingToken) updatedTokens.push(tokenInfo);
-        }
-
         // Now, updatedTokens contains the filtered array without the undesired elements
-        balancesList.data = updatedTokens;
+        balancesList.data = processTransferTokenDetails(transferTokenDetails, response, balancesList); 
       }
 
-      let tokens = balancesList.data.filter((balances) => {
-        return (
-          balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
-          balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
-          balances.type === COVALENT_TOKEN_TYPES.DUST
-        );
-      });
-
-      Logger.log(' filtered tokens ', tokens);
-
-      tokens = tokens.map((element: TokenData) => {
-        const matchingToken = transferTokenDetails?.find(
-          (token) =>
-            token.tokenAddress.toLowerCase() ===
-            element.token_address.toLowerCase(),
-        );
-
-        if (
-          matchingToken &&
-          matchingToken.amount !== undefined &&
-          BigNumber.from(matchingToken.amount).gt(0)
-        ) {
-          element.balance = matchingToken.amount;
-        }
-
-        // Case: transferTokenDetails contains amount for token but it's greater than the given allowance
-        // Then we assign the allowance amount 0 to perform normal token transfer
-        if (
-          element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&
-          COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY &&
-          BigNumber.from(element.permit2Allowance).gte(BigNumber.from(0)) &&
-          BigNumber.from(element.balance).gt(element.permit2Allowance)
-        ) {
-          element.permit2Allowance = BigNumber.from(0);
-        }
-
-        return element;
-      });
+      const tokens = processTokenData(balancesList, transferTokenDetails);
 
       Logger.log('tokens ', tokens);
 
-      let nfts = balancesList.data.filter((balances) => {
-        return balances.type === COVALENT_TOKEN_TYPES.NFT;
-      });
-
-      Logger.log('nfts ', nfts);
-
-      // token address, tokenIds: array of tokenIds
-      for (const collection of nfts) {
-        if (collection.nft_data) {
-          for (const nft of collection.nft_data) {
-            transactions.push({
-              from: owner,
-              to: receiverAddress,
-              tokenAddress: collection.token_address,
-              amount: 1,
-              tokenId: nft.tokenId,
-              type: COVALENT_TOKEN_TYPES.NFT,
-            });
-          }
-        }
-      }
+      processNftTransactions(balancesList, transactions, owner, receiverAddress);
 
       const erc20Tokens = tokens.filter(
         (token) =>
@@ -300,41 +190,16 @@ class AarcSDK {
       );
       Logger.log('erc20Tokens ', erc20Tokens);
 
-      const erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
-        BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
-      );
+      processERC20TransferrableTokens(erc20Tokens, transactions, owner, receiverAddress);
+        
       const permit2TransferableTokens = erc20Tokens.filter(
         (balanceObj) =>
           BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)) ||
           BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)),
       );
 
-      const nativeToken = tokens.filter(
-        (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
-      );
-
-      Logger.log(' erc20TransferableTokens ', erc20TransferableTokens);
       Logger.log(' permit2TransferableTokens ', permit2TransferableTokens);
-      Logger.log(' nativeToken ', nativeToken);
-
-      // Loop through tokens to perform normal transfers
-      for (const token of erc20TransferableTokens) {
-        transactions.push({
-          from: owner,
-          to: receiverAddress,
-          tokenAddress: token.token_address,
-          amount: token.balance,
-          tokenId: null,
-          type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
-        });
-      }
-
-      const permit2Contract = new Contract(
-        PERMIT2_CONTRACT_ADDRESS,
-        PERMIT2_BATCH_TRANSFER_ABI,
-        senderSigner,
-      );
-
+        
       if (permit2TransferableTokens.length === 1) {
         const token = permit2TransferableTokens[0];
         transactions.push({
@@ -376,6 +241,12 @@ class AarcSDK {
           type: 'permitbatch',
         });
       }
+
+      const nativeToken = tokens.filter(
+        (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
+      );
+        
+      Logger.log(' nativeToken ', nativeToken);
 
       if (nativeToken.length > 0) {
         const matchingToken = transferTokenDetails?.find(
@@ -434,6 +305,12 @@ class AarcSDK {
           try {
             Logger.log('Doing Permit Batch Transaction');
             Logger.log(JSON.stringify(permitBatchTransaction));
+
+            const permit2Contract = new Contract(
+              PERMIT2_CONTRACT_ADDRESS,
+              PERMIT2_BATCH_TRANSFER_ABI,
+              senderSigner,
+            );
 
             const txInfo = await permit2Contract.permitTransferFrom(
               permitBatchTransaction.batchDto,
@@ -604,7 +481,7 @@ class AarcSDK {
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
     let remainingBalance = BigNumber.from(0);
-    const transactions = [];
+    const transactions: any[] = [];
 
     try {
       const {
@@ -653,119 +530,13 @@ class AarcSDK {
       });
 
       if (transferTokenDetails) {
-        const updatedTokens: TokenData[] = [];
-
-        const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
-        transferTokenDetails = removeDuplicatesResult.transferTokenDetails;
-
-        for (const tokenInfo of balancesList.data) {
-          const matchingToken = transferTokenDetails?.find(
-            (token) =>
-              token.tokenAddress.toLowerCase() ===
-              tokenInfo.token_address.toLowerCase(),
-          );
-
-          if (
-            matchingToken &&
-            matchingToken.amount !== undefined &&
-            matchingToken.tokenIds == undefined &&
-            BigNumber.from(matchingToken.amount).gt(0) &&
-            BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
-          ) {
-            response.push({
-              tokenAddress: tokenInfo.token_address,
-              amount: matchingToken?.amount,
-              message: 'Supplied amount is greater than balance',
-              txHash: '',
-            });
-          } else if (
-            matchingToken &&
-            matchingToken.tokenIds !== undefined &&
-            tokenInfo.nft_data !== undefined
-          ) {
-            const nftTokenIds: TokenNftData[] = [];
-            for (const tokenId of matchingToken.tokenIds) {
-              const tokenExist = tokenInfo.nft_data.find(
-                (nftData) => nftData.tokenId === tokenId,
-              );
-              if (tokenExist) {
-                nftTokenIds.push(tokenExist);
-              } else {
-                response.push({
-                  tokenAddress: tokenInfo.token_address,
-                  tokenId: tokenId,
-                  message: 'Supplied NFT does not exist',
-                });
-              }
-            }
-            tokenInfo.nft_data = nftTokenIds;
-            updatedTokens.push(tokenInfo);
-          } else if (matchingToken) updatedTokens.push(tokenInfo);
-        }
-
         // Now, updatedTokens contains the filtered array without the undesired elements
-        balancesList.data = updatedTokens;
+        balancesList.data = processTransferTokenDetails(transferTokenDetails, response, balancesList); 
       }
 
-      let nfts = balancesList.data.filter((balances) => {
-        return balances.type === COVALENT_TOKEN_TYPES.NFT;
-      });
+      processNftTransactions(balancesList, transactions, owner, receiverAddress);
 
-      Logger.log('nfts ', nfts);
-
-      for (const collection of nfts) {
-        if (collection.nft_data) {
-          for (const nft of collection.nft_data) {
-            transactions.push({
-              from: owner,
-              to: receiverAddress,
-              tokenAddress: collection.token_address,
-              amount: 1,
-              tokenId: nft.tokenId,
-              type: COVALENT_TOKEN_TYPES.NFT,
-            });
-          }
-        }
-      }
-
-      let tokens = balancesList.data.filter((balances) => {
-        return (
-          balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
-          balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
-          balances.type === COVALENT_TOKEN_TYPES.DUST
-        );
-      });
-
-      Logger.log(' filtered tokens ', tokens);
-
-      tokens = tokens.map((element: TokenData) => {
-        const matchingToken = transferTokenDetails?.find(
-          (token) =>
-            token.tokenAddress.toLowerCase() ===
-            element.token_address.toLowerCase(),
-        );
-
-        if (
-          matchingToken &&
-          matchingToken.amount !== undefined &&
-          BigNumber.from(matchingToken.amount).gt(0)
-        ) {
-          element.balance = matchingToken.amount;
-        }
-
-        // Case: transferTokenDetails contains amount for token but it's greater than the given allowance
-        // Then we assign the allowance amount 0 to perform normal token transfer
-        if (
-          element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&
-          COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY &&
-          BigNumber.from(element.permit2Allowance).gte(BigNumber.from(0)) &&
-          BigNumber.from(element.balance).gt(element.permit2Allowance)
-        ) {
-          element.permit2Allowance = BigNumber.from(0);
-        }
-
-        return element;
-      });
+      const tokens = processTokenData(balancesList, transferTokenDetails);
 
       Logger.log('tokens ', tokens);
 
@@ -780,25 +551,7 @@ class AarcSDK {
         (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
       );
 
-      const erc20TransferableTokens = erc20Tokens.filter(
-        (balanceObj) =>
-          !balanceObj.permitExist &&
-          balanceObj.permit2Allowance.eq(BigNumber.from(0)),
-      );
-
-      Logger.log('erc20TransferableTokens ', erc20TransferableTokens);
-      // Loop through tokens to perform normal transfers
-
-      for (const token of erc20TransferableTokens) {
-        transactions.push({
-          from: owner,
-          to: receiverAddress,
-          tokenAddress: token.token_address,
-          amount: token.balance,
-          tokenId: null,
-          type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
-        });
-      }
+      processERC20TransferrableTokens(erc20Tokens, transactions, owner, receiverAddress);
 
       // Filtering out tokens to do permit transaction
       const permittedTokens = erc20Tokens.filter(

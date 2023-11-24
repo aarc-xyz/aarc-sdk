@@ -197,6 +197,506 @@ describe('Aarc SDK nft transfer', () => {
     });
   }, 30000);
 
+  it('should handle amount edge case in nft transfers', async () => {
+    // Mock a different implementation for fetchBalances
+    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+        code: 200,
+        data: [
+            {
+                decimals: 18,
+                name: 'ETH',
+                symbol: 'ETH',
+                token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                balance: { type: 'BigNumber', hex: '0xf4240' },
+                type: 'dust',
+                nft_data: null,
+                permit2Allowance: {
+                  type: 'BigNumber',
+                  hex: '0x0c9f2c9cd04674edd2f5bf5642',
+                },
+                permitExist: true,
+            },
+            {
+                decimals: 0,
+                name: 'Goerli_NFTS',
+                symbol: 'G_NFTS',
+                token_address: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+                balance: {type: 'BigNumber', hex: '0x03'},
+                type: 'nft',
+                nft_data: [{image: "something", tokenId: "1"}, {image: "something", tokenId: "2"}, {image: "something", tokenId: "3"}],
+                permit2Allowance: "0",
+                permitExist: false
+            },
+            {
+                decimals: 0,
+                name: 'Random_NFTS',
+                symbol: 'G_NFTS',
+                token_address: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+                balance: {type: 'BigNumber', hex: '0x03'},
+                type: 'nft',
+                nft_data: [{image: "something", tokenId: "4"}, {image: "something", tokenId: "8"}, {image: "something", tokenId: "11"}],
+                permit2Allowance: "0",
+                permitExist: false
+            },
+            {
+                decimals: 6,
+                name: 'USDA',
+                symbol: 'USDA',
+                token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                balance: { type: 'BigNumber', hex: '0x989680' },
+                type: 'cryptocurrency',
+                nft_data: null,
+                permit2Allowance: { type: 'BigNumber', hex: '0x0c9f2c9cd04674edd2f5bf5642' },
+                permitExist: true,
+            },
+        ],
+        message: 'Success',
+    });
+
+    const executeMigrationDto = {
+        senderSigner: signer,
+        receiverAddress: receiver,
+        transferTokenDetails: [
+            {tokenAddress:"0x932ca55b9ef0b3094e8fa82435b3b4c50d713043", tokenIds: ["1", "2"]},
+            {tokenAddress:"0x897ca55b9ef0b3094e8fa82435b3b4c50d713043", amount: BigNumber.from(100), tokenIds: ["4", "8", "11"]},
+        ]
+    };
+
+    let migrationResponse;
+
+    migrationResponse = await aarcSDK.executeMigration(executeMigrationDto);
+    expect(Array.isArray(migrationResponse)).toBe(true);
+    expect(migrationResponse).toHaveLength(5);
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalled();
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledTimes(5);
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "1"
+        }
+    );
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "2"
+        }
+    );
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "4"
+        }
+    );
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "8"
+        }
+    );
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "11"
+        }
+    );
+
+    expect(migrationResponse[0]).toEqual({
+        tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '1',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+    
+    expect(migrationResponse[1]).toEqual({
+        tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '2',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+
+    expect(migrationResponse[2]).toEqual({
+        tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '4',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+
+    expect(migrationResponse[3]).toEqual({
+        tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '8',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+
+    expect(migrationResponse[4]).toEqual({
+        tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '11',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+
+  }, 30000);
+
+  it('should handle amount edge case in nft transfers gasless', async () => {
+    // Mock a different implementation for fetchBalances
+    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+        code: 200,
+        data: [
+            {
+                decimals: 18,
+                name: 'ETH',
+                symbol: 'ETH',
+                token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                balance: { type: 'BigNumber', hex: '0xf4240' },
+                type: 'dust',
+                nft_data: null,
+                permit2Allowance: {
+                  type: 'BigNumber',
+                  hex: '0x0c9f2c9cd04674edd2f5bf5642',
+                },
+                permitExist: true,
+            },
+            {
+                decimals: 0,
+                name: 'Goerli_NFTS',
+                symbol: 'G_NFTS',
+                token_address: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+                balance: {type: 'BigNumber', hex: '0x03'},
+                type: 'nft',
+                nft_data: [{image: "something", tokenId: "1"}, {image: "something", tokenId: "2"}, {image: "something", tokenId: "3"}],
+                permit2Allowance: "0",
+                permitExist: false
+            },
+            {
+                decimals: 0,
+                name: 'Random_NFTS',
+                symbol: 'G_NFTS',
+                token_address: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+                balance: {type: 'BigNumber', hex: '0x03'},
+                type: 'nft',
+                nft_data: [{image: "something", tokenId: "4"}, {image: "something", tokenId: "8"}, {image: "something", tokenId: "11"}],
+                permit2Allowance: "0",
+                permitExist: false
+            },
+            {
+                decimals: 6,
+                name: 'USDA',
+                symbol: 'USDA',
+                token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                balance: { type: 'BigNumber', hex: '0x989680' },
+                type: 'cryptocurrency',
+                nft_data: null,
+                permit2Allowance: { type: 'BigNumber', hex: '0x0c9f2c9cd04674edd2f5bf5642' },
+                permitExist: true,
+            },
+        ],
+        message: 'Success',
+    });
+
+    const executeMigrationGaslessDto = {
+        senderSigner: signer,
+        receiverAddress: receiver,
+        transferTokenDetails: [
+            {tokenAddress:"0x932ca55b9ef0b3094e8fa82435b3b4c50d713043", tokenIds: ["1", "2"]},
+            {tokenAddress:"0x897ca55b9ef0b3094e8fa82435b3b4c50d713043", amount: BigNumber.from(100), tokenIds: ["4", "8", "11"]},
+        ],
+        gelatoApiKey:"1234567890"
+    };
+
+    let migrationResponse;
+
+    migrationResponse = await aarcSDK.executeMigrationGasless(executeMigrationGaslessDto);
+    expect(Array.isArray(migrationResponse)).toBe(true);
+    expect(migrationResponse).toHaveLength(5);
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalled();
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledTimes(5);
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "1"
+        }
+    );
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "2"
+        }
+    );
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "4"
+        }
+    );
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "8"
+        }
+    );
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "11"
+        }
+    );
+
+    expect(migrationResponse[0]).toEqual({
+        tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '1',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+    
+    expect(migrationResponse[1]).toEqual({
+        tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '2',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+
+    expect(migrationResponse[2]).toEqual({
+        tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '4',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+
+    expect(migrationResponse[3]).toEqual({
+        tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '8',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+
+    expect(migrationResponse[4]).toEqual({
+        tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '11',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+
+  }, 30000);
+
+  it('should throw an errow in case duplicate entries provided', async () => {
+    // Mock a different implementation for fetchBalances
+    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+        code: 200,
+        data: [
+            {
+                decimals: 18,
+                name: 'ETH',
+                symbol: 'ETH',
+                token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                balance: { type: 'BigNumber', hex: '0xf4240' },
+                type: 'dust',
+                nft_data: null,
+                permit2Allowance: {
+                  type: 'BigNumber',
+                  hex: '0x0c9f2c9cd04674edd2f5bf5642',
+                },
+                permitExist: true,
+            },
+            {
+                decimals: 0,
+                name: 'Goerli_NFTS',
+                symbol: 'G_NFTS',
+                token_address: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+                balance: {type: 'BigNumber', hex: '0x03'},
+                type: 'nft',
+                nft_data: [{image: "something", tokenId: "1"}, {image: "something", tokenId: "2"}, {image: "something", tokenId: "3"}],
+                permit2Allowance: "0",
+                permitExist: false
+            },
+            {
+                decimals: 6,
+                name: 'USDA',
+                symbol: 'USDA',
+                token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                balance: { type: 'BigNumber', hex: '0x989680' },
+                type: 'cryptocurrency',
+                nft_data: null,
+                permit2Allowance: { type: 'BigNumber', hex: '0x0c9f2c9cd04674edd2f5bf5642' },
+                permitExist: true,
+            },
+        ],
+        message: 'Success',
+    });
+
+    const executeMigrationDto = {
+        senderSigner: signer,
+        receiverAddress: receiver,
+        transferTokenDetails: [
+            {tokenAddress:"0x932ca55b9ef0b3094e8fa82435b3b4c50d713043", tokenIds: ["1"]},
+            {tokenAddress:"0x932ca55b9ef0b3094e8fa82435b3b4c50d713043", tokenIds: ["2"]},
+        ]
+    };
+
+    let migrationResponse;
+
+    migrationResponse = await aarcSDK.executeMigration(executeMigrationDto);
+    expect(Array.isArray(migrationResponse)).toBe(true);
+    expect(migrationResponse).toHaveLength(2);
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalled();
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledTimes(1);
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "1"
+        }
+    );
+
+    expect(migrationResponse[0]).toEqual({
+        tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        tokenId: '2',
+        message: 'Duplicate token address',
+    });
+
+    expect(migrationResponse[1]).toEqual({
+        tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '1',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+
+  }, 30000);
+
+  it('should throw an errow in case duplicate entries provided in gasless', async () => {
+    // Mock a different implementation for fetchBalances
+    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+        code: 200,
+        data: [
+            {
+                decimals: 18,
+                name: 'ETH',
+                symbol: 'ETH',
+                token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                balance: { type: 'BigNumber', hex: '0xf4240' },
+                type: 'dust',
+                nft_data: null,
+                permit2Allowance: {
+                  type: 'BigNumber',
+                  hex: '0x0c9f2c9cd04674edd2f5bf5642',
+                },
+                permitExist: true,
+            },
+            {
+                decimals: 0,
+                name: 'Goerli_NFTS',
+                symbol: 'G_NFTS',
+                token_address: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+                balance: {type: 'BigNumber', hex: '0x03'},
+                type: 'nft',
+                nft_data: [{image: "something", tokenId: "1"}, {image: "something", tokenId: "2"}, {image: "something", tokenId: "3"}],
+                permit2Allowance: "0",
+                permitExist: false
+            },
+            {
+                decimals: 6,
+                name: 'USDA',
+                symbol: 'USDA',
+                token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                balance: { type: 'BigNumber', hex: '0x989680' },
+                type: 'cryptocurrency',
+                nft_data: null,
+                permit2Allowance: { type: 'BigNumber', hex: '0x0c9f2c9cd04674edd2f5bf5642' },
+                permitExist: true,
+            },
+        ],
+        message: 'Success',
+    });
+
+    let migrationResponse;
+
+    const executeGaslessMigrationDto = {
+        senderSigner: signer,
+        receiverAddress: receiver,
+        transferTokenDetails: [
+            {tokenAddress:"0x932ca55b9ef0b3094e8fa82435b3b4c50d713043", tokenIds: ["1"]},
+            {tokenAddress:"0x932ca55b9ef0b3094e8fa82435b3b4c50d713043", tokenIds: ["2"]},
+        ],
+        gelatoApiKey:"1234567890"
+    };
+
+    migrationResponse = await aarcSDK.executeMigrationGasless(executeGaslessMigrationDto);
+    expect(Array.isArray(migrationResponse)).toBe(true);
+    expect(migrationResponse).toHaveLength(2);
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledTimes(1);
+
+    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(
+        {
+            senderSigner: signer,
+            recipientAddress: receiver,
+            tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+            tokenId: "1"
+        }
+    );
+
+    expect(migrationResponse[0]).toEqual({
+        tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        tokenId: '2',
+        message: 'Duplicate token address',
+    });
+
+    expect(migrationResponse[1]).toEqual({
+        tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
+        amount: 1,
+        tokenId: '1',
+        message: 'Nft transfer successful',
+        txHash: 'nft-transfer-0x1234567890'
+    });
+    
+
+  }, 30000);
+
   it('should transfer gasless nfts sucessfully', async () => {
     // Mock a different implementation for fetchBalances
     aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
@@ -302,4 +802,5 @@ describe('Aarc SDK nft transfer', () => {
       txHash: 'nft-transfer-0x1234567890',
     });
   }, 30000);
+
 });

@@ -21,6 +21,7 @@ import {
   SingleTransferPermitDto,
   TokenData,
   TokenNftData,
+  TransferTokenDetails,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -32,7 +33,7 @@ import {
   getGelatoTransactionStatus,
   relayTransaction,
 } from './helpers/GelatoHelper';
-import { logError } from './helpers';
+import { logError, removeDuplicateTokens } from './helpers';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
 
@@ -171,10 +172,15 @@ class AarcSDK {
             message: 'Supplied token does not exist',
           });
         }
+        tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
       });
 
       if (transferTokenDetails) {
         const updatedTokens: TokenData[] = [];
+
+        const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
+        transferTokenDetails = removeDuplicatesResult.transferTokenDetails;
+
         for (const tokenInfo of balancesList.data) {
           const matchingToken = transferTokenDetails?.find(
             (token) =>
@@ -185,6 +191,7 @@ class AarcSDK {
           if (
             matchingToken &&
             matchingToken.amount !== undefined &&
+            matchingToken.tokenIds == undefined &&
             BigNumber.from(matchingToken.amount).gt(0) &&
             BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
           ) {
@@ -602,10 +609,10 @@ class AarcSDK {
     try {
       const {
         senderSigner,
-        transferTokenDetails,
         receiverAddress,
         gelatoApiKey,
       } = executeMigrationGaslessDto;
+      let { transferTokenDetails } = executeMigrationGaslessDto;
       const owner = await senderSigner.getAddress();
       const tokenAddresses = transferTokenDetails?.map(
         (token) => token.tokenAddress,
@@ -642,10 +649,15 @@ class AarcSDK {
             message: 'Supplied token does not exist',
           });
         }
+        tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
       });
 
       if (transferTokenDetails) {
         const updatedTokens: TokenData[] = [];
+
+        const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
+        transferTokenDetails = removeDuplicatesResult.transferTokenDetails;
+
         for (const tokenInfo of balancesList.data) {
           const matchingToken = transferTokenDetails?.find(
             (token) =>
@@ -656,6 +668,7 @@ class AarcSDK {
           if (
             matchingToken &&
             matchingToken.amount !== undefined &&
+            matchingToken.tokenIds == undefined &&
             BigNumber.from(matchingToken.amount).gt(0) &&
             BigNumber.from(matchingToken.amount).gt(tokenInfo.balance)
           ) {

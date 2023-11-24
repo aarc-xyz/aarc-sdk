@@ -1,4 +1,4 @@
-import { BigNumber, BigNumberish, Signer, ethers } from 'ethers';
+import { BigNumber, BigNumberish, Signer } from 'ethers';
 import { ChainId } from './ChainTypes';
 import {
   PermitTransferFrom,
@@ -160,7 +160,7 @@ export type TransactionsResponse = {
   from: string;
   to: string;
   tokenAddress: string;
-  amount?: BigNumber;
+  amount: BigNumber;
   tokenId?: string;
   type: string;
   tokenPermissions?: { to: string; requestedAmount: BigNumberish }[];
@@ -172,5 +172,5 @@ export type TransactionsResponse = {
   };
   signature?: string;
   data?: string;
-  gasCost?: BigNumberish;
+  gasCost?: BigNumber;
 };

@@ -1,18 +1,22 @@
 import { MigrationResponse, TransferTokenDetails } from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 
-export const delay = (ms: number) => {
+export const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
-export const logError = (tokenInfo: any, error: any) => {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+export const logError = (
+  tokenInfo: { tokenAddress: string; amount: any },
+  error: any,
+): void => {
   Logger.error('Error transferring token', {
-    tokenAddress: tokenInfo.token_address,
-    amount: tokenInfo.balance,
+    tokenAddress: tokenInfo.tokenAddress,
+    amount: tokenInfo.amount,
     errorDetails: {
       name: error.name,
       message: error.message,
-      code: error.code, // or any other relevant properties from the error object
     },
   });
 };

@@ -11,7 +11,10 @@ export const calculateTotalGasNeeded = async (
   provider: ethers.providers.JsonRpcProvider,
   transactions: TransactionsResponse[],
   chainId: ChainId,
-): Promise<{ validTransactions: any[]; totalGasCost: BigNumber }> => {
+): Promise<{
+  validTransactions: TransactionsResponse[];
+  totalGasCost: BigNumber;
+}> => {
   let totalGasCost = BigNumber.from(0);
   const validTransactions = [];
 
@@ -79,6 +82,7 @@ export const calculateTotalGasNeeded = async (
       totalGasCost = totalGasCost.add(gasCost);
       transaction.gasCost = gasCost;
       validTransactions.push(transaction);
+      /* eslint-disable @typescript-eslint/no-explicit-any */
     } catch (error: any) {
       Logger.error(error);
     }

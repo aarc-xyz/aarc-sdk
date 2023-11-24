@@ -68,6 +68,7 @@ class Safe {
         safeAccountConfig: config,
         callback,
       });
+      /* eslint-disable @typescript-eslint/no-explicit-any */
     } catch (error: any) {
       if (
         error instanceof Error &&

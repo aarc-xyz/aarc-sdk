@@ -101,9 +101,8 @@ describe('Aarc SDK executeMigration', () => {
       receiverAddress: receiver,
     };
 
-    const migrationResponse = await aarcSDK.executeMigration(
-      executeMigrationDto,
-    );
+    const migrationResponse =
+      await aarcSDK.executeMigration(executeMigrationDto);
 
     expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalledTimes(1);
     expect(migrationResponse[0]).toEqual({
@@ -144,9 +143,8 @@ describe('Aarc SDK executeMigration', () => {
       receiverAddress: receiver,
     };
 
-    const migrationResponse = await aarcSDK.executeMigration(
-      executeMigrationDto,
-    );
+    const migrationResponse =
+      await aarcSDK.executeMigration(executeMigrationDto);
 
     expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalled();
     expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalledTimes(1);
@@ -194,9 +192,8 @@ describe('Aarc SDK executeMigration', () => {
       receiverAddress: receiver,
     };
 
-    const migrationResponse = await aarcSDK.executeMigration(
-      executeMigrationDto,
-    );
+    const migrationResponse =
+      await aarcSDK.executeMigration(executeMigrationDto);
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',

@@ -1,5 +1,5 @@
-import { BigNumber } from 'ethers';
-import { MigrationResponse, TokenData, TokenNftData, TransferTokenDetails } from '../utils/AarcTypes';
+import { BigNumber, Transaction } from 'ethers';
+import { MigrationResponse, TokenData, TokenNftData, TransactionsResponse, TransferTokenDetails } from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 import { BalancesResponse } from '../utils/AarcTypes';
 import { COVALENT_TOKEN_TYPES, nativeTokenAddresses } from '../utils/Constants';
@@ -7,47 +7,66 @@ import { ChainId } from '../utils/ChainTypes';
 import AarcSDK from '../AarcSDK';
 
 
-export const delay = (ms: number) => {
+export const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
-export const logError = (tokenInfo: any, error: any) => {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+export const logError = (
+  tokenInfo: { tokenAddress: string; amount: any },
+  error: any,
+): void => {
   Logger.error('Error transferring token', {
-    tokenAddress: tokenInfo.token_address,
-    amount: tokenInfo.balance,
+    tokenAddress: tokenInfo.tokenAddress,
+    amount: tokenInfo.amount,
     errorDetails: {
       name: error.name,
       message: error.message,
-      code: error.code, // or any other relevant properties from the error object
     },
   });
 };
 
-export const removeDuplicateTokens = (transferTokenDetails: TransferTokenDetails[], response: MigrationResponse[]): TransferTokenDetails[] => {
-  const transferTokenUniqueValues: TransferTokenDetails[] = transferTokenDetails.reduce((result: TransferTokenDetails[], current) => {
-    const matchingToken = result.find(item => item.tokenAddress === current.tokenAddress);
-    if (!matchingToken) {
-      result.push(current);
-    } else if (matchingToken && matchingToken.amount !== undefined && current.amount !== undefined){
-      response.push({
-        tokenAddress: current.tokenAddress,
-        amount: current?.amount,
-        message: 'Duplicate token address',
-      });
-    } else if (matchingToken && matchingToken.tokenIds !== undefined && current.tokenIds !== undefined){
-      for (const tokenId of current.tokenIds) {
+export const removeDuplicateTokens = (
+  transferTokenDetails: TransferTokenDetails[],
+  response: MigrationResponse[],
+): TransferTokenDetails[] => {
+  const transferTokenUniqueValues: TransferTokenDetails[] =
+    transferTokenDetails.reduce((result: TransferTokenDetails[], current) => {
+      const matchingToken = result.find(
+        (item) => item.tokenAddress === current.tokenAddress,
+      );
+      if (!matchingToken) {
+        result.push(current);
+      } else if (
+        matchingToken &&
+        matchingToken.amount !== undefined &&
+        current.amount !== undefined
+      ) {
         response.push({
           tokenAddress: current.tokenAddress,
-          tokenId: tokenId,
+          amount: current?.amount,
           message: 'Duplicate token address',
         });
+      } else if (
+        matchingToken &&
+        matchingToken.tokenIds !== undefined &&
+        current.tokenIds !== undefined
+      ) {
+        for (const tokenId of current.tokenIds) {
+          response.push({
+            tokenAddress: current.tokenAddress,
+            tokenId: tokenId,
+            message: 'Duplicate token address',
+          });
+        }
       }
-    }
     return result;
   }, []);
-  
+
   return transferTokenUniqueValues;
 };
+
 
 export const processTransferTokenDetails = (transferTokenDetails: TransferTokenDetails[], response: MigrationResponse[], balancesList: BalancesResponse): TokenData[] => {
   const updatedTokens: TokenData[] = [];
@@ -142,7 +161,7 @@ export const processTokenData = (balancesList: BalancesResponse, transferTokenDe
   return tokens;
 }
 
-export const processNftTransactions = (balancesList: BalancesResponse, transactions: any[], owner: string, receiverAddress: string) => {
+export const processNftTransactions = (balancesList: BalancesResponse, transactions: TransactionsResponse[], owner: string, receiverAddress: string) => {
   let nfts = balancesList.data.filter((balances) => {
     return balances.type === COVALENT_TOKEN_TYPES.NFT;
   });
@@ -157,7 +176,7 @@ export const processNftTransactions = (balancesList: BalancesResponse, transacti
           from: owner,
           to: receiverAddress,
           tokenAddress: collection.token_address,
-          amount: 1,
+          amount: BigNumber.from(1),
           tokenId: nft.tokenId,
           type: COVALENT_TOKEN_TYPES.NFT,
         });
@@ -166,7 +185,7 @@ export const processNftTransactions = (balancesList: BalancesResponse, transacti
   }
 }
 
-export const processERC20TransferrableTokens = (erc20Tokens:TokenData[], transactions: any[], owner: string, receiverAddress: string) => {
+export const processERC20TransferrableTokens = (erc20Tokens:TokenData[], transactions: TransactionsResponse[], owner: string, receiverAddress: string) => {
   const erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
     BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
   );
@@ -178,13 +197,12 @@ export const processERC20TransferrableTokens = (erc20Tokens:TokenData[], transac
       to: receiverAddress,
       tokenAddress: token.token_address,
       amount: token.balance,
-      tokenId: null,
       type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
     });
   }
 }
 
-export const processNativeTransfer = async (tokens:TokenData[], transferTokenDetails: TransferTokenDetails[] | undefined, transactions: any[], sdkObject: AarcSDK, owner: string, receiverAddress: string) => {
+export const processNativeTransfer = async (tokens:TokenData[], transferTokenDetails: TransferTokenDetails[] | undefined, transactions: TransactionsResponse[], sdkObject: AarcSDK, owner: string, receiverAddress: string) => {
   const nativeToken = tokens.filter(
     (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
   );
@@ -218,7 +236,6 @@ export const processNativeTransfer = async (tokens:TokenData[], transferTokenDet
       to: receiverAddress,
       tokenAddress: nativeToken[0].token_address,
       amount: amountTransfer,
-      tokenId: null,
       type: COVALENT_TOKEN_TYPES.DUST,
     });
   }

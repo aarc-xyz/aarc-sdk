@@ -4,13 +4,17 @@ import { GAS_UNITS, nativeTokenAddresses } from '../utils/Constants';
 import { ERC20_ABI } from '../utils/abis/ERC20.abi';
 import { PERMIT2_BATCH_TRANSFER_ABI } from '../utils/abis/Permit2BatchTransfer.abi';
 import { ChainId } from '../utils/ChainTypes';
+import { TransactionsResponse } from '../utils/AarcTypes';
 
 // Function to calculate total gas needed for all transactions
 export const calculateTotalGasNeeded = async (
   provider: ethers.providers.JsonRpcProvider,
-  transactions: any[],
+  transactions: TransactionsResponse[],
   chainId: ChainId,
-): Promise<{ validTransactions: any[]; totalGasCost: BigNumber }> => {
+): Promise<{
+  validTransactions: TransactionsResponse[];
+  totalGasCost: BigNumber;
+}> => {
   let totalGasCost = BigNumber.from(0);
   const validTransactions = [];
 
@@ -78,6 +82,7 @@ export const calculateTotalGasNeeded = async (
       totalGasCost = totalGasCost.add(gasCost);
       transaction.gasCost = gasCost;
       validTransactions.push(transaction);
+      /* eslint-disable @typescript-eslint/no-explicit-any */
     } catch (error: any) {
       Logger.error(error);
     }
@@ -89,7 +94,7 @@ export const calculateTotalGasNeeded = async (
 // Function to estimate gas for a single transaction
 export const estimateGasForTransaction = async (
   provider: ethers.providers.JsonRpcProvider,
-  transaction: any,
+  transaction: ethers.providers.TransactionRequest,
 ): Promise<BigNumber> => {
   let estimatedGas = BigNumber.from(0);
   try {

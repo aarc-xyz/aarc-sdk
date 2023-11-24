@@ -256,9 +256,8 @@ describe('Aarc SDK executeMigration', () => {
       receiverAddress: receiver,
     };
 
-    const migrationResponse = await aarcSDK.executeMigration(
-      executeMigrationDto,
-    );
+    const migrationResponse =
+      await aarcSDK.executeMigration(executeMigrationDto);
     expect(Array.isArray(migrationResponse)).toBe(true);
     expect(migrationResponse).toHaveLength(1);
 
@@ -455,9 +454,8 @@ describe('Aarc SDK executeMigration', () => {
       receiverAddress: receiver,
     };
 
-    const migrationResponse = await aarcSDK.executeMigration(
-      executeMigrationDto,
-    );
+    const migrationResponse =
+      await aarcSDK.executeMigration(executeMigrationDto);
 
     expect(
       aarcSDK.permitHelper.getBatchTransferPermitData,
@@ -573,13 +571,10 @@ describe('Aarc SDK executeMigration', () => {
       receiverAddress: receiver,
     };
 
-    const migrationResponse = await aarcSDK.executeMigration(
-      executeMigrationDto,
-    );
+    const migrationResponse =
+      await aarcSDK.executeMigration(executeMigrationDto);
 
-    expect(
-      aarcSDK.permitHelper.performTokenTransfer,
-    ).toHaveBeenCalledTimes(0);
+    expect(aarcSDK.permitHelper.performTokenTransfer).toHaveBeenCalledTimes(0);
 
     expect(migrationResponse).toHaveLength(2);
 

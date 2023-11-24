@@ -1,8 +1,8 @@
-import { BigNumber, Transaction } from 'ethers';
-import { MigrationResponse, TokenData, TokenNftData, TransactionsResponse, TransferTokenDetails } from '../utils/AarcTypes';
+import { BigNumber, Signer, Transaction } from 'ethers';
+import { BatchTransferPermitDto, MigrationResponse, TokenData, TokenNftData, TransactionsResponse, TransferTokenDetails } from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 import { BalancesResponse } from '../utils/AarcTypes';
-import { COVALENT_TOKEN_TYPES, nativeTokenAddresses } from '../utils/Constants';
+import { COVALENT_TOKEN_TYPES, PERMIT2_CONTRACT_ADDRESS, nativeTokenAddresses } from '../utils/Constants';
 import { ChainId } from '../utils/ChainTypes';
 import AarcSDK from '../AarcSDK';
 

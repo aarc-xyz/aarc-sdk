@@ -64,7 +64,7 @@ class AarcSDK {
 
     // instantiating Gelato Relay SDK
     this.relayer = new GelatoRelay();
-    this.permitHelper = new PermitHelper(rpcUrl);
+    this.permitHelper = new PermitHelper(rpcUrl, chainId);
   }
 
   async getAllBiconomySCWs(owner: string): Promise<ISmartAccount[]> {
@@ -196,54 +196,7 @@ class AarcSDK {
 
       processERC20TransferrableTokens(erc20Tokens, transactions, owner, receiverAddress);
         
-      const permit2TransferableTokens = erc20Tokens.filter(
-        (balanceObj) =>
-          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)) ||
-          BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)),
-      );
-
-      Logger.log(' permit2TransferableTokens ', permit2TransferableTokens);
-        
-      if (permit2TransferableTokens.length === 1) {
-        const token = permit2TransferableTokens[0];
-        transactions.push({
-          from: owner,
-          to: receiverAddress,
-          tokenAddress: token.token_address,
-          amount: token.balance,
-          type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
-        });
-      }
-
-      if (permit2TransferableTokens.length > 1) {
-        const batchTransferPermitDto: BatchTransferPermitDto = {
-          signer: senderSigner,
-          chainId: this.chainId,
-          spenderAddress: owner,
-          tokenData: permit2TransferableTokens,
-        };
-        const permitData = await this.permitHelper.getBatchTransferPermitData(
-          batchTransferPermitDto,
-        );
-        const { permitBatchTransferFrom, signature } = permitData;
-
-        const tokenPermissions = permitBatchTransferFrom.permitted.map(
-          (batchInfo) => ({
-            to: receiverAddress,
-            requestedAmount: batchInfo.amount,
-          }),
-        );
-        transactions.push({
-          tokenAddress: PERMIT2_CONTRACT_ADDRESS,
-          from: owner,
-          amount: BigNumber.from(0),
-          to: receiverAddress,
-          tokenPermissions,
-          batchDto: permitBatchTransferFrom,
-          signature,
-          type: 'permitbatch',
-        });
-      }
+      await this.permitHelper.processPermit2Tokens(erc20Tokens, transactions, senderSigner, receiverAddress);
 
       await processNativeTransfer(tokens, transferTokenDetails, transactions, this, owner, receiverAddress);
 
@@ -266,77 +219,7 @@ class AarcSDK {
       Logger.log('permitBatchTransaction ', permitBatchTransaction);
 
       // Process permit-batch transaction if it exists and there's enough balance
-      if (
-        permitBatchTransaction &&
-        remainingBalance !== undefined &&
-        permitBatchTransaction.batchDto &&
-        permitBatchTransaction.gasCost
-      ) {
-        if (permitBatchTransaction.gasCost.lte(remainingBalance)) {
-          try {
-            Logger.log('Doing Permit Batch Transaction');
-            Logger.log(JSON.stringify(permitBatchTransaction));
-
-            const permit2Contract = new Contract(
-              PERMIT2_CONTRACT_ADDRESS,
-              PERMIT2_BATCH_TRANSFER_ABI,
-              senderSigner,
-            );
-
-            const txInfo = await permit2Contract.permitTransferFrom(
-              permitBatchTransaction.batchDto,
-              permitBatchTransaction.tokenPermissions,
-              permitBatchTransaction.from,
-              permitBatchTransaction.signature,
-            );
-
-            permitBatchTransaction.batchDto.permitted.map(
-              (token: TokenPermissions) => {
-                response.push({
-                  tokenAddress: token.token,
-                  amount: token.amount,
-                  message: 'Token transfer successful',
-                  txHash: txInfo.hash,
-                });
-              },
-            );
-
-            remainingBalance = remainingBalance.sub(
-              BigNumber.from(permitBatchTransaction.gasCost),
-            );
-          } catch (error) {
-            Logger.log('error ', error);
-            permitBatchTransaction.batchDto.permitted.map(
-              (token: TokenPermissions) => {
-                logError(
-                  {
-                    tokenAddress: token.token,
-                    amount: token.amount,
-                  },
-                  error,
-                );
-                response.push({
-                  tokenAddress: token.token,
-                  amount: token.amount,
-                  message: 'Token transfer failed',
-                  txHash: '',
-                });
-              },
-            );
-          }
-        } else {
-          permitBatchTransaction.batchDto.permitted.map(
-            (token: TokenPermissions) => {
-              response.push({
-                tokenAddress: token.token,
-                amount: token.amount,
-                message: 'Token transfer failed',
-                txHash: '',
-              });
-            },
-          );
-        }
-      }
+      if (permitBatchTransaction) await this.permitHelper.processPermit2BatchTransactions(permitBatchTransaction, senderSigner, response, remainingBalance);
 
       // Sort other transactions (excluding permitbatch) by gasCost in ascending order
       const sortedTransactions = validTransactions.filter(

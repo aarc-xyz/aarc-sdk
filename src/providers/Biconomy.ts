@@ -19,10 +19,13 @@ class Biconomy {
     this.nodeClient = new NodeClient({ txServiceUrl: BICONOMY_TX_SERVICE_URL });
   }
 
-  async getAllBiconomySCWs(chainId: number, owner: string) {
+  async getAllBiconomySCWs(
+    chainId: number,
+    owner: string,
+  ): Promise<ISmartAccount[]> {
     try {
-      let accounts: ISmartAccount[] = [];
-      let params = {
+      const accounts: ISmartAccount[] = [];
+      const params = {
         chainId: chainId,
         owner: owner,
         index: 0,
@@ -52,7 +55,7 @@ class Biconomy {
         moduleAddress: DEFAULT_ECDSA_OWNERSHIP_MODULE,
       });
 
-      let biconomySmartAccount = await BiconomySmartAccountV2.create({
+      const biconomySmartAccount = await BiconomySmartAccountV2.create({
         chainId: await signer.getChainId(),
         entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
         defaultValidationModule: module,

@@ -1,4 +1,4 @@
-import { BigNumber, ethers } from 'ethers';
+import { ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 
 export const BASE_URL = 'https://migrator.aarc.xyz';
@@ -96,7 +96,7 @@ export const PERMIT_FUNCTION_TYPES = {
 
 export const enum GAS_UNITS {
   cryptocurrency = 25000,
-  stablecoin = 25000,
+  stablecoin = cryptocurrency,
   dust = 21000,
   nft = 60000,
   APPROVE = 46271,

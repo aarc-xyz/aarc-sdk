@@ -2,18 +2,15 @@ import { ERC20_ABI } from '../utils/abis/ERC20.abi';
 import { ERC721_ABI } from '../utils/abis/ERC721.abi';
 import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import {
-  PermitTransferFrom,
   SignatureTransfer,
   TokenPermissions,
   PermitBatchTransferFrom,
 } from '@uniswap/permit2-sdk';
-import { ChainId } from '../utils/ChainTypes';
 import {
   PERMIT2_CONTRACT_ADDRESS,
   PERMIT_FUNCTION_TYPES,
   PERMIT_FUNCTION_ABI,
   PERMIT2_DOMAIN_NAME,
-  GELATO_RELAYER_ADDRESS,
 } from '../utils/Constants';
 import {
   PermitData,
@@ -163,7 +160,11 @@ export class PermitHelper {
     }
   }
 
-  async performPermit(permitDto: PermitDto) {
+  async performPermit(permitDto: PermitDto): Promise<{
+    chainId: bigint;
+    data: string;
+    target: string;
+  }> {
     try {
       const { signer, chainId, eoaAddress, tokenAddress } = permitDto;
       const { r, s, v, deadline } = await this.signPermitMessage(permitDto);
@@ -211,9 +212,8 @@ export class PermitHelper {
     const { signer, chainId, spenderAddress, tokenData } =
       singleTransferPermitDto;
     const nonce = await this.getPermit2Nonce(spenderAddress);
-    let permitTransferFrom: PermitTransferFrom;
 
-    permitTransferFrom = {
+    const permitTransferFrom = {
       permitted: {
         token: tokenData.token_address,
         amount: tokenData.balance, // TODO: Verify transferrable amount
@@ -253,8 +253,6 @@ export class PermitHelper {
       batchTransferPermitDto;
     const nonce = await this.getPermit2Nonce(spenderAddress);
 
-    let permitData;
-
     if (tokenData.length < 2) {
       throw new Error('Invalid token data length');
     }
@@ -271,7 +269,7 @@ export class PermitHelper {
       nonce,
     };
 
-    permitData = SignatureTransfer.getPermitData(
+    const permitData = SignatureTransfer.getPermitData(
       permitBatchTransferFrom,
       PERMIT2_CONTRACT_ADDRESS,
       chainId,

@@ -3,6 +3,7 @@ import { ChainId } from './ChainTypes';
 import {
   PermitTransferFrom,
   PermitBatchTransferFrom,
+  TokenPermissions,
 } from '@uniswap/permit2-sdk';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
@@ -153,4 +154,23 @@ export type MigrationResponse = {
   message: string;
   txHash?: string;
   tokenId?: string;
+};
+
+export type TransactionsResponse = {
+  from: string;
+  to: string;
+  tokenAddress: string;
+  amount?: BigNumber;
+  tokenId?: string;
+  type: string;
+  tokenPermissions?: { to: string; requestedAmount: BigNumberish }[];
+  batchDto?: {
+    permitted: TokenPermissions[];
+    spender: string;
+    nonce: BigNumberish;
+    deadline: BigNumberish;
+  };
+  signature?: string;
+  data?: string;
+  gasCost?: BigNumberish;
 };

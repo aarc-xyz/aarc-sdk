@@ -577,9 +577,7 @@ describe('Aarc SDK executeMigration', () => {
       executeMigrationDto,
     );
 
-    expect(
-      aarcSDK.permitHelper.performTokenTransfer,
-    ).toHaveBeenCalledTimes(0);
+    expect(aarcSDK.permitHelper.performTokenTransfer).toHaveBeenCalledTimes(0);
 
     expect(migrationResponse).toHaveLength(2);
 

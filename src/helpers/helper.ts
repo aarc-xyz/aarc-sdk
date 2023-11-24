@@ -17,28 +17,48 @@ export const logError = (tokenInfo: any, error: any) => {
   });
 };
 
-export const removeDuplicateTokens = (transferTokenDetails: TransferTokenDetails[], response: MigrationResponse[]): {transferTokenDetails: TransferTokenDetails[], response: MigrationResponse[]} => {
-  const transferTokenUniqueValues: TransferTokenDetails[] = transferTokenDetails.reduce((result: TransferTokenDetails[], current) => {
-    const matchingToken = result.find(item => item.tokenAddress === current.tokenAddress);
-    if (!matchingToken) {
-      result.push(current);
-    } else if (matchingToken && matchingToken.amount !== undefined && current.amount !== undefined){
-      response.push({
-        tokenAddress: current.tokenAddress,
-        amount: current?.amount,
-        message: 'Duplicate token address',
-      });
-    } else if (matchingToken && matchingToken.tokenIds !== undefined && current.tokenIds !== undefined){
-      for (const tokenId of current.tokenIds) {
+export const removeDuplicateTokens = (
+  transferTokenDetails: TransferTokenDetails[],
+  response: MigrationResponse[],
+): {
+  transferTokenDetails: TransferTokenDetails[];
+  response: MigrationResponse[];
+} => {
+  const transferTokenUniqueValues: TransferTokenDetails[] =
+    transferTokenDetails.reduce((result: TransferTokenDetails[], current) => {
+      const matchingToken = result.find(
+        (item) => item.tokenAddress === current.tokenAddress,
+      );
+      if (!matchingToken) {
+        result.push(current);
+      } else if (
+        matchingToken &&
+        matchingToken.amount !== undefined &&
+        current.amount !== undefined
+      ) {
         response.push({
           tokenAddress: current.tokenAddress,
-          tokenId: tokenId,
+          amount: current?.amount,
           message: 'Duplicate token address',
         });
+      } else if (
+        matchingToken &&
+        matchingToken.tokenIds !== undefined &&
+        current.tokenIds !== undefined
+      ) {
+        for (const tokenId of current.tokenIds) {
+          response.push({
+            tokenAddress: current.tokenAddress,
+            tokenId: tokenId,
+            message: 'Duplicate token address',
+          });
+        }
       }
-    }
-    return result;
-  }, []);
-  
-  return {transferTokenDetails: transferTokenUniqueValues, response: response};
+      return result;
+    }, []);
+
+  return {
+    transferTokenDetails: transferTokenUniqueValues,
+    response: response,
+  };
 };

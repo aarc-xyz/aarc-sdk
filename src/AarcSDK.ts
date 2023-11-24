@@ -21,7 +21,7 @@ import {
   SingleTransferPermitDto,
   TokenData,
   TokenNftData,
-  TransferTokenDetails,
+  TransactionsResponse,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -127,7 +127,7 @@ class AarcSDK {
     executeMigrationDto: ExecuteMigrationDto,
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
-    const transactions = [];
+    const transactions: TransactionsResponse[] = [];
     let remainingBalance = BigNumber.from(0);
     try {
       Logger.log('executeMigration ');
@@ -178,7 +178,10 @@ class AarcSDK {
       if (transferTokenDetails) {
         const updatedTokens: TokenData[] = [];
 
-        const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
+        const removeDuplicatesResult = removeDuplicateTokens(
+          transferTokenDetails,
+          response,
+        );
         transferTokenDetails = removeDuplicatesResult.transferTokenDetails;
 
         for (const tokenInfo of balancesList.data) {
@@ -285,7 +288,7 @@ class AarcSDK {
               from: owner,
               to: receiverAddress,
               tokenAddress: collection.token_address,
-              amount: 1,
+              amount: BigNumber.from(1),
               tokenId: nft.tokenId,
               type: COVALENT_TOKEN_TYPES.NFT,
             });
@@ -324,7 +327,6 @@ class AarcSDK {
           to: receiverAddress,
           tokenAddress: token.token_address,
           amount: token.balance,
-          tokenId: null,
           type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
         });
       }
@@ -342,7 +344,6 @@ class AarcSDK {
           to: receiverAddress,
           tokenAddress: token.token_address,
           amount: token.balance,
-          tokenId: null,
           type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
         });
       }
@@ -372,7 +373,6 @@ class AarcSDK {
           tokenPermissions,
           batchDto: permitBatchTransferFrom,
           signature,
-          tokenId: null,
           type: 'permitbatch',
         });
       }
@@ -406,7 +406,6 @@ class AarcSDK {
           to: receiverAddress,
           tokenAddress: nativeToken[0].token_address,
           amount: amountTransfer,
-          tokenId: null,
           type: COVALENT_TOKEN_TYPES.DUST,
         });
       }
@@ -421,7 +420,7 @@ class AarcSDK {
 
       // Find permit-batch transaction
       const permitBatchTransaction = validTransactions.find(
-        (tx) => tx.type === 'permitbatch',
+        (tx: TransactionsResponse) => tx.type === 'permitbatch',
       );
 
       Logger.log('remainingBalance ', remainingBalance);
@@ -486,7 +485,7 @@ class AarcSDK {
 
       // Sort other transactions (excluding permitbatch) by gasCost in ascending order
       const sortedTransactions = validTransactions.filter(
-        (tx) => tx !== permitBatchTransaction,
+        (tx: TransactionsResponse) => tx !== permitBatchTransaction,
       );
       sortedTransactions.sort((a, b) => {
         const gasCostA = a.gasCost?.toNumber() || 0;
@@ -604,14 +603,11 @@ class AarcSDK {
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
     let remainingBalance = BigNumber.from(0);
-    const transactions = [];
+    const transactions: TransactionsResponse[] = [];
 
     try {
-      const {
-        senderSigner,
-        receiverAddress,
-        gelatoApiKey,
-      } = executeMigrationGaslessDto;
+      const { senderSigner, receiverAddress, gelatoApiKey } =
+        executeMigrationGaslessDto;
       let { transferTokenDetails } = executeMigrationGaslessDto;
       const owner = await senderSigner.getAddress();
       const tokenAddresses = transferTokenDetails?.map(
@@ -655,7 +651,10 @@ class AarcSDK {
       if (transferTokenDetails) {
         const updatedTokens: TokenData[] = [];
 
-        const removeDuplicatesResult = removeDuplicateTokens(transferTokenDetails, response);
+        const removeDuplicatesResult = removeDuplicateTokens(
+          transferTokenDetails,
+          response,
+        );
         transferTokenDetails = removeDuplicatesResult.transferTokenDetails;
 
         for (const tokenInfo of balancesList.data) {
@@ -720,7 +719,7 @@ class AarcSDK {
               from: owner,
               to: receiverAddress,
               tokenAddress: collection.token_address,
-              amount: 1,
+              amount: BigNumber.from(1),
               tokenId: nft.tokenId,
               type: COVALENT_TOKEN_TYPES.NFT,
             });
@@ -795,7 +794,6 @@ class AarcSDK {
           to: receiverAddress,
           tokenAddress: token.token_address,
           amount: token.balance,
-          tokenId: null,
           type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
         });
       }
@@ -1036,7 +1034,6 @@ class AarcSDK {
           to: receiverAddress,
           tokenAddress: nativeToken[0].token_address,
           amount: amountTransfer,
-          tokenId: null,
           type: COVALENT_TOKEN_TYPES.DUST,
         });
       }

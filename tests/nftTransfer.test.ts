@@ -203,6 +203,20 @@ describe('Aarc SDK nft transfer', () => {
         code: 200,
         data: [
             {
+                decimals: 18,
+                name: 'ETH',
+                symbol: 'ETH',
+                token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                balance: { type: 'BigNumber', hex: '0xf4240' },
+                type: 'dust',
+                nft_data: null,
+                permit2Allowance: {
+                  type: 'BigNumber',
+                  hex: '0x0c9f2c9cd04674edd2f5bf5642',
+                },
+                permitExist: true,
+            },
+            {
                 decimals: 0,
                 name: 'Goerli_NFTS',
                 symbol: 'G_NFTS',
@@ -349,6 +363,20 @@ describe('Aarc SDK nft transfer', () => {
     aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
         code: 200,
         data: [
+            {
+                decimals: 18,
+                name: 'ETH',
+                symbol: 'ETH',
+                token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                balance: { type: 'BigNumber', hex: '0xf4240' },
+                type: 'dust',
+                nft_data: null,
+                permit2Allowance: {
+                  type: 'BigNumber',
+                  hex: '0x0c9f2c9cd04674edd2f5bf5642',
+                },
+                permitExist: true,
+            },
             {
                 decimals: 0,
                 name: 'Goerli_NFTS',
@@ -498,6 +526,20 @@ describe('Aarc SDK nft transfer', () => {
         code: 200,
         data: [
             {
+                decimals: 18,
+                name: 'ETH',
+                symbol: 'ETH',
+                token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                balance: { type: 'BigNumber', hex: '0xf4240' },
+                type: 'dust',
+                nft_data: null,
+                permit2Allowance: {
+                  type: 'BigNumber',
+                  hex: '0x0c9f2c9cd04674edd2f5bf5642',
+                },
+                permitExist: true,
+            },
+            {
                 decimals: 0,
                 name: 'Goerli_NFTS',
                 symbol: 'G_NFTS',
@@ -572,6 +614,20 @@ describe('Aarc SDK nft transfer', () => {
         code: 200,
         data: [
             {
+                decimals: 18,
+                name: 'ETH',
+                symbol: 'ETH',
+                token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+                balance: { type: 'BigNumber', hex: '0xf4240' },
+                type: 'dust',
+                nft_data: null,
+                permit2Allowance: {
+                  type: 'BigNumber',
+                  hex: '0x0c9f2c9cd04674edd2f5bf5642',
+                },
+                permitExist: true,
+            },
+            {
                 decimals: 0,
                 name: 'Goerli_NFTS',
                 symbol: 'G_NFTS',
@@ -613,7 +669,6 @@ describe('Aarc SDK nft transfer', () => {
     expect(Array.isArray(migrationResponse)).toBe(true);
     expect(migrationResponse).toHaveLength(2);
 
-    expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalled();
     expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledTimes(1);
 
     expect(aarcSDK.permitHelper.performNFTTransfer).toHaveBeenCalledWith(

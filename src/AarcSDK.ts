@@ -609,10 +609,10 @@ class AarcSDK {
     try {
       const {
         senderSigner,
-        transferTokenDetails,
         receiverAddress,
         gelatoApiKey,
       } = executeMigrationGaslessDto;
+      let { transferTokenDetails } = executeMigrationGaslessDto;
       const owner = await senderSigner.getAddress();
       const tokenAddresses = transferTokenDetails?.map(
         (token) => token.tokenAddress,

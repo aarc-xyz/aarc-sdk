@@ -31,12 +31,18 @@ import {
   getGelatoTransactionStatus,
   relayTransaction,
 } from './helpers/GelatoHelper';
-import { logError, processERC20TransferrableTokens, processNativeTransfer, processNftTransactions, processTokenData, processTransferTokenDetails } from './helpers';
+import {
+  logError,
+  processERC20TransferrableTokens,
+  processNativeTransfer,
+  processNftTransactions,
+  processTokenData,
+  processTransferTokenDetails,
+} from './helpers';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
 import { ISmartAccount } from '@biconomy/node-client';
 import { OwnerResponse } from '@safe-global/api-kit';
-import { TokenPermissions } from '@uniswap/permit2-sdk';
 
 class AarcSDK {
   biconomy: Biconomy;
@@ -134,7 +140,7 @@ class AarcSDK {
       Logger.log('executeMigration ');
 
       const { receiverAddress, senderSigner } = executeMigrationDto;
-      let { transferTokenDetails } = executeMigrationDto;
+      const { transferTokenDetails } = executeMigrationDto;
       const owner = await senderSigner.getAddress();
 
       const tokenAddresses = transferTokenDetails?.map(
@@ -178,14 +184,23 @@ class AarcSDK {
 
       if (transferTokenDetails) {
         // Now, updatedTokens contains the filtered array without the undesired elements
-        balancesList.data = processTransferTokenDetails(transferTokenDetails, response, balancesList); 
+        balancesList.data = processTransferTokenDetails(
+          transferTokenDetails,
+          response,
+          balancesList,
+        );
       }
 
       const tokens = processTokenData(balancesList, transferTokenDetails);
 
       Logger.log('tokens ', tokens);
 
-      processNftTransactions(balancesList, transactions, owner, receiverAddress);
+      processNftTransactions(
+        balancesList,
+        transactions,
+        owner,
+        receiverAddress,
+      );
 
       const erc20Tokens = tokens.filter(
         (token) =>
@@ -194,11 +209,28 @@ class AarcSDK {
       );
       Logger.log('erc20Tokens ', erc20Tokens);
 
-      processERC20TransferrableTokens(erc20Tokens, transactions, owner, receiverAddress);
-        
-      await this.permitHelper.processPermit2Tokens(erc20Tokens, transactions, senderSigner, receiverAddress);
+      processERC20TransferrableTokens(
+        erc20Tokens,
+        transactions,
+        owner,
+        receiverAddress,
+      );
 
-      await processNativeTransfer(tokens, transferTokenDetails, transactions, this, owner, receiverAddress);
+      await this.permitHelper.processPermit2Tokens(
+        erc20Tokens,
+        transactions,
+        senderSigner,
+        receiverAddress,
+      );
+
+      await processNativeTransfer(
+        tokens,
+        transferTokenDetails,
+        transactions,
+        this,
+        owner,
+        receiverAddress,
+      );
 
       Logger.log('all trx ', transactions);
       const { validTransactions, totalGasCost } = await calculateTotalGasNeeded(
@@ -219,7 +251,13 @@ class AarcSDK {
       Logger.log('permitBatchTransaction ', permitBatchTransaction);
 
       // Process permit-batch transaction if it exists and there's enough balance
-      if (permitBatchTransaction) await this.permitHelper.processPermit2BatchTransactions(permitBatchTransaction, senderSigner, response, remainingBalance);
+      if (permitBatchTransaction)
+        await this.permitHelper.processPermit2BatchTransactions(
+          permitBatchTransaction,
+          senderSigner,
+          response,
+          remainingBalance,
+        );
 
       // Sort other transactions (excluding permitbatch) by gasCost in ascending order
       const sortedTransactions = validTransactions.filter(
@@ -347,7 +385,7 @@ class AarcSDK {
     try {
       const { senderSigner, receiverAddress, gelatoApiKey } =
         executeMigrationGaslessDto;
-      let { transferTokenDetails } = executeMigrationGaslessDto;
+      const { transferTokenDetails } = executeMigrationGaslessDto;
       const owner = await senderSigner.getAddress();
       const tokenAddresses = transferTokenDetails?.map(
         (token) => token.tokenAddress,
@@ -389,10 +427,19 @@ class AarcSDK {
 
       if (transferTokenDetails) {
         // Now, updatedTokens contains the filtered array without the undesired elements
-        balancesList.data = processTransferTokenDetails(transferTokenDetails, response, balancesList); 
+        balancesList.data = processTransferTokenDetails(
+          transferTokenDetails,
+          response,
+          balancesList,
+        );
       }
 
-      processNftTransactions(balancesList, transactions, owner, receiverAddress);
+      processNftTransactions(
+        balancesList,
+        transactions,
+        owner,
+        receiverAddress,
+      );
 
       const tokens = processTokenData(balancesList, transferTokenDetails);
 
@@ -405,7 +452,12 @@ class AarcSDK {
       );
       Logger.log('erc20Tokens ', erc20Tokens);
 
-      processERC20TransferrableTokens(erc20Tokens, transactions, owner, receiverAddress);
+      processERC20TransferrableTokens(
+        erc20Tokens,
+        transactions,
+        owner,
+        receiverAddress,
+      );
 
       // Filtering out tokens to do permit transaction
       const permittedTokens = erc20Tokens.filter(
@@ -620,7 +672,14 @@ class AarcSDK {
         }
       }
 
-      await processNativeTransfer(tokens, transferTokenDetails, transactions, this, owner, receiverAddress);
+      await processNativeTransfer(
+        tokens,
+        transferTokenDetails,
+        transactions,
+        this,
+        owner,
+        receiverAddress,
+      );
 
       Logger.log('all trx ', transactions);
       const { validTransactions, totalGasCost } = await calculateTotalGasNeeded(

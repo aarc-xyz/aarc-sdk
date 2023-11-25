@@ -1,11 +1,16 @@
-import { BigNumber, Signer, Transaction } from 'ethers';
-import { BatchTransferPermitDto, MigrationResponse, TokenData, TokenNftData, TransactionsResponse, TransferTokenDetails } from '../utils/AarcTypes';
+import { BigNumber } from 'ethers';
+import {
+  MigrationResponse,
+  TokenData,
+  TokenNftData,
+  TransactionsResponse,
+  TransferTokenDetails,
+} from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 import { BalancesResponse } from '../utils/AarcTypes';
-import { COVALENT_TOKEN_TYPES, PERMIT2_CONTRACT_ADDRESS, nativeTokenAddresses } from '../utils/Constants';
+import { COVALENT_TOKEN_TYPES, nativeTokenAddresses } from '../utils/Constants';
 import { ChainId } from '../utils/ChainTypes';
 import AarcSDK from '../AarcSDK';
-
 
 export const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -61,14 +66,17 @@ export const removeDuplicateTokens = (
           });
         }
       }
-    return result;
-  }, []);
+      return result;
+    }, []);
 
   return transferTokenUniqueValues;
 };
 
-
-export const processTransferTokenDetails = (transferTokenDetails: TransferTokenDetails[], response: MigrationResponse[], balancesList: BalancesResponse): TokenData[] => {
+export const processTransferTokenDetails = (
+  transferTokenDetails: TransferTokenDetails[],
+  response: MigrationResponse[],
+  balancesList: BalancesResponse,
+): TokenData[] => {
   const updatedTokens: TokenData[] = [];
 
   transferTokenDetails = removeDuplicateTokens(transferTokenDetails, response);
@@ -118,11 +126,14 @@ export const processTransferTokenDetails = (transferTokenDetails: TransferTokenD
     } else if (matchingToken) updatedTokens.push(tokenInfo);
   }
   return updatedTokens;
-}
+};
 
 // process token data for allowance and balance
-export const processTokenData = (balancesList: BalancesResponse, transferTokenDetails: TransferTokenDetails[] | undefined): TokenData[] => {
-  let tokens = balancesList.data.filter((balances) => {
+export const processTokenData = (
+  balancesList: BalancesResponse,
+  transferTokenDetails: TransferTokenDetails[] | undefined,
+): TokenData[] => {
+  const tokens = balancesList.data.filter((balances) => {
     return (
       balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
       balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
@@ -159,10 +170,16 @@ export const processTokenData = (balancesList: BalancesResponse, transferTokenDe
     return element;
   });
   return tokens;
-}
+};
 
-export const processNftTransactions = (balancesList: BalancesResponse, transactions: TransactionsResponse[], owner: string, receiverAddress: string) => {
-  let nfts = balancesList.data.filter((balances) => {
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+export const processNftTransactions = (
+  balancesList: BalancesResponse,
+  transactions: TransactionsResponse[],
+  owner: string,
+  receiverAddress: string,
+) => {
+  const nfts = balancesList.data.filter((balances) => {
     return balances.type === COVALENT_TOKEN_TYPES.NFT;
   });
 
@@ -183,9 +200,14 @@ export const processNftTransactions = (balancesList: BalancesResponse, transacti
       }
     }
   }
-}
+};
 
-export const processERC20TransferrableTokens = (erc20Tokens:TokenData[], transactions: TransactionsResponse[], owner: string, receiverAddress: string) => {
+export const processERC20TransferrableTokens = (
+  erc20Tokens: TokenData[],
+  transactions: TransactionsResponse[],
+  owner: string,
+  receiverAddress: string,
+) => {
   const erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
     BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
   );
@@ -200,9 +222,16 @@ export const processERC20TransferrableTokens = (erc20Tokens:TokenData[], transac
       type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
     });
   }
-}
+};
 
-export const processNativeTransfer = async (tokens:TokenData[], transferTokenDetails: TransferTokenDetails[] | undefined, transactions: TransactionsResponse[], sdkObject: AarcSDK, owner: string, receiverAddress: string) => {
+export const processNativeTransfer = async (
+  tokens: TokenData[],
+  transferTokenDetails: TransferTokenDetails[] | undefined,
+  transactions: TransactionsResponse[],
+  sdkObject: AarcSDK,
+  owner: string,
+  receiverAddress: string,
+) => {
   const nativeToken = tokens.filter(
     (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
   );
@@ -239,4 +268,4 @@ export const processNativeTransfer = async (tokens:TokenData[], transferTokenDet
       type: COVALENT_TOKEN_TYPES.DUST,
     });
   }
-}
+};

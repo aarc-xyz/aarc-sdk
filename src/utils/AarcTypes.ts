@@ -25,6 +25,7 @@ export type GetBalancesDto = {
 
 export type TokenData = {
   decimals: number;
+  native_token: boolean;
   name: string;
   symbol: string;
   token_address: string;

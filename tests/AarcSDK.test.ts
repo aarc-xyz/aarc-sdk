@@ -127,6 +127,7 @@ describe('Aarc SDK executeMigration', () => {
           decimals: 18,
           name: 'Ether',
           symbol: 'ETH',
+          nativeToken: true,
           token_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
           balance: {
             type: 'BigNumber',
@@ -143,6 +144,7 @@ describe('Aarc SDK executeMigration', () => {
         {
           decimals: 6,
           name: 'USDA',
+          nativeToken: false,
           symbol: 'USDA',
           token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
           balance: { type: 'BigNumber', hex: '0x989680' },
@@ -217,6 +219,7 @@ describe('Aarc SDK executeMigration', () => {
           decimals: 18,
           name: 'ETH',
           symbol: 'ETH',
+          nativeToken: true,
           token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
           balance: { type: 'BigNumber', hex: '0x989680' },
           type: 'dust',
@@ -230,6 +233,7 @@ describe('Aarc SDK executeMigration', () => {
         {
           decimals: 6,
           name: 'USDA',
+          nativeToken: false,
           symbol: 'USDA',
           token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
           balance: { type: 'BigNumber', hex: '0x989680' },
@@ -289,6 +293,7 @@ describe('Aarc SDK executeMigration', () => {
         {
           decimals: 18,
           name: 'ETH',
+          nativeToken: true,
           symbol: 'ETH',
           token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
           balance: { type: 'BigNumber', hex: '0x989680' },
@@ -303,6 +308,7 @@ describe('Aarc SDK executeMigration', () => {
         {
           decimals: 6,
           name: 'USDA',
+          nativeToken: false,
           symbol: 'USDA',
           token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
           balance: { type: 'BigNumber', hex: '0x989680' },
@@ -375,6 +381,7 @@ describe('Aarc SDK executeMigration', () => {
         {
           decimals: 18,
           name: 'ETH',
+          nativeToken: true,
           symbol: 'ETH',
           token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
           balance: { type: 'BigNumber', hex: '0x989680' },
@@ -390,6 +397,7 @@ describe('Aarc SDK executeMigration', () => {
           decimals: 18,
           name: 'USDA',
           symbol: 'USDA',
+          nativeToken: false,
           token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
           balance: { type: 'BigNumber', hex: '0x989680' },
           type: 'cryptocurrency',
@@ -404,6 +412,7 @@ describe('Aarc SDK executeMigration', () => {
           decimals: 6,
           name: 'USDC',
           symbol: 'USDC',
+          nativeToken: false,
           token_address: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
           balance: { type: 'BigNumber', hex: '0x174876e800' },
           type: 'cryptocurrency',
@@ -496,6 +505,7 @@ describe('Aarc SDK executeMigration', () => {
           token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
           balance: { type: 'BigNumber', hex: '0xf4240' },
           type: 'dust',
+          nativeToken: true,
           nft_data: null,
           permit2Allowance: {
             type: 'BigNumber',
@@ -507,6 +517,7 @@ describe('Aarc SDK executeMigration', () => {
           decimals: 18,
           name: 'USDA',
           symbol: 'USDA',
+          nativeToken: false,
           token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
           balance: { type: 'BigNumber', hex: '0x989680' },
           type: 'cryptocurrency',
@@ -521,6 +532,7 @@ describe('Aarc SDK executeMigration', () => {
           decimals: 6,
           name: 'USDC',
           symbol: 'USDC',
+          nativeToken: false,
           token_address: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
           balance: { type: 'BigNumber', hex: '0x174876e800' },
           type: 'cryptocurrency',

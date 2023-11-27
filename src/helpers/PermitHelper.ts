@@ -11,6 +11,7 @@ import {
   PERMIT_FUNCTION_TYPES,
   PERMIT_FUNCTION_ABI,
   PERMIT2_DOMAIN_NAME,
+  COVALENT_TOKEN_TYPES,
 } from '../utils/Constants';
 import {
   PermitData,
@@ -22,6 +23,9 @@ import {
   TokenTransferDto,
   NftTransferDto,
   NativeTransferDto,
+  TokenData,
+  TransactionsResponse,
+  MigrationResponse,
 } from '../utils/AarcTypes';
 import {
   TypedDataDomain,
@@ -30,12 +34,16 @@ import {
 import { Logger } from '../utils/Logger';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from '../utils/abis/Permit2SingleTransfer.abi';
 import { uint256, uint8 } from 'solidity-math';
+import { PERMIT2_BATCH_TRANSFER_ABI } from '../utils/abis/Permit2BatchTransfer.abi';
+import { logError } from './helper';
 
 export class PermitHelper {
   ethAdapter: ethers.providers.JsonRpcProvider;
+  chainId: number;
 
-  constructor(rpcUrl: string) {
+  constructor(rpcUrl: string, chainId: number) {
     this.ethAdapter = new ethers.providers.JsonRpcProvider(rpcUrl);
+    this.chainId = chainId;
   }
 
   async performTokenTransfer(
@@ -316,5 +324,144 @@ export class PermitHelper {
       nonce++;
     }
     return nonce;
+  }
+  /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+  /* eslint-disable @typescript-eslint/explicit-function-return-type */
+  async processPermit2Tokens(
+    erc20Tokens: TokenData[],
+    transactions: TransactionsResponse[],
+    senderSigner: Signer,
+    receiverAddress: string,
+  ) {
+    const owner = await senderSigner.getAddress();
+    const permit2TransferableTokens = erc20Tokens.filter(
+      (balanceObj) =>
+        BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)) ||
+        BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)),
+    );
+
+    Logger.log(' permit2TransferableTokens ', permit2TransferableTokens);
+
+    if (permit2TransferableTokens.length === 1) {
+      const token = permit2TransferableTokens[0];
+      transactions.push({
+        from: owner,
+        to: receiverAddress,
+        tokenAddress: token.token_address,
+        amount: token.balance,
+        type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+      });
+    }
+
+    if (permit2TransferableTokens.length > 1) {
+      const batchTransferPermitDto: BatchTransferPermitDto = {
+        signer: senderSigner,
+        chainId: this.chainId,
+        spenderAddress: owner,
+        tokenData: permit2TransferableTokens,
+      };
+
+      const { permitBatchTransferFrom, signature } =
+        await this.getBatchTransferPermitData(batchTransferPermitDto);
+
+      const tokenPermissions = permitBatchTransferFrom.permitted.map(
+        (batchInfo) => ({
+          to: receiverAddress,
+          requestedAmount: batchInfo.amount,
+        }),
+      );
+      transactions.push({
+        tokenAddress: PERMIT2_CONTRACT_ADDRESS,
+        from: owner,
+        amount: BigNumber.from(0),
+        to: receiverAddress,
+        tokenPermissions,
+        batchDto: permitBatchTransferFrom,
+        signature,
+        type: 'permitbatch',
+      });
+    }
+  }
+
+  async processPermit2BatchTransactions(
+    permitBatchTransaction: TransactionsResponse,
+    senderSigner: Signer,
+    response: MigrationResponse[],
+    remainingBalance: BigNumber,
+  ) {
+    if (
+      permitBatchTransaction &&
+      remainingBalance !== undefined &&
+      permitBatchTransaction.batchDto &&
+      permitBatchTransaction.gasCost
+    ) {
+      if (
+        permitBatchTransaction.gasCost &&
+        permitBatchTransaction.gasCost.lte(remainingBalance)
+      ) {
+        try {
+          Logger.log('Doing Permit Batch Transaction');
+          Logger.log(JSON.stringify(permitBatchTransaction));
+
+          const permit2Contract = new Contract(
+            PERMIT2_CONTRACT_ADDRESS,
+            PERMIT2_BATCH_TRANSFER_ABI,
+            senderSigner,
+          );
+
+          const txInfo = await permit2Contract.permitTransferFrom(
+            permitBatchTransaction.batchDto,
+            permitBatchTransaction.tokenPermissions,
+            permitBatchTransaction.from,
+            permitBatchTransaction.signature,
+          );
+
+          permitBatchTransaction.batchDto.permitted.map(
+            (token: TokenPermissions) => {
+              response.push({
+                tokenAddress: token.token,
+                amount: token.amount,
+                message: 'Token transfer successful',
+                txHash: txInfo.hash,
+              });
+            },
+          );
+
+          remainingBalance = remainingBalance.sub(
+            BigNumber.from(permitBatchTransaction.gasCost),
+          );
+        } catch (error) {
+          Logger.log('error ', error);
+          permitBatchTransaction.batchDto.permitted.map(
+            (token: TokenPermissions) => {
+              logError(
+                {
+                  tokenAddress: token.token,
+                  amount: token.amount,
+                },
+                error,
+              );
+              response.push({
+                tokenAddress: token.token,
+                amount: token.amount,
+                message: 'Token transfer failed',
+                txHash: '',
+              });
+            },
+          );
+        }
+      } else {
+        permitBatchTransaction.batchDto.permitted.map(
+          (token: TokenPermissions) => {
+            response.push({
+              tokenAddress: token.token,
+              amount: token.amount,
+              message: 'Token transfer failed',
+              txHash: '',
+            });
+          },
+        );
+      }
+    }
   }
 }

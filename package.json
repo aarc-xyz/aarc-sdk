@@ -1,13 +1,32 @@
 {
   "name": "aarc-sdk",
-  "version": "0.0.1-beta.4",
+  "version": "0.0.1-beta.5",
   "description": "The Aarc SDK is a TypeScript library that makes it easy for developers to transfer assets from Externally Owned Accounts (EOA) to any destination address. It simplifies the asset transfer process by supporting various token standards, such as ERC20 and ERC721, and offering custom flows like batched transactions, gasless transactions, and paying gas fees with the same asset being moved. Additionally, it enables custom contract interaction within the same transaction using permit2(), allowing for direct swaps and bridge functionality.",
   "main": "dist/index.js",
   "scripts": {
+    "lint": "npx eslint ./src ",
+    "lint:fix": "npx eslint ./src --fix",
     "unbuild": "rimraf build *.tsbuildinfo",
     "build": "rimraf build && tsc",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "test": "jest"
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.test.ts\"",
+    "test": "jest",
+    "execute:gasless": "ts-node scripts/Gasless.ts",
+    "execute:nongasless": "ts-node scripts/NonGasless.ts",
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,scss,md}": [
+      "npm run lint",
+      "npm run format",
+      "npm run test",
+      "npm run execute:nongasless",
+      "npm run execute:gasless"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
   },
   "keywords": [
     "migration",
@@ -27,8 +46,19 @@
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.8",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0",
     "chai": "^4.3.10",
+    "eslint": "^8.54.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-n": "^16.3.1",
+    "eslint-plugin-prettier": "^5.0.1",
+    "eslint-plugin-promise": "^6.1.1",
+    "husky": "^8.0.3",
     "jest": "^29.7.0",
+    "lint-staged": "^15.1.0",
+    "prettier": "^3.1.0",
     "ts-jest": "^29.1.1",
     "typescript": "^5.2.2"
   },
@@ -44,7 +74,6 @@
     "@uniswap/permit2-sdk": "^1.2.0",
     "dotenv": "^16.3.1",
     "ethers": "^5.7.2",
-    "prettier": "^2.3.2",
     "rimraf": "^5.0.5",
     "solidity-math": "^0.1.0"
   }

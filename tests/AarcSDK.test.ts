@@ -329,122 +329,122 @@ describe('Aarc SDK executeMigration', () => {
     });
   }, 30000);
 
-  // it('should handle batch transfer with permit data', async () => {
-  //   // Mocking the fetchBalances function
-  //   aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
-  //     code: 200,
-  //     data: [
-  //       {
-  //         decimals: 18,
-  //         name: 'ETH',
-  //         symbol: 'ETH',
-  //         token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-  //         balance: { type: 'BigNumber', hex: '0x989680' },
-  //         type: 'dust',
-  //         nft_data: null,
-  //         permit2Allowance: {
-  //           type: 'BigNumber',
-  //           hex: '0x0c9f2c9cd04674edd2f5bf5642',
-  //         },
-  //         permitExist: true,
-  //       },
-  //       {
-  //         decimals: 18,
-  //         name: 'USDA',
-  //         symbol: 'USDA',
-  //         token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-  //         balance: { type: 'BigNumber', hex: '0x989680' },
-  //         type: 'cryptocurrency',
-  //         nft_data: null,
-  //         permit2Allowance: {
-  //           type: 'BigNumber',
-  //           hex: '0x0c9f2c9cd04674edd2f5bf5642',
-  //         },
-  //         permitExist: true,
-  //       },
-  //       {
-  //         decimals: 6,
-  //         name: 'USDC',
-  //         symbol: 'USDC',
-  //         token_address: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-  //         balance: { type: 'BigNumber', hex: '0x174876e800' },
-  //         type: 'cryptocurrency',
-  //         nft_data: null,
-  //         permit2Allowance: {
-  //           type: 'BigNumber',
-  //           hex: '0x0c9f2c9cd04674edd2f5bf5642',
-  //         },
-  //         permitExist: true,
-  //       },
-  //     ],
-  //     message: 'Success',
-  //   });
+  it('should handle batch transfer with permit data', async () => {
+    // Mocking the fetchBalances function
+    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+      code: 200,
+      data: [
+        {
+          decimals: 18,
+          name: 'ETH',
+          symbol: 'ETH',
+          token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+          balance: { type: 'BigNumber', hex: '0x989680' },
+          type: 'dust',
+          nft_data: null,
+          permit2Allowance: {
+            type: 'BigNumber',
+            hex: '0x0c9f2c9cd04674edd2f5bf5642',
+          },
+          permitExist: true,
+        },
+        {
+          decimals: 18,
+          name: 'USDA',
+          symbol: 'USDA',
+          token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+          balance: { type: 'BigNumber', hex: '0x989680' },
+          type: 'cryptocurrency',
+          nft_data: null,
+          permit2Allowance: {
+            type: 'BigNumber',
+            hex: '0x0c9f2c9cd04674edd2f5bf5642',
+          },
+          permitExist: true,
+        },
+        {
+          decimals: 6,
+          name: 'USDC',
+          symbol: 'USDC',
+          token_address: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
+          balance: { type: 'BigNumber', hex: '0x174876e800' },
+          type: 'cryptocurrency',
+          nft_data: null,
+          permit2Allowance: {
+            type: 'BigNumber',
+            hex: '0x0c9f2c9cd04674edd2f5bf5642',
+          },
+          permitExist: true,
+        },
+      ],
+      message: 'Success',
+    });
 
-  //   jest
-  //     .spyOn(EstimatorHelper, 'calculateTotalGasNeeded')
-  //     .mockImplementation(
-  //       async (
-  //         provider: ethers.providers.JsonRpcProvider,
-  //         transactions: any[],
-  //         chainId: ChainId,
-  //       ) => {
-  //         let totalGasCost = BigNumber.from(0);
-  //         const validTransactions: any = [];
+    jest
+      .spyOn(EstimatorHelper, 'calculateTotalGasNeeded')
+      .mockImplementation(
+        async (
+          provider: ethers.providers.JsonRpcProvider,
+          transactions: any[],
+          chainId: ChainId,
+        ) => {
+          let totalGasCost = BigNumber.from(0);
+          const validTransactions: any = [];
 
-  //         for (const transaction of transactions) {
-  //           transaction.gasCost = BigNumber.from(1234322);
-  //           totalGasCost = totalGasCost.add(transaction.gasCost);
-  //           validTransactions.push(transaction);
-  //         }
+          for (const transaction of transactions) {
+            transaction.gasCost = BigNumber.from(1234322);
+            totalGasCost = totalGasCost.add(transaction.gasCost);
+            validTransactions.push(transaction);
+          }
 
-  //         return { validTransactions, totalGasCost };
-  //       },
-  //     );
+          return { validTransactions, totalGasCost };
+        },
+      );
 
-  //   const executeMigrationDto = {
-  //     senderSigner: signer,
-  //     transferTokenDetails: [
-  //       {
-  //         tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-  //         amount: BigNumber.from('1000000'),
-  //       },
-  //       {
-  //         tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-  //         amount: BigNumber.from('2000000000'),
-  //       },
-  //     ],
-  //     receiverAddress: receiver,
-  //   };
+    const executeMigrationDto = {
+      senderSigner: signer,
+      transferTokenDetails: [
+        {
+          tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+          amount: BigNumber.from('1000000'),
+        },
+        {
+          tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
+          amount: BigNumber.from('2000000000'),
+        },
+      ],
+      receiverAddress: receiver,
+    };
 
-  //   const migrationResponse =
-  //     await aarcSDK.executeMigration(executeMigrationDto);
+    const migrationResponse =
+      await aarcSDK.executeMigration(executeMigrationDto);
 
-  //   expect(
-  //     aarcSDK.permitHelper.getBatchTransferPermitData,
-  //   ).toHaveBeenCalledTimes(1);
+    expect(
+      aarcSDK.permitHelper.getBatchTransferPermitData,
+    ).toHaveBeenCalledTimes(1);
 
-  //   expect(migrationResponse).toHaveLength(2);
+    expect(migrationResponse).toHaveLength(2);
 
-  //   expect(migrationResponse[0]).toEqual({
-  //     tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-  //     amount: expect.objectContaining({
-  //       type: 'BigNumber',
-  //       hex: '0x989680',
-  //     }),
-  //     message: 'Token transfer successful',
-  //     txHash: 'permit-token-transfer-0x1234567890',
-  //   });
+    expect(migrationResponse[0]).toEqual({
+      tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+      amount: expect.objectContaining({
+        type: 'BigNumber',
+        hex: '0x989680',
+      }),
+      message: 'Token transfer successful',
+      txHash: 'permit-token-transfer-0x1234567890',
+    });
 
-  //   expect(migrationResponse[1]).toEqual({
-  //     tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-  //     amount: expect.objectContaining({
-  //       type: 'BigNumber',
-  //       hex: '0x174876e800',
-  //     }),
-  //     message: 'Token transfer successful',
-  //     txHash: 'permit-token-transfer-0x1234567890',
-  //   });
-  // }, 30000);
+    expect(migrationResponse[1]).toEqual({
+      tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
+      amount: expect.objectContaining({
+        type: 'BigNumber',
+        hex: '0x174876e800',
+      }),
+      message: 'Token transfer successful',
+      txHash: 'permit-token-transfer-0x1234567890',
+    });
+  }, 30000);
 
   it('should handle insufficient gas case', async () => {
     // Mocking the fetchBalances function

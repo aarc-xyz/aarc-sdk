@@ -4,4 +4,6 @@
 npm run lint
 npm run format
 npm run test
+npm run execute:nongasless
+npm run execute:gasless
 

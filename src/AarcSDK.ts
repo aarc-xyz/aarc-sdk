@@ -104,6 +104,7 @@ class AarcSDK {
    */
   async fetchBalances(
     eoaAddress: string,
+    fetchBalancesOnly: boolean = true,
     tokenAddresses?: string[],
   ): Promise<BalancesResponse> {
     try {
@@ -117,6 +118,7 @@ class AarcSDK {
         body: {
           chainId: String(this.chainId),
           address: eoaAddress,
+          onlyBalances: fetchBalancesOnly,
           tokenAddresses: tokenAddresses,
         },
       });
@@ -156,14 +158,15 @@ class AarcSDK {
         }
       }
 
-      const balancesList = await this.fetchBalances(owner, tokenAddresses);
+      const balancesList = await this.fetchBalances(
+        owner,
+        false,
+        tokenAddresses,
+      );
 
       remainingBalance = BigNumber.from(
-        balancesList.data?.find(
-          (token) =>
-            token.token_address.toLowerCase() ===
-            nativeTokenAddresses[this.chainId as ChainId],
-        )?.balance || BigNumber.from(0),
+        balancesList.data?.find((token) => token.native_token === true)
+          ?.balance || BigNumber.from(0),
       );
 
       transferTokenDetails?.map((tandA) => {
@@ -204,8 +207,9 @@ class AarcSDK {
 
       const erc20Tokens = tokens.filter(
         (token) =>
-          token.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
-          token.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+          (token.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+            token.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) &&
+          token.native_token === false,
       );
       Logger.log('erc20Tokens ', erc20Tokens);
 
@@ -400,13 +404,14 @@ class AarcSDK {
         }
       }
 
-      const balancesList = await this.fetchBalances(owner, tokenAddresses);
+      const balancesList = await this.fetchBalances(
+        owner,
+        false,
+        tokenAddresses,
+      );
       remainingBalance = BigNumber.from(
-        balancesList.data?.find(
-          (token) =>
-            token.token_address.toLowerCase() ===
-            nativeTokenAddresses[this.chainId as ChainId],
-        )?.balance || BigNumber.from(0),
+        balancesList.data?.find((token) => token.native_token === true)
+          ?.balance || BigNumber.from(0),
       );
 
       transferTokenDetails?.map((tandA) => {
@@ -447,8 +452,9 @@ class AarcSDK {
 
       const erc20Tokens = tokens.filter(
         (token) =>
-          token.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
-          token.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
+          (token.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+            token.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) &&
+          token.native_token === false,
       );
       Logger.log('erc20Tokens ', erc20Tokens);
 

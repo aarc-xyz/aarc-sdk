@@ -133,15 +133,15 @@ export const processTokenData = (
   balancesList: BalancesResponse,
   transferTokenDetails: TransferTokenDetails[] | undefined,
 ): TokenData[] => {
-  const tokens = balancesList.data.filter((balances) => {
+  let tokens = balancesList.data.filter((balances) => {
     return (
       balances.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
       balances.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY ||
-      balances.type === COVALENT_TOKEN_TYPES.DUST
+      balances.native_token === true
     );
   });
 
-  tokens.map((element: TokenData) => {
+  tokens = tokens.map((element: TokenData) => {
     const matchingToken = transferTokenDetails?.find(
       (token) =>
         token.tokenAddress.toLowerCase() ===
@@ -232,9 +232,7 @@ export const processNativeTransfer = async (
   owner: string,
   receiverAddress: string,
 ) => {
-  const nativeToken = tokens.filter(
-    (token) => token.type === COVALENT_TOKEN_TYPES.DUST,
-  );
+  const nativeToken = tokens.filter((token) => token.native_token === true);
 
   if (nativeToken.length > 0) {
     const matchingToken = transferTokenDetails?.find(
@@ -252,7 +250,7 @@ export const processNativeTransfer = async (
     ) {
       amountTransfer = matchingToken.amount;
     } else {
-      const updatedNativeToken = await sdkObject.fetchBalances(owner, [
+      const updatedNativeToken = await sdkObject.fetchBalances(owner, true, [
         nativeToken[0].token_address,
       ]);
       amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)

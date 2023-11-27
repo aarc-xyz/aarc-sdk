@@ -53,3 +53,17 @@ export const nativeTokenAddresses = {
 }
 
 export const MUMBAI_NFT_ADDRESS = '0x59195103c8d49caa6cfb85f0f0d43909eab9eba1'
+
+
+export const validateEnvironmentVariables = () => {
+    const missingVariables = [];
+
+    if (!PRIVATE_KEY) missingVariables.push('PRIVATE_KEY');
+    if (!RPC_URL) missingVariables.push('RPC_URL');
+    if (!API_KEY) missingVariables.push('API_KEY');
+    if (!GELATO_API_KEY) missingVariables.push('GELATO_API_KEY');
+
+    if (missingVariables.length > 0) {
+        throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`);
+    }
+};

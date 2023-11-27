@@ -1,6 +1,6 @@
 import { BigNumber, ethers } from "ethers";
 import { AarcSDK } from '../src';
-import { RPC_URL, PRIVATE_KEY, API_KEY, GELATO_API_KEY, nativeTokenAddress, tokenAddresses, TokenName, ChainID, nativeTokenAddresses, MUMBAI_NFT_ADDRESS } from "./Constants";
+import { RPC_URL, PRIVATE_KEY, API_KEY, GELATO_API_KEY, nativeTokenAddress, tokenAddresses, TokenName, ChainID, nativeTokenAddresses, MUMBAI_NFT_ADDRESS, validateEnvironmentVariables } from "./Constants";
 import { ERC20_ABI } from '../src/utils/abis/ERC20.abi';
 import { ERC721_ABI } from "../src/utils/abis/ERC721.abi";
 import { delay } from "../src/helpers";
@@ -236,6 +236,7 @@ export const transferNftsOnly = async () => {
 }
 
 const executeTransfers = async () => {
+    validateEnvironmentVariables()
     await transferErc20Tokens()
     await transferNftsOnly()
     await transferFullNativeOnly()

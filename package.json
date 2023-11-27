@@ -10,13 +10,17 @@
     "build": "rimraf build && tsc",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.test.ts\"",
     "test": "jest",
+    "execute:Gasless": "ts-node scripts/Gasless.ts",
+    "execute:NonGasless": "ts-node scripts/NonGasless.ts",
     "prepare": "husky install"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,css,scss,md}": [
       "npm run lint",
       "npm run format",
-      "npm run test"
+      "npm run test",
+      "npm run execute:NonGasless",
+      "npm run execute:Gasless"
     ]
   },
   "husky": {

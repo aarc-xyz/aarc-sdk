@@ -1,54 +1,6 @@
 import { BigNumber, ethers } from 'ethers';
 import { AarcSDK } from '../src'; // Adjust the path according to your directory structure
-
-// Mock the PermitHelper class
-
-jest.mock('../src/helpers/PermitHelper', () => {
-  return {
-    PermitHelper: jest.fn().mockImplementation(() => {
-      return {
-        performTokenTransfer: jest
-          .fn()
-          .mockResolvedValue('token-transfer-0x1234567890'),
-        permitTransferFrom: jest
-          .fn()
-          .mockResolvedValue('permit-token-transfer-0x1234567890'),
-        performNFTTransfer: jest
-          .fn()
-          .mockResolvedValue('nft-transfer-0x1234567890'),
-        performNativeTransfer: jest
-          .fn()
-          .mockResolvedValue('native-transfer-0x1234567890'),
-        getBatchTransferPermitData: jest
-          .fn()
-          .mockImplementation(async (batchTransferPermitDto) => {
-            const { spenderAddress } = batchTransferPermitDto;
-            // Simulate the behavior of the function based on your test requirements
-            const signature = 'mockedSignature'; // Replace with your mocked signature
-
-            return {
-              permitBatchTransferFrom: {
-                permitted: [
-                  {
-                    token: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-                    amount: { type: 'BigNumber', hex: '0x989680' },
-                  },
-                  {
-                    token: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-                    amount: { type: 'BigNumber', hex: '0x174876e800' },
-                  },
-                ],
-                spender: spenderAddress,
-                deadline: 12345678,
-                nonce: 6623,
-              },
-              signature,
-            };
-          }),
-      };
-    }),
-  };
-});
+import { PermitHelper } from '../src/helpers/PermitHelper'; // Import the original class
 
 describe('Aarc SDK nft transfer', () => {
   let receiver: string;
@@ -66,9 +18,49 @@ describe('Aarc SDK nft transfer', () => {
   beforeEach(async () => {
     aarcSDK = new AarcSDK({
       rpcUrl: rpcURl,
-      chainId: 5,
+      chainId: (await provider.getNetwork()).chainId,
       apiKey: apiKey,
     });
+
+    aarcSDK.permitHelper = new PermitHelper(
+      rpcURl,
+      (await provider.getNetwork()).chainId,
+    );
+    jest
+      .spyOn(aarcSDK.permitHelper, 'performTokenTransfer')
+      .mockImplementation(() => 'token-transfer-0x1234567890');
+    jest
+      .spyOn(aarcSDK.permitHelper, 'performNFTTransfer')
+      .mockImplementation(() => 'nft-transfer-0x1234567890');
+    jest
+      .spyOn(aarcSDK.permitHelper, 'performNativeTransfer')
+      .mockImplementation(() => 'native-transfer-0x1234567890');
+    jest
+      .spyOn(aarcSDK.permitHelper, 'getBatchTransferPermitData')
+      .mockImplementation((batchTransferPermitDto: any) => {
+        const { spenderAddress } = batchTransferPermitDto;
+        // Simulate the behavior of the function based on your test requirements
+        const signature = 'mockedSignature'; // Replace with your mocked signature
+
+        return {
+          permitBatchTransferFrom: {
+            permitted: [
+              {
+                token: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                amount: { type: 'BigNumber', hex: '0x989680' },
+              },
+              {
+                token: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
+                amount: { type: 'BigNumber', hex: '0x174876e800' },
+              },
+            ],
+            spender: spenderAddress,
+            deadline: 12345678,
+            nonce: 6623,
+          },
+          signature,
+        };
+      });
 
     // Mocking the fetchBalances function
     aarcSDK.fetchBalances = jest.fn().mockResolvedValue({

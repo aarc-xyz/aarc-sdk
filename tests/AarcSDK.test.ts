@@ -1,106 +1,68 @@
-import { BigNumber, ethers } from 'ethers';
-import { PermitHelper } from '../src/helpers';
+import { BigNumber, Signer, ethers } from 'ethers';
 import { AarcSDK } from '../src'; // Adjust the path according to your directory structure
 import * as EstimatorHelper from '../src/helpers/EstimatorHelper';
 import { ChainId } from '../src/utils/ChainTypes';
-
-// Mock the PermitHelper class
-
-// Mock the permitTransferFrom method
-jest.mock('ethers', () => {
-  const actualEth = jest.requireActual('ethers');
-  const mockContract = {
-    permitTransferFrom: jest
-      .fn()
-      .mockImplementation(
-        async (
-          batchDto: any,
-          tokenPermissions: any,
-          from: string,
-          signature: string,
-        ) => {
-          return { hash: 'permit-token-transfer-0x1234567890' };
-        },
-      ),
-  };
-
-  const mockContractFactory = {
-    getContract: () => mockContract,
-  };
-
-  return {
-    ...actualEth,
-    Contract: jest.fn(() => mockContract),
-    ContractFactory: jest.fn(() => mockContractFactory),
-  };
-});
-
-jest.mock('../src/helpers/PermitHelper', () => {
-  return {
-    PermitHelper: jest.fn().mockImplementation(() => {
-      return {
-        performTokenTransfer: jest
-          .fn()
-          .mockResolvedValue('token-transfer-0x1234567890'),
-        permitTransferFrom: jest
-          .fn()
-          .mockResolvedValue('permit-token-transfer-0x1234567890'),
-        performNFTTransfer: jest
-          .fn()
-          .mockResolvedValue('nft-transfer-0x1234567890'),
-        performNativeTransfer: jest
-          .fn()
-          .mockResolvedValue('native-transfer-0x1234567890'),
-        getBatchTransferPermitData: jest
-          .fn()
-          .mockImplementation(async (batchTransferPermitDto) => {
-            const { spenderAddress } = batchTransferPermitDto;
-            // Simulate the behavior of the function based on your test requirements
-            const signature = 'mockedSignature'; // Replace with your mocked signature
-
-            return {
-              permitBatchTransferFrom: {
-                permitted: [
-                  {
-                    token: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-                    amount: { type: 'BigNumber', hex: '0x989680' },
-                  },
-                  {
-                    token: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-                    amount: { type: 'BigNumber', hex: '0x174876e800' },
-                  },
-                ],
-                spender: spenderAddress,
-                deadline: 12345678,
-                nonce: 6623,
-              },
-              signature,
-            };
-          }),
-      };
-    }),
-  };
-});
+import { PermitHelper } from '../src/helpers/PermitHelper'; // Import the original class
+import './EthersMock';
+let aarcSDK: any;
 
 describe('Aarc SDK executeMigration', () => {
-  let receiver: string;
-  let aarcSDK: any;
+  const receiver = '0xe7a35625b23710C131Fa38c92CF5F7793c50604A';
 
   const privateKey =
     '29822a62aaeb9a16e9d1fd88412bac4fe37574bbcb245b4232e3b3612496fd96';
-  const rpcURl = 'https://ethereum-goerli.publicnode.com';
+  const rpcUrl = 'https://ethereum-goerli.publicnode.com';
   const apiKey = '097ce80e-4dcc-4265-8aa7-2ed0e19901ff';
-  const provider = new ethers.providers.JsonRpcProvider(rpcURl);
+  const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
   const signer = new ethers.Wallet(privateKey, provider);
   const eoaAddress = signer.address;
-  receiver = '0xe7a35625b23710C131Fa38c92CF5F7793c50604A';
 
   beforeEach(async () => {
     aarcSDK = new AarcSDK({
-      rpcUrl: rpcURl,
-      chainId: 5,
+      rpcUrl: rpcUrl,
+      chainId: (await provider.getNetwork()).chainId,
       apiKey: apiKey,
     });
+
+    aarcSDK.permitHelper = new PermitHelper(
+      rpcUrl,
+      (await provider.getNetwork()).chainId,
+    );
+    jest
+      .spyOn(aarcSDK.permitHelper, 'performTokenTransfer')
+      .mockImplementation(() => 'token-transfer-0x1234567890');
+    jest
+      .spyOn(aarcSDK.permitHelper, 'performNFTTransfer')
+      .mockImplementation(() => 'nft-transfer-0x1234567890');
+    jest
+      .spyOn(aarcSDK.permitHelper, 'performNativeTransfer')
+      .mockImplementation(() => 'native-transfer-0x1234567890');
+    jest
+      .spyOn(aarcSDK.permitHelper, 'getBatchTransferPermitData')
+      .mockImplementation((batchTransferPermitDto: any) => {
+        const { spenderAddress } = batchTransferPermitDto;
+        // Simulate the behavior of the function based on your test requirements
+        const signature = 'mockedSignature'; // Replace with your mocked signature
+
+        return {
+          permitBatchTransferFrom: {
+            permitted: [
+              {
+                token: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                amount: { type: 'BigNumber', hex: '0x989680' },
+              },
+              {
+                token: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
+                amount: { type: 'BigNumber', hex: '0x174876e800' },
+              },
+            ],
+            spender: spenderAddress,
+            deadline: 12345678,
+            nonce: 6623,
+          },
+          signature,
+        };
+      });
   }, 30000);
 
   it('should handle an error when fetching balances', async () => {

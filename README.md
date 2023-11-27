@@ -91,7 +91,7 @@ Output:
 Transfer tokens from EOA to any receiver wallet address without gas fees. Please note that we use Gelato Relayer to provide the gasless functionality. Please get the Gelato [API Key](https://docs.gelato.network/developer-services/relay/payment-and-fees/1balance-and-relay) to use the gasless functionality.
 
 ```typescript
-await aarcSDK.executeMigration({
+await aarcSDK.executeMigrationGasless({
   senderSigner: signer, // ethers.signer object
   receiverAddress:RECEIVER_WALLET_ADDRESS,
   transferTokenDetails: // Optional. If not passed, the SDK will migrate all the tokens of the wallet

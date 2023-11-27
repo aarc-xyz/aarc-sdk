@@ -275,7 +275,7 @@ class AarcSDK {
         Logger.log(' Managing sorted trx ');
         Logger.log(' tx ', tx);
 
-        if (tx.gasCost?.gt(remainingBalance)) {
+        if (BigNumber.from(tx.gasCost)?.gt(remainingBalance)) {
           Logger.log(
             `Transaction skipped. Insufficient balance for gas cost: ${tx.gasCost}`,
           );
@@ -700,7 +700,7 @@ class AarcSDK {
         Logger.log(' Managing sorted trx ');
         Logger.log(' tx ', tx);
 
-        if (tx.gasCost?.gt(remainingBalance)) {
+        if (BigNumber.from(tx.gasCost)?.gt(remainingBalance)) {
           Logger.log(
             `Transaction skipped. Insufficient balance for gas cost: ${tx.gasCost}`,
           );

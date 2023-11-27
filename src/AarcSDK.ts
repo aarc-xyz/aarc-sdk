@@ -100,6 +100,7 @@ class AarcSDK {
    */
   async fetchBalances(
     eoaAddress: string,
+    fetchBalancesOnly: boolean = true,
     tokenAddresses?: string[],
   ): Promise<BalancesResponse> {
     try {
@@ -113,6 +114,7 @@ class AarcSDK {
         body: {
           chainId: String(this.chainId),
           address: eoaAddress,
+          onlyBalances: fetchBalancesOnly,
           tokenAddresses: tokenAddresses,
         },
       });
@@ -152,7 +154,11 @@ class AarcSDK {
         }
       }
 
-      const balancesList = await this.fetchBalances(owner, tokenAddresses);
+      const balancesList = await this.fetchBalances(
+        owner,
+        false,
+        tokenAddresses,
+      );
 
       remainingBalance = BigNumber.from(
         balancesList.data?.find((token) => token.native_token === true)
@@ -393,7 +399,7 @@ class AarcSDK {
         ) {
           amountTransfer = matchingToken.amount;
         } else {
-          const updatedNativeToken = await this.fetchBalances(owner, [
+          const updatedNativeToken = await this.fetchBalances(owner, true, [
             nativeToken[0].token_address,
           ]);
           amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)
@@ -635,7 +641,11 @@ class AarcSDK {
         }
       }
 
-      const balancesList = await this.fetchBalances(owner, tokenAddresses);
+      const balancesList = await this.fetchBalances(
+        owner,
+        false,
+        tokenAddresses,
+      );
       remainingBalance = BigNumber.from(
         balancesList.data?.find((token) => token.native_token === true)
           ?.balance || BigNumber.from(0),
@@ -1035,7 +1045,7 @@ class AarcSDK {
         ) {
           amountTransfer = matchingToken.amount;
         } else {
-          const updatedNativeToken = await this.fetchBalances(owner, [
+          const updatedNativeToken = await this.fetchBalances(owner, true, [
             nativeToken[0].token_address,
           ]);
           amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)

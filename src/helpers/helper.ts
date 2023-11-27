@@ -209,7 +209,6 @@ export const processERC20TransferrableTokens = (
   receiverAddress: string,
 ) => {
   const erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
-    !balanceObj.permitExist &&
     BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
   );
 

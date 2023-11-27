@@ -126,7 +126,7 @@ export const transferFullNativeOnly = async () => {
             const resultSet = await aarcSDK.executeMigration({
                 senderSigner: signer,
                 receiverAddress: '0x786E6045eacb96cAe0259cd761e151b68B85bdA7',
-                transferTokenDetails: [{tokenAddress: '0x0000000000000000000000000000000000001010'}],
+                transferTokenDetails: [{tokenAddress: '0x0000000000000000000000000000000000001010', amount: BigNumber.from(1000)}],
             })
             console.log('ResultSet ', resultSet);
 
@@ -183,7 +183,7 @@ export const transferNftsOnly = async () => {
             return
         }
         else {
-            const nftMintAmount = 2
+            const nftMintAmount = 1
             const tokenIds: string[] = []
             const tokenContract = new ethers.Contract(
                 MUMBAI_NFT_ADDRESS,

@@ -251,7 +251,7 @@ export const processNativeTransfer = async (
     ) {
       amountTransfer = matchingToken.amount;
     } else {
-      const updatedNativeToken = await sdkObject.fetchBalances(owner, false, [
+      const updatedNativeToken = await sdkObject.fetchBalances(owner, true, [
         nativeToken[0].token_address,
       ]);
       amountTransfer = BigNumber.from(updatedNativeToken.data[0].balance)

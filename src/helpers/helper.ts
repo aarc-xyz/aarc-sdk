@@ -207,10 +207,19 @@ export const processERC20TransferrableTokens = (
   transactions: TransactionsResponse[],
   owner: string,
   receiverAddress: string,
+  isGasless = false,
 ) => {
-  const erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
-    BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
-  );
+  let erc20TransferableTokens: TokenData[]
+
+  if (isGasless)
+    erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
+      !balanceObj.permitExist &&
+      BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
+    );
+  else
+    erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
+      BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
+    );
 
   // Loop through tokens to perform normal transfers
   for (const token of erc20TransferableTokens) {

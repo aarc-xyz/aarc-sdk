@@ -463,6 +463,7 @@ class AarcSDK {
         transactions,
         owner,
         receiverAddress,
+        true
       );
 
       // Filtering out tokens to do permit transaction

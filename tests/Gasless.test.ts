@@ -188,7 +188,7 @@ describe('Aarc SDK executeMigration', () => {
         expect(migrationResponse[0]).toEqual({
             tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
             amount: expect.objectContaining({ _hex: '0x05f5e100' }),
-            message: 'Token Permit Successful',
+            message: 'Token Permit tx Sent',
             txHash: '0x127hy123',
           });
                         
@@ -200,7 +200,7 @@ describe('Aarc SDK executeMigration', () => {
                 type: "BigNumber",
                 hex: '0x05f5e100',
             }),
-            message: 'Transaction Successful',
+            message: 'Transaction sent',
             txHash: '0x127hy123',
         });
 
@@ -210,7 +210,7 @@ describe('Aarc SDK executeMigration', () => {
                 type: "BigNumber",
                 hex: '0x1dcd6500',
             }),
-            message: 'Transaction Successful',
+            message: 'Transaction sent',
             txHash: '0x127hy123',
         });
 
@@ -220,7 +220,7 @@ describe('Aarc SDK executeMigration', () => {
                 type: "BigNumber",
                 hex: '0x05f5e100',
             }),
-            message: 'Transaction Successful',
+            message: 'Transaction sent',
             txHash: '0x127hy123',
         });
 
@@ -230,7 +230,7 @@ describe('Aarc SDK executeMigration', () => {
                 type: "BigNumber",
                 hex: '0x6a94d74f430000',
             }),
-            message: 'Transaction Successful',
+            message: 'Transaction sent',
             txHash: '0x127hy123',
         });
     }, 30000);
@@ -337,7 +337,7 @@ describe('Aarc SDK executeMigration', () => {
         expect(migrationResponse[0]).toEqual({
             tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
             amount: expect.objectContaining({ _hex: '0x05f5e100' }),
-            message: 'Token Permit Successful',
+            message: 'Token Permit tx Sent',
             txHash: '0x127hy123',
           });
                         
@@ -349,7 +349,7 @@ describe('Aarc SDK executeMigration', () => {
                 type: "BigNumber",
                 hex: '0x05f5e100',
             }),
-            message: 'Transaction Successful',
+            message: 'Transaction sent',
             txHash: '0x127hy123',
         });
 
@@ -359,7 +359,7 @@ describe('Aarc SDK executeMigration', () => {
                 type: "BigNumber",
                 hex: '0x1dcd6500',
             }),
-            message: 'Transaction Successful',
+            message: 'Transaction sent',
             txHash: '0x127hy123',
         });
 
@@ -369,7 +369,7 @@ describe('Aarc SDK executeMigration', () => {
                 type: "BigNumber",
                 hex: '0x05f5e100',
             }),
-            message: 'Transaction Successful',
+            message: 'Transaction sent',
             txHash: '0x127hy123',
         });
 
@@ -379,7 +379,7 @@ describe('Aarc SDK executeMigration', () => {
                 type: "BigNumber",
                 hex: '0x6a94d74f430000',
             }),
-            message: 'Transaction Successful',
+            message: 'Transaction sent',
             txHash: '0x127hy123',
         });
     }, 30000);

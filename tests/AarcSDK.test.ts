@@ -167,7 +167,7 @@ describe('Aarc SDK executeMigration', () => {
       amount: expect.objectContaining({
         _hex: '0x0f4240',
       }),
-      message: 'Token transfer successful',
+      message: 'Token transfer tx sent',
       txHash: 'token-transfer-0x1234567890',
     });
   }, 30000);
@@ -242,7 +242,7 @@ describe('Aarc SDK executeMigration', () => {
       amount: expect.objectContaining({
         _hex: '0x64',
       }),
-      message: 'Native transfer successful',
+      message: 'Native transfer tx sent',
       txHash: 'native-transfer-0x1234567890',
     });
   }, 30000);
@@ -321,7 +321,7 @@ describe('Aarc SDK executeMigration', () => {
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
       amount: { type: 'BigNumber', hex: '0x989680' },
-      message: 'Token transfer successful',
+      message: 'Token transfer tx sent',
       txHash: 'token-transfer-0x1234567890',
     });
 
@@ -330,7 +330,7 @@ describe('Aarc SDK executeMigration', () => {
       amount: expect.objectContaining({
         _hex: '0x7a1200',
       }),
-      message: 'Native transfer successful',
+      message: 'Native transfer tx sent',
       txHash: 'native-transfer-0x1234567890',
     });
   }, 30000);
@@ -440,7 +440,7 @@ describe('Aarc SDK executeMigration', () => {
         type: 'BigNumber',
         hex: '0x989680',
       }),
-      message: 'Token transfer successful',
+      message: 'Token transfer tx sent',
       txHash: 'permit-token-transfer-0x1234567890',
     });
 
@@ -450,7 +450,7 @@ describe('Aarc SDK executeMigration', () => {
         type: 'BigNumber',
         hex: '0x174876e800',
       }),
-      message: 'Token transfer successful',
+      message: 'Token transfer tx sent',
       txHash: 'permit-token-transfer-0x1234567890',
     });
   }, 30000);

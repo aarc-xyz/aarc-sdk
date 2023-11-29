@@ -303,7 +303,7 @@ class AarcSDK {
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
               tokenId: tx.tokenId,
-              message: 'Nft transfer successful',
+              message: 'Nft transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
             /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -328,7 +328,7 @@ class AarcSDK {
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
-              message: 'Token transfer successful',
+              message: 'Token transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {
@@ -354,7 +354,7 @@ class AarcSDK {
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
-              message: 'Native transfer successful',
+              message: 'Native transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {
@@ -501,8 +501,8 @@ class AarcSDK {
             amount: token.balance,
             message:
               typeof txStatus === 'string'
-                ? 'Token Permit Successful'
-                : 'Token Permit Failed',
+                ? 'Token Permit tx Sent'
+                : 'Token Permit Tx Failed',
             txHash: typeof txStatus === 'string' ? txStatus : '',
           });
         } catch (error: any) {
@@ -584,7 +584,7 @@ class AarcSDK {
             amount: permitTransferFrom.permitted.amount,
             message:
               typeof txStatus === 'string'
-                ? 'Transactions Successful'
+                ? 'Transactions sent'
                 : 'Transactions Failed',
             txHash: typeof txStatus === 'string' ? txStatus : '',
           });
@@ -655,7 +655,7 @@ class AarcSDK {
               amount: token.amount,
               message:
                 typeof txStatus === 'string'
-                  ? 'Transaction Successful'
+                  ? 'Transaction sent'
                   : 'Transaction Failed',
               txHash: typeof txStatus === 'string' ? txStatus : '',
             });
@@ -731,7 +731,7 @@ class AarcSDK {
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
               tokenId: tx.tokenId,
-              message: 'Nft transfer successful',
+              message: 'Nft transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {
@@ -755,7 +755,7 @@ class AarcSDK {
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
-              message: 'Token transfer successful',
+              message: 'Token transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {
@@ -781,7 +781,7 @@ class AarcSDK {
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
-              message: 'Native transfer successful',
+              message: 'Native transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {

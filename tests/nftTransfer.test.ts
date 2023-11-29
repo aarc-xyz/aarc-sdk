@@ -179,7 +179,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '1',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -187,7 +187,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '2',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
   }, 30000);
@@ -327,7 +327,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '1',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -335,7 +335,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '2',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -343,7 +343,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '4',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -351,7 +351,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '8',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -359,7 +359,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '11',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
   }, 30000);
@@ -502,7 +502,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '1',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -510,7 +510,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '2',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -518,7 +518,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '4',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -526,7 +526,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '8',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -534,7 +534,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '11',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
   }, 30000);
@@ -635,7 +635,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '1',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
   }, 30000);
@@ -738,7 +738,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '1',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
   }, 30000);
@@ -839,7 +839,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '1',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
 
@@ -847,7 +847,7 @@ describe('Aarc SDK nft transfer', () => {
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
       amount: BigNumber.from(1),
       tokenId: '2',
-      message: 'Nft transfer successful',
+      message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
     });
   }, 30000);

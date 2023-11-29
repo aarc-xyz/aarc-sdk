@@ -421,7 +421,7 @@ export class PermitHelper {
               response.push({
                 tokenAddress: token.token,
                 amount: token.amount,
-                message: 'Token transfer successful',
+                message: 'Token transfer tx sent',
                 txHash: txInfo.hash,
               });
             },

@@ -6,7 +6,7 @@ import {
   PERMIT2_CONTRACT_ADDRESS,
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
-  nativeTokenAddresses,
+  gasTokenAddresses,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -63,7 +63,7 @@ class AarcSDK {
     if (Object.values(ChainId).includes(chainId)) {
       this.chainId = chainId;
     } else {
-      throw new Error('Invalid chain id');
+      throw new Error('Unsupported chain id');
     }
     this.apiKey = apiKey;
     this.ethersProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
@@ -151,10 +151,10 @@ class AarcSDK {
 
       if (tokenAddresses && tokenAddresses.length > 0) {
         const isExist = tokenAddresses.find(
-          (token) => token === nativeTokenAddresses[this.chainId as ChainId],
+          (token) => token === gasTokenAddresses[this.chainId as ChainId],
         );
         if (!isExist) {
-          tokenAddresses.push(nativeTokenAddresses[this.chainId as ChainId]);
+          tokenAddresses.push(gasTokenAddresses[this.chainId as ChainId]);
         }
       }
 
@@ -397,10 +397,10 @@ class AarcSDK {
 
       if (tokenAddresses && tokenAddresses.length > 0) {
         const isExist = tokenAddresses.find(
-          (token) => token === nativeTokenAddresses[this.chainId as ChainId],
+          (token) => token === gasTokenAddresses[this.chainId as ChainId],
         );
         if (!isExist) {
-          tokenAddresses.push(nativeTokenAddresses[this.chainId as ChainId]);
+          tokenAddresses.push(gasTokenAddresses[this.chainId as ChainId]);
         }
       }
 

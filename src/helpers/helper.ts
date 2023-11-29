@@ -8,7 +8,7 @@ import {
 } from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 import { BalancesResponse } from '../utils/AarcTypes';
-import { COVALENT_TOKEN_TYPES, nativeTokenAddresses } from '../utils/Constants';
+import { COVALENT_TOKEN_TYPES, gasTokenAddresses } from '../utils/Constants';
 import { ChainId } from '../utils/ChainTypes';
 import AarcSDK from '../AarcSDK';
 
@@ -238,7 +238,7 @@ export const processNativeTransfer = async (
     const matchingToken = transferTokenDetails?.find(
       (token) =>
         token.tokenAddress.toLowerCase() ===
-        nativeTokenAddresses[sdkObject.chainId as ChainId],
+        gasTokenAddresses[sdkObject.chainId as ChainId],
     );
 
     let amountTransfer = BigNumber.from(0);

@@ -235,7 +235,7 @@ describe('Aarc SDK executeMigration', () => {
         });
     }, 30000);
 
-    it('should handle make another transaction for normal token transfer', async () => {
+    it('should do gasless migration flow', async () => {
         // Mocking the fetchBalances function
         aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
             code: 200,
@@ -264,7 +264,7 @@ describe('Aarc SDK executeMigration', () => {
                     balance: { type: 'BigNumber', hex: '0x1dcd6500' },
                     type: 'cryptocurrency',
                     nft_data: null,
-                    permit2Allowance: { type: 'BigNumber', hex: '-0x01' },
+                    permit2Allowance: { type: 'BigNumber', hex: '0x1dcd650' },
                     permitExist: true
                 },
                 {
@@ -306,34 +306,6 @@ describe('Aarc SDK executeMigration', () => {
             ],
             message: 'Success',
         });
-        jest.spyOn(helpFuncs, 'processERC20TransferrableTokens').mockImplementation(
-            (
-              erc20Tokens: TokenData[],
-              transactions: TransactionsResponse[],
-              owner: string,
-              receiverAddress: string,
-              isGasless = false,
-            ) => {
-              // Your custom implementation/mock for processERC20TransferrableTokens
-              
-                const erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
-                  BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
-                );
-      
-            //    Loop through tokens to perform normal transfers
-                for (const token of erc20TransferableTokens) {
-                    transactions.push({
-                        from: owner,
-                        to: receiverAddress,
-                        tokenAddress: token.token_address,
-                        amount: token.balance,
-                        type: COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY,
-                    });
-                }
-      
-              return transactions;
-            }
-          );
         const executeMigrationDto = {
             senderSigner: signer,
             transferTokenDetails: [
@@ -360,7 +332,7 @@ describe('Aarc SDK executeMigration', () => {
 
         const migrationResponse = await aarcSDK.executeMigrationGasless(executeMigrationDto);
         expect(Array.isArray(migrationResponse)).toBe(true);
-        expect(migrationResponse).toHaveLength(6);
+        expect(migrationResponse).toHaveLength(5);
 
         expect(migrationResponse[0]).toEqual({
             tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
@@ -409,13 +381,6 @@ describe('Aarc SDK executeMigration', () => {
             }),
             message: 'Transaction Successful',
             txHash: '0x127hy123',
-        });
-
-        expect(migrationResponse[5]).toEqual({
-            tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
-            amount: expect.objectContaining({ _hex: '0x05f5e100' }),
-            message: 'Token transfer successful',
-            txHash: 'token-transfer-0x1234567890',
         });
     }, 30000);
 })

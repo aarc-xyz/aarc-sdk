@@ -375,7 +375,7 @@ class AarcSDK {
       Logger.error('Migration Error:', error);
       throw error;
     }
-    Logger.log(JSON.stringify(response));
+     Logger.log(JSON.stringify(response));
     return response;
   }
 

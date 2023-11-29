@@ -339,9 +339,16 @@ describe('Aarc SDK executeMigration', () => {
     const migrationResponse =
       await aarcSDK.executeMigrationGasless(executeMigrationDto);
     expect(Array.isArray(migrationResponse)).toBe(true);
-    expect(migrationResponse).toHaveLength(5);
+    expect(migrationResponse).toHaveLength(6);
 
     expect(migrationResponse[0]).toEqual({
+      tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+      amount: expect.objectContaining({ _hex: '0x1dcd6500' }),
+      message: 'Token Permit tx Sent',
+      txHash: '0x127hy123',
+    });
+
+    expect(migrationResponse[1]).toEqual({
       tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
       amount: expect.objectContaining({ _hex: '0x05f5e100' }),
       message: 'Token Permit tx Sent',
@@ -349,7 +356,7 @@ describe('Aarc SDK executeMigration', () => {
     });
 
     // Verify the content of the response
-    expect(migrationResponse[1]).toEqual({
+    expect(migrationResponse[2]).toEqual({
       tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
       amount: expect.objectContaining({
         type: 'BigNumber',
@@ -359,7 +366,7 @@ describe('Aarc SDK executeMigration', () => {
       txHash: '0x127hy123',
     });
 
-    expect(migrationResponse[2]).toEqual({
+    expect(migrationResponse[3]).toEqual({
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
       amount: expect.objectContaining({
         type: 'BigNumber',
@@ -369,7 +376,7 @@ describe('Aarc SDK executeMigration', () => {
       txHash: '0x127hy123',
     });
 
-    expect(migrationResponse[3]).toEqual({
+    expect(migrationResponse[4]).toEqual({
       tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
       amount: expect.objectContaining({
         type: 'BigNumber',
@@ -379,7 +386,7 @@ describe('Aarc SDK executeMigration', () => {
       txHash: '0x127hy123',
     });
 
-    expect(migrationResponse[4]).toEqual({
+    expect(migrationResponse[5]).toEqual({
       tokenAddress: '0xb18059aa6483ba71d6d3dfabad53616b00ea2aba',
       amount: expect.objectContaining({
         type: 'BigNumber',

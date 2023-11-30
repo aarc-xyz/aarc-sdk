@@ -2,15 +2,6 @@ import { BigNumber, Signer, ethers } from 'ethers';
 import { AarcSDK } from '../src'; // Adjust the path according to your directory structure
 import { PermitHelper } from '../src/helpers/PermitHelper'; // Import the original class
 import './EthersMock';
-import { BalancesResponse } from '@biconomy/node-client';
-import {
-  TransferTokenDetails,
-  MigrationResponse,
-  TokenData,
-  TransactionsResponse,
-} from '../src/utils/AarcTypes';
-import { COVALENT_TOKEN_TYPES } from '../src/utils/Constants';
-import * as helpFuncs from '../src/helpers/helper';
 let aarcSDK: any;
 
 // Mock the GelatoHelper functions
@@ -21,7 +12,7 @@ jest.mock('../src/helpers/GelatoHelper', () => ({
     .mockImplementation(async () => '0x127hy123'),
 }));
 
-describe('Aarc SDK executeMigration', () => {
+describe('Aarc SDK executeMigrationGasless', () => {
   const receiver = '0xe7a35625b23710C131Fa38c92CF5F7793c50604A';
 
   const privateKey =
@@ -31,18 +22,17 @@ describe('Aarc SDK executeMigration', () => {
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
   const signer = new ethers.Wallet(privateKey, provider);
   const eoaAddress = signer.address;
+  let chainId: number;
 
   beforeEach(async () => {
-    aarcSDK = new AarcSDK({
-      rpcUrl: rpcUrl,
-      chainId: (await provider.getNetwork()).chainId,
-      apiKey: apiKey,
-    });
+    (chainId = (await provider.getNetwork()).chainId),
+      (aarcSDK = new AarcSDK({
+        rpcUrl: rpcUrl,
+        chainId,
+        apiKey: apiKey,
+      }));
 
-    aarcSDK.permitHelper = new PermitHelper(
-      rpcUrl,
-      (await provider.getNetwork()).chainId,
-    );
+    aarcSDK.permitHelper = new PermitHelper(rpcUrl, chainId);
     jest
       .spyOn(aarcSDK.permitHelper, 'performTokenTransfer')
       .mockImplementation(() => 'token-transfer-0x1234567890');
@@ -192,12 +182,23 @@ describe('Aarc SDK executeMigration', () => {
     expect(Array.isArray(migrationResponse)).toBe(true);
     expect(migrationResponse).toHaveLength(5);
 
+    expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalled();
+    expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalledTimes(1);
+    expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalledWith({
+      signer,
+      chainId,
+      eoaAddress,
+      tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
+    });
+
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
       amount: expect.objectContaining({ _hex: '0x05f5e100' }),
       message: 'Token Permit tx Sent',
       txHash: '0x127hy123',
     });
+
+    expect(aarcSDK.permitHelper.getBatchTransferPermitData).toHaveBeenCalled();
 
     // Verify the content of the response
     expect(migrationResponse[1]).toEqual({
@@ -257,7 +258,7 @@ describe('Aarc SDK executeMigration', () => {
           nft_data: null,
           permit2Allowance: {
             type: 'BigNumber',
-            hex: '0x0c9f2c9cd04674edd2f5bf5642',
+            hex: '0x0',
           },
           permitExist: true,
         },
@@ -341,6 +342,15 @@ describe('Aarc SDK executeMigration', () => {
     expect(Array.isArray(migrationResponse)).toBe(true);
     expect(migrationResponse).toHaveLength(6);
 
+    expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalled();
+    expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalledTimes(2);
+    expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalledWith({
+      signer,
+      chainId,
+      eoaAddress,
+      tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+    });
+    expect(aarcSDK.permitHelper.getBatchTransferPermitData).toHaveBeenCalled();
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
       amount: expect.objectContaining({ _hex: '0x1dcd6500' }),

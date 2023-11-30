@@ -521,13 +521,14 @@ class AarcSDK {
           });
         }
       });
-
       // filter out tokens that have already given allowance
       const permit2TransferableTokens = erc20Tokens.filter(
         (balanceObj) =>
           BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)) ||
           BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)),
       );
+
+      //TODO: wait for permitOperations trx to be confirmed
 
       // Merge permittedTokens and permit2TransferableTokens
       const batchPermitTransaction = permittedTokens.concat(

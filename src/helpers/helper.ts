@@ -160,7 +160,7 @@ export const processTokenData = (
     // Then we assign the allowance amount 0 to perform normal token transfer
     if (
       (element.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
-      element.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) &&
+        element.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) &&
       BigNumber.from(element.permit2Allowance).gte(BigNumber.from(0)) &&
       BigNumber.from(element.balance).gt(element.permit2Allowance)
     ) {

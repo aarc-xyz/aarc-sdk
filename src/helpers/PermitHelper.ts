@@ -136,7 +136,7 @@ export class PermitHelper {
       // set the domain parameters
       const domain = {
         name: await tokenContract.name(),
-        version: '1',
+        version: '1', //        await tokenContract.EIP712_VERSION(),
         chainId: chainId,
         verifyingContract: tokenContract.address,
       };

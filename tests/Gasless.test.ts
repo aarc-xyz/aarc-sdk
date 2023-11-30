@@ -81,8 +81,8 @@ describe('Aarc SDK executeMigrationGasless', () => {
           signature,
         };
       });
-    
-      jest
+
+    jest
       .spyOn(aarcSDK.permitHelper, 'getSingleTransferPermitData')
       .mockImplementation((singleTransferPermitDto: any) => {
         const { spenderAddress } = singleTransferPermitDto;
@@ -91,11 +91,10 @@ describe('Aarc SDK executeMigrationGasless', () => {
 
         return {
           permitTransferFrom: {
-            permitted: 
-              {
-                token: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-                amount: { type: 'BigNumber', hex: '0x1dcd6500' },
-              },
+            permitted: {
+              token: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+              amount: { type: 'BigNumber', hex: '0x1dcd6500' },
+            },
             spender: spenderAddress,
             deadline: 12345678,
             nonce: 6623,
@@ -492,12 +491,18 @@ describe('Aarc SDK executeMigrationGasless', () => {
     });
 
     expect(aarcSDK.permitHelper.getSingleTransferPermitData).toHaveBeenCalled();
-    expect(aarcSDK.permitHelper.getSingleTransferPermitData).toHaveBeenCalledTimes(1);
-    expect(aarcSDK.permitHelper.getSingleTransferPermitData).toHaveBeenCalledWith({
+    expect(
+      aarcSDK.permitHelper.getSingleTransferPermitData,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      aarcSDK.permitHelper.getSingleTransferPermitData,
+    ).toHaveBeenCalledWith({
       signer,
       chainId,
       spenderAddress: GELATO_RELAYER_ADDRESS,
-      tokenData: expect.objectContaining({token_address:'0xf4ca1a280ebccdaebf80e3c128e55de01fabd893'}),
+      tokenData: expect.objectContaining({
+        token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+      }),
     });
 
     expect(migrationResponse[0]).toEqual({

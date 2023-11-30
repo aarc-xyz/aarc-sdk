@@ -585,8 +585,8 @@ class AarcSDK {
             amount: permitTransferFrom.permitted.amount,
             message:
               typeof txStatus === 'string'
-                ? 'Transactions sent'
-                : 'Transactions Failed',
+                ? 'Transaction sent'
+                : 'Transaction Failed',
             txHash: typeof txStatus === 'string' ? txStatus : '',
           });
         } catch (error: any) {

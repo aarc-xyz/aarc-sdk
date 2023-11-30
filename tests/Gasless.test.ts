@@ -2,6 +2,7 @@ import { BigNumber, Signer, ethers } from 'ethers';
 import { AarcSDK } from '../src'; // Adjust the path according to your directory structure
 import { PermitHelper } from '../src/helpers/PermitHelper'; // Import the original class
 import './EthersMock';
+import { GELATO_RELAYER_ADDRESS } from '../src/utils/Constants';
 let aarcSDK: any;
 
 // Mock the GelatoHelper functions
@@ -73,6 +74,28 @@ describe('Aarc SDK executeMigrationGasless', () => {
                 amount: { type: 'BigNumber', hex: '0x6a94d74f430000' },
               },
             ],
+            spender: spenderAddress,
+            deadline: 12345678,
+            nonce: 6623,
+          },
+          signature,
+        };
+      });
+    
+      jest
+      .spyOn(aarcSDK.permitHelper, 'getSingleTransferPermitData')
+      .mockImplementation((singleTransferPermitDto: any) => {
+        const { spenderAddress } = singleTransferPermitDto;
+        // Simulate the behavior of the function based on your test requirements
+        const signature = 'mockedSignature'; // Replace with your mocked signature
+
+        return {
+          permitTransferFrom: {
+            permitted: 
+              {
+                token: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+                amount: { type: 'BigNumber', hex: '0x1dcd6500' },
+              },
             spender: spenderAddress,
             deadline: 12345678,
             nonce: 6623,
@@ -401,6 +424,95 @@ describe('Aarc SDK executeMigrationGasless', () => {
       amount: expect.objectContaining({
         type: 'BigNumber',
         hex: '0x6a94d74f430000',
+      }),
+      message: 'Transaction sent',
+      txHash: '0x127hy123',
+    });
+  }, 30000);
+
+  it('should do erc20permit and single permit2 gasless migration flow', async () => {
+    // Mocking the fetchBalances function
+    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+      code: 200,
+      data: [
+        {
+          decimals: 18,
+          name: 'ETH',
+          symbol: 'ETH',
+          native_token: true,
+          token_address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+          balance: { type: 'BigNumber', hex: '0x989680' },
+          type: 'dust',
+          nft_data: null,
+          permit2Allowance: {
+            type: 'BigNumber',
+            hex: '0x0',
+          },
+          permitExist: true,
+        },
+        {
+          decimals: 6,
+          native_token: false,
+          name: 'USDA1',
+          symbol: 'USDA1',
+          token_address: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+          balance: { type: 'BigNumber', hex: '0x1dcd6500' },
+          type: 'cryptocurrency',
+          nft_data: null,
+          permit2Allowance: { type: 'BigNumber', hex: '0x0' },
+          permitExist: true,
+        },
+      ],
+      message: 'Success',
+    });
+    const executeMigrationDto = {
+      senderSigner: signer,
+      transferTokenDetails: [
+        {
+          tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+          amount: BigNumber.from('0x1dcd6500'),
+        },
+      ],
+      receiverAddress: receiver,
+      gelatoApiKey: 'abcpowerwerwrf',
+    };
+
+    const migrationResponse =
+      await aarcSDK.executeMigrationGasless(executeMigrationDto);
+    expect(Array.isArray(migrationResponse)).toBe(true);
+    expect(migrationResponse).toHaveLength(2);
+
+    expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalled();
+    expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalledTimes(1);
+    expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalledWith({
+      signer,
+      chainId,
+      eoaAddress,
+      tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+    });
+
+    expect(aarcSDK.permitHelper.getSingleTransferPermitData).toHaveBeenCalled();
+    expect(aarcSDK.permitHelper.getSingleTransferPermitData).toHaveBeenCalledTimes(1);
+    expect(aarcSDK.permitHelper.getSingleTransferPermitData).toHaveBeenCalledWith({
+      signer,
+      chainId,
+      spenderAddress: GELATO_RELAYER_ADDRESS,
+      tokenData: expect.objectContaining({token_address:'0xf4ca1a280ebccdaebf80e3c128e55de01fabd893'}),
+    });
+
+    expect(migrationResponse[0]).toEqual({
+      tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+      amount: expect.objectContaining({ _hex: '0x1dcd6500' }),
+      message: 'Token Permit tx Sent',
+      txHash: '0x127hy123',
+    });
+
+    // Verify the content of the response
+    expect(migrationResponse[1]).toEqual({
+      tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+      amount: expect.objectContaining({
+        type: 'BigNumber',
+        hex: '0x1dcd6500',
       }),
       message: 'Transaction sent',
       txHash: '0x127hy123',

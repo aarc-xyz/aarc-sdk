@@ -78,7 +78,7 @@ export const transferErc20Tokens = async () => {
                     typeof result !== 'object' ||
                     !('tokenAddress' in result) ||
                     !('amount' in result) ||
-                    result.message !== 'Token transfer successful' ||
+                    result.message !== 'Token transfer tx sent' ||
                     !result.txHash ||
                     !result.amount
                 ) {
@@ -136,7 +136,7 @@ export const transferFullNativeOnly = async () => {
                     typeof result !== 'object' ||
                     !('tokenAddress' in result) ||
                     !('amount' in result) ||
-                    result.message !== 'Native transfer successful' ||
+                    result.message !== 'Native transfer tx sent' ||
                     !result.txHash ||
                     !result.amount
                 ) {

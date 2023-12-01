@@ -303,7 +303,7 @@ class AarcSDK {
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
               tokenId: tx.tokenId,
-              message: 'Nft transfer successful',
+              message: 'Nft transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
             /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -328,7 +328,7 @@ class AarcSDK {
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
-              message: 'Token transfer successful',
+              message: 'Token transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {
@@ -354,7 +354,7 @@ class AarcSDK {
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
-              message: 'Native transfer successful',
+              message: 'Native transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {
@@ -463,6 +463,14 @@ class AarcSDK {
         transactions,
         owner,
         receiverAddress,
+        true,
+      );
+
+      // filter out tokens that have already given allowance
+      const permit2TransferableTokens = erc20Tokens.filter(
+        (balanceObj) =>
+          BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)) ||
+          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)),
       );
 
       // Filtering out tokens to do permit transaction
@@ -472,7 +480,7 @@ class AarcSDK {
           BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
       );
       Logger.log('permittedTokens ', permittedTokens);
-      permittedTokens.map(async (token) => {
+      const permitResponse = permittedTokens.map(async (token) => {
         const permitDto: PermitDto = {
           signer: senderSigner,
           chainId: this.chainId,
@@ -492,7 +500,7 @@ class AarcSDK {
             taskId,
           };
           const txStatus = await getGelatoTransactionStatus(gelatoTxStatusDto);
-          if (txStatus) {
+          if (typeof txStatus === 'string') {
             permit2TransferableTokens.push(token);
           }
           response.push({
@@ -500,8 +508,8 @@ class AarcSDK {
             amount: token.balance,
             message:
               typeof txStatus === 'string'
-                ? 'Token Permit Successful'
-                : 'Token Permit Failed',
+                ? 'Token Permit tx Sent'
+                : 'Token Permit Tx Failed',
             txHash: typeof txStatus === 'string' ? txStatus : '',
           });
         } catch (error: any) {
@@ -521,24 +529,14 @@ class AarcSDK {
         }
       });
 
-      // filter out tokens that have already given allowance
-      const permit2TransferableTokens = erc20Tokens.filter(
-        (balanceObj) =>
-          BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)) ||
-          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)),
-      );
+      await Promise.all(permitResponse);
 
-      // Merge permittedTokens and permit2TransferableTokens
-      const batchPermitTransaction = permittedTokens.concat(
-        permit2TransferableTokens,
-      );
-
-      if (batchPermitTransaction.length === 1) {
+      if (permit2TransferableTokens.length === 1) {
         const singleTransferPermitDto: SingleTransferPermitDto = {
           signer: senderSigner,
           chainId: this.chainId,
           spenderAddress: GELATO_RELAYER_ADDRESS,
-          tokenData: batchPermitTransaction[0],
+          tokenData: permit2TransferableTokens[0],
         };
         const permit2SingleContract = new Contract(
           PERMIT2_CONTRACT_ADDRESS,
@@ -583,8 +581,8 @@ class AarcSDK {
             amount: permitTransferFrom.permitted.amount,
             message:
               typeof txStatus === 'string'
-                ? 'Transactions Successful'
-                : 'Transactions Failed',
+                ? 'Transaction sent'
+                : 'Transaction Failed',
             txHash: typeof txStatus === 'string' ? txStatus : '',
           });
         } catch (error: any) {
@@ -596,7 +594,7 @@ class AarcSDK {
             error,
           );
         }
-      } else if (batchPermitTransaction.length > 1) {
+      } else if (permit2TransferableTokens.length > 1) {
         const permit2BatchContract = new Contract(
           PERMIT2_CONTRACT_ADDRESS,
           PERMIT2_BATCH_TRANSFER_ABI,
@@ -607,7 +605,7 @@ class AarcSDK {
           signer: senderSigner,
           chainId: this.chainId,
           spenderAddress: GELATO_RELAYER_ADDRESS,
-          tokenData: batchPermitTransaction,
+          tokenData: permit2TransferableTokens,
         };
         const permitData = await this.permitHelper.getBatchTransferPermitData(
           batchTransferPermitDto,
@@ -654,7 +652,7 @@ class AarcSDK {
               amount: token.amount,
               message:
                 typeof txStatus === 'string'
-                  ? 'Transaction Successful'
+                  ? 'Transaction sent'
                   : 'Transaction Failed',
               txHash: typeof txStatus === 'string' ? txStatus : '',
             });
@@ -730,7 +728,7 @@ class AarcSDK {
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
               tokenId: tx.tokenId,
-              message: 'Nft transfer successful',
+              message: 'Nft transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {
@@ -754,7 +752,7 @@ class AarcSDK {
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
-              message: 'Token transfer successful',
+              message: 'Token transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {
@@ -780,7 +778,7 @@ class AarcSDK {
             response.push({
               tokenAddress: tx.tokenAddress,
               amount: tx.amount,
-              message: 'Native transfer successful',
+              message: 'Native transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
           } catch (error: any) {

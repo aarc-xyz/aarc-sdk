@@ -129,6 +129,7 @@ export class PermitHelper {
     };
 
     if (chainId === ChainId.POLYGON_MAINNET) {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       return {
         ...domain,
         salt: ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32),

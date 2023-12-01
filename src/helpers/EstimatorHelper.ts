@@ -1,6 +1,6 @@
 import { BigNumber, ethers } from 'ethers';
 import { Logger } from '../utils/Logger';
-import { GAS_UNITS, nativeTokenAddresses } from '../utils/Constants';
+import { GAS_UNITS, gasTokenAddresses } from '../utils/Constants';
 import { ERC20_ABI } from '../utils/abis/ERC20.abi';
 import { PERMIT2_BATCH_TRANSFER_ABI } from '../utils/abis/Permit2BatchTransfer.abi';
 import { ChainId } from '../utils/ChainTypes';
@@ -20,7 +20,7 @@ export const calculateTotalGasNeeded = async (
 
   for (const transaction of transactions) {
     try {
-      if (transaction.to !== nativeTokenAddresses[chainId as ChainId]) {
+      if (transaction.to !== gasTokenAddresses[chainId as ChainId]) {
         if (transaction.type === 'permitbatch') {
           const contract = new ethers.Contract(
             transaction.tokenAddress,
@@ -58,7 +58,7 @@ export const calculateTotalGasNeeded = async (
       const tx = {
         from: transaction.from,
         to:
-          transaction.to !== nativeTokenAddresses[chainId as ChainId]
+          transaction.to !== gasTokenAddresses[chainId as ChainId]
             ? transaction.tokenAddress
             : transaction.to,
         data: transaction.data,

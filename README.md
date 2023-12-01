@@ -173,4 +173,4 @@ const newBiconomySCWAddress = await aarcSDK.generateBiconomySCW(
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE.md) for details.
 
 ## Support and Feedback
-For support or to share feedback, please schedule a 15 min catchup [here](https://calendly.com/arihant-aarc/15min). You can also share your ideas and feedback on the [community forum](https://aarc.featurebase.app/).
+For support or to share feedback, please schedule a call with us [here](https://calendly.com/d/3f7-9gt-4pr/session-with-aarc-team). You can also share your ideas and feedback on our [community forum](https://aarc.featurebase.app/).

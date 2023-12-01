@@ -8,7 +8,7 @@ import {
 } from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 import { BalancesResponse } from '../utils/AarcTypes';
-import { COVALENT_TOKEN_TYPES, nativeTokenAddresses } from '../utils/Constants';
+import { COVALENT_TOKEN_TYPES, gasTokenAddresses } from '../utils/Constants';
 import { ChainId } from '../utils/ChainTypes';
 import AarcSDK from '../AarcSDK';
 
@@ -159,8 +159,8 @@ export const processTokenData = (
     // Case: transferTokenDetails contains amount for token but it's greater than the given allowance
     // Then we assign the allowance amount 0 to perform normal token transfer
     if (
-      element.type === COVALENT_TOKEN_TYPES.STABLE_COIN &&
-      COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY &&
+      (element.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+        element.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) &&
       BigNumber.from(element.permit2Allowance).gte(BigNumber.from(0)) &&
       BigNumber.from(element.balance).gt(element.permit2Allowance)
     ) {
@@ -207,10 +207,20 @@ export const processERC20TransferrableTokens = (
   transactions: TransactionsResponse[],
   owner: string,
   receiverAddress: string,
+  isGasless = false,
 ) => {
-  const erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
-    BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
-  );
+  let erc20TransferableTokens: TokenData[];
+
+  if (isGasless)
+    erc20TransferableTokens = erc20Tokens.filter(
+      (balanceObj) =>
+        !balanceObj.permitExist &&
+        BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
+    );
+  else
+    erc20TransferableTokens = erc20Tokens.filter((balanceObj) =>
+      BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
+    );
 
   // Loop through tokens to perform normal transfers
   for (const token of erc20TransferableTokens) {
@@ -238,7 +248,7 @@ export const processNativeTransfer = async (
     const matchingToken = transferTokenDetails?.find(
       (token) =>
         token.tokenAddress.toLowerCase() ===
-        nativeTokenAddresses[sdkObject.chainId as ChainId],
+        gasTokenAddresses[sdkObject.chainId as ChainId],
     );
 
     let amountTransfer = BigNumber.from(0);

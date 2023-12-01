@@ -106,7 +106,7 @@ describe('Aarc SDK executeMigration', () => {
       amount: expect.objectContaining({
         _hex: '0x989680',
       }),
-      message: 'Native transfer successful',
+      message: 'Native transfer tx sent',
       txHash: 'native-transfer-0x1234567890',
     });
   }, 30000);
@@ -150,7 +150,7 @@ describe('Aarc SDK executeMigration', () => {
       amount: expect.objectContaining({
         _hex: '0x7a1200',
       }),
-      message: 'Native transfer successful',
+      message: 'Native transfer tx sent',
       txHash: 'native-transfer-0x1234567890',
     });
   }, 30000);

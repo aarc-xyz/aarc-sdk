@@ -6,3 +6,7 @@ src
 tests
 .github
 jest.config.*
+scripts
+.husky
+.eslintrc.json
+.env.example

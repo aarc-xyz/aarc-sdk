@@ -60,7 +60,6 @@ export const transferErc20Tokens = async () => {
                     }
                 }
             }
-
             const resultSet = await aarcSDK.executeMigrationGasless({
                 senderSigner: signer,
                 receiverAddress: "0x786E6045eacb96cAe0259cd761e151b68B85bdA7",
@@ -147,7 +146,6 @@ export const transferFullNativeOnly = async () => {
                 }
             }
 
-
         }
     } else {
         console.log('insufficient native balance for transaction')
@@ -193,7 +191,6 @@ export const transferNftsOnly = async () => {
                 ERC721_ABI,
                 signer,
             );
-
             const ts = (await tokenContract.totalSupply()).sub(1)
             console.log('nft total supply is', ts.toString())
 

@@ -47,6 +47,7 @@ Retrieve balances of all tokens in an EOA wallet:
 ```typescript
 let balances = await aarcSDK.fetchBalances(
   eoaAddress: string,
+  fetchBalancesOnly: true,
   tokenAddress: string[] // Optional: Array of specific token addresses
 );
 ```

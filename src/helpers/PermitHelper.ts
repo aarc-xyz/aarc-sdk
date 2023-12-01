@@ -12,6 +12,7 @@ import {
   PERMIT_FUNCTION_ABI,
   PERMIT2_DOMAIN_NAME,
   COVALENT_TOKEN_TYPES,
+  Domain,
 } from '../utils/Constants';
 import {
   PermitData,
@@ -36,6 +37,7 @@ import { PERMIT2_SINGLE_TRANSFER_ABI } from '../utils/abis/Permit2SingleTransfer
 import { uint256, uint8 } from 'solidity-math';
 import { PERMIT2_BATCH_TRANSFER_ABI } from '../utils/abis/Permit2BatchTransfer.abi';
 import { logError } from './helper';
+import { ChainId } from '../utils/ChainTypes';
 
 export class PermitHelper {
   ethAdapter: ethers.providers.JsonRpcProvider;
@@ -115,6 +117,28 @@ export class PermitHelper {
     return tx.hash;
   }
 
+  async createDomain(
+    chainId: number,
+    tokenContract: ethers.Contract,
+  ): Promise<Domain> {
+    const domain: Domain = {
+      name: await tokenContract.name(),
+      version: '1',
+      chainId: chainId,
+      verifyingContract: tokenContract.address,
+    };
+
+    if (chainId === ChainId.POLYGON_MAINNET) {
+      return {
+        ...domain,
+        salt: ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32),
+        chainId: undefined as any, // Assigning undefined here (will be removed in the next step)
+      };
+    }
+
+    return domain;
+  }
+
   async signPermitMessage(permitDto: PermitDto): Promise<{
     r: string;
     s: string;
@@ -133,13 +157,8 @@ export class PermitHelper {
       );
       const nonce = await tokenContract.nonces(eoaAddress);
 
-      // set the domain parameters
-      const domain = {
-        name: await tokenContract.name(),
-        version: '1', //        await tokenContract.EIP712_VERSION(),
-        chainId: chainId,
-        verifyingContract: tokenContract.address,
-      };
+      // Set initial domain values
+      let domain = await this.createDomain(chainId, tokenContract);
 
       // set the Permit type values
       const values = {

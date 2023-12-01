@@ -101,3 +101,11 @@ export const enum GAS_UNITS {
   nft = 60000,
   APPROVE = 46271,
 }
+
+export interface Domain {
+  name: string;
+  version: string;
+  chainId: number;
+  verifyingContract: string;
+  salt?: string; // Making salt an optional property
+}

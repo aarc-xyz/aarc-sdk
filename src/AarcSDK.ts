@@ -127,7 +127,7 @@ class AarcSDK {
       return response;
     } catch (error) {
       // Handle any errors that may occur during the API request
-      Logger.error('Error making Covalent API call:', error);
+      Logger.error('Error making backend API call:', error);
       throw error;
     }
   }

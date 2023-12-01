@@ -466,6 +466,13 @@ class AarcSDK {
         true,
       );
 
+      // filter out tokens that have already given allowance
+      const permit2TransferableTokens = erc20Tokens.filter(
+        (balanceObj) =>
+          BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)) ||
+          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)),
+      );
+
       // Filtering out tokens to do permit transaction
       const permittedTokens = erc20Tokens.filter(
         (balanceObj) =>
@@ -473,7 +480,7 @@ class AarcSDK {
           BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
       );
       Logger.log('permittedTokens ', permittedTokens);
-      permittedTokens.map(async (token) => {
+      const permitResponse = permittedTokens.map(async (token) => {
         const permitDto: PermitDto = {
           signer: senderSigner,
           chainId: this.chainId,
@@ -493,7 +500,7 @@ class AarcSDK {
             taskId,
           };
           const txStatus = await getGelatoTransactionStatus(gelatoTxStatusDto);
-          if (txStatus) {
+          if (typeof txStatus === 'string') {
             permit2TransferableTokens.push(token);
           }
           response.push({
@@ -521,26 +528,15 @@ class AarcSDK {
           });
         }
       });
-      // filter out tokens that have already given allowance
-      const permit2TransferableTokens = erc20Tokens.filter(
-        (balanceObj) =>
-          BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)) ||
-          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)),
-      );
 
-      //TODO: wait for permitOperations trx to be confirmed
+      await Promise.all(permitResponse);
 
-      // Merge permittedTokens and permit2TransferableTokens
-      const batchPermitTransaction = permittedTokens.concat(
-        permit2TransferableTokens,
-      );
-
-      if (batchPermitTransaction.length === 1) {
+      if (permit2TransferableTokens.length === 1) {
         const singleTransferPermitDto: SingleTransferPermitDto = {
           signer: senderSigner,
           chainId: this.chainId,
           spenderAddress: GELATO_RELAYER_ADDRESS,
-          tokenData: batchPermitTransaction[0],
+          tokenData: permit2TransferableTokens[0],
         };
         const permit2SingleContract = new Contract(
           PERMIT2_CONTRACT_ADDRESS,
@@ -598,7 +594,7 @@ class AarcSDK {
             error,
           );
         }
-      } else if (batchPermitTransaction.length > 1) {
+      } else if (permit2TransferableTokens.length > 1) {
         const permit2BatchContract = new Contract(
           PERMIT2_CONTRACT_ADDRESS,
           PERMIT2_BATCH_TRANSFER_ABI,
@@ -609,7 +605,7 @@ class AarcSDK {
           signer: senderSigner,
           chainId: this.chainId,
           spenderAddress: GELATO_RELAYER_ADDRESS,
-          tokenData: batchPermitTransaction,
+          tokenData: permit2TransferableTokens,
         };
         const permitData = await this.permitHelper.getBatchTransferPermitData(
           batchTransferPermitDto,

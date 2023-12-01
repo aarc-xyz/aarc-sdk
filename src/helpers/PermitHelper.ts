@@ -158,7 +158,7 @@ export class PermitHelper {
       const nonce = await tokenContract.nonces(eoaAddress);
 
       // Set initial domain values
-      let domain = await this.createDomain(chainId, tokenContract);
+      const domain = await this.createDomain(chainId, tokenContract);
 
       // set the Permit type values
       const values = {

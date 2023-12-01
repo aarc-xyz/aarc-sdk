@@ -9,7 +9,8 @@ export const GELATO_API_KEY = process.env.GELATO_API_KEY || "";
 
 export enum ChainID {
     GOERLI = 5,
-    MUMBAI = 80001
+    MUMBAI = 80001,
+    ARBITRUM_GOERLI = 421613,
 }
 
 interface TokenInfo {
@@ -29,6 +30,7 @@ export const nativeTokenAddress = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 export interface TokenAddresses {
     [ChainID.GOERLI]: Record<TokenName, TokenInfo>;
     [ChainID.MUMBAI]: Record<TokenName, TokenInfo>;
+    [ChainID.ARBITRUM_GOERLI]: Record<TokenName, TokenInfo>;
 }
 
 export const tokenAddresses: TokenAddresses = {
@@ -43,12 +45,19 @@ export const tokenAddresses: TokenAddresses = {
         [TokenName.USDA2]: { address: '0x203fa10731d98444fD59DA46705321080bA99824', decimals: 6 },
         [TokenName.USDB]: { address: '0x2D6d85C69e92F3008d9f06Ddf8Bac054783687B4', decimals: 8 },
         [TokenName.USDC]: { address: '0xb18059aA6483bA71D6d3DfAbaD53616b00EA2ABA', decimals: 18 }
-    }
-};
+    },
+    [ChainID.ARBITRUM_GOERLI]: {
+        [TokenName.USDA1]: { address: '0x11900998de6b0C32F0bB148c6865635dfc28A528', decimals: 6 },
+        [TokenName.USDA2]: { address: '0x889b795C64CdA1E9fAC1fA623E7F82A73306b690', decimals: 6 },
+        [TokenName.USDB]: { address: '0x7C96ab4B90d59CE5e51f673242651018a4432672', decimals: 8 },
+        [TokenName.USDC]: { address: '0xe47a4524ad3142dE28F2F8F88b4317a439Ea89a9', decimals: 18 }
+    },
+};  
 
 export const nativeTokenAddresses = {
     [ChainID.GOERLI] : '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-    [ChainID.MUMBAI]: '0x0000000000000000000000000000000000001010' 
+    [ChainID.MUMBAI]: '0x0000000000000000000000000000000000001010',
+    [ChainID.ARBITRUM_GOERLI] : '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
 
 }
 

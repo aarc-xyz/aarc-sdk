@@ -8,12 +8,13 @@ export const BICONOMY_TX_SERVICE_URL =
 export const PERMIT_FUNCTION_ABI =
   'function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)';
 
-interface NativeTokenAddresses {
+interface GasTokenAddresses {
   [ChainId.GOERLI]: string;
   [ChainId.POLYGON_MUMBAI]: string;
   [ChainId.MAINNET]: string;
   [ChainId.POLYGON_MAINNET]: string;
   [ChainId.ARBITRUM]: string;
+  [ChainId.ARBITRUM_GOERLI]: string;
   [ChainId.BASE]: string;
   [ChainId.BASE_TESTNET]: string;
   [ChainId.OPTIMISM]: string;
@@ -21,16 +22,17 @@ interface NativeTokenAddresses {
 }
 
 // Update nativeTokenAddresses object with specific ChainId keys
-export const nativeTokenAddresses: NativeTokenAddresses = {
+export const gasTokenAddresses: GasTokenAddresses = {
   [ChainId.MAINNET]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.POLYGON_MAINNET]: '0x0000000000000000000000000000000000001010',
   [ChainId.GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.POLYGON_MUMBAI]: '0x0000000000000000000000000000000000001010',
-  [ChainId.ARBITRUM]: '0x0000000000000000000000000000000000001010',
-  [ChainId.BASE]: '0x0000000000000000000000000000000000001010',
-  [ChainId.BASE_TESTNET]: '0x0000000000000000000000000000000000001010',
-  [ChainId.OPTIMISM]: '0x0000000000000000000000000000000000001010',
-  [ChainId.POLYGON_ZKEVM]: '0x0000000000000000000000000000000000001010',
+  [ChainId.ARBITRUM]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.ARBITRUM_GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.BASE]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.BASE_TESTNET]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.OPTIMISM]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.POLYGON_ZKEVM]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
 };
 export const PERMIT2_CONTRACT_ADDRESS =
   '0x000000000022D473030F116dDEE9F6B43aC78BA3';

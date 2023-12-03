@@ -7,6 +7,7 @@ import {
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
   gasTokenAddresses,
+  ETHEREUM_ADDRESS_PATTERN,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -20,6 +21,8 @@ import {
   RelayTrxDto,
   SingleTransferPermitDto,
   TransactionsResponse,
+  WALLET_TYPE,
+  DeployWalletDto,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -41,7 +44,7 @@ import {
 } from './helpers';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
-import { ISmartAccount } from '@biconomy/node-client';
+import { SmartAccountsResponse } from '@biconomy/node-client';
 import { OwnerResponse } from '@safe-global/api-kit';
 
 class AarcSDK {
@@ -73,7 +76,7 @@ class AarcSDK {
     this.permitHelper = new PermitHelper(rpcUrl, chainId);
   }
 
-  async getAllBiconomySCWs(owner: string): Promise<ISmartAccount[]> {
+  async getAllBiconomySCWs(owner: string): Promise<SmartAccountsResponse> {
     return this.biconomy.getAllBiconomySCWs(this.chainId, owner);
   }
 
@@ -93,8 +96,97 @@ class AarcSDK {
     return this.safe.generateSafeSCW(config, saltNonce);
   }
 
-  deploySafeSCW(owner: string, saltNonce?: number): Promise<boolean> {
+  deploySafeSCW(owner: string, saltNonce?: number): Promise<string> {
     return this.safe.deploySafeSCW(owner, saltNonce);
+  }
+
+  async deployBiconomyScw(signer: Signer, owner: string, nonce: number = 0): Promise<string> {
+    return this.biconomy.deployBiconomyScw(signer, this.chainId, owner, nonce);
+  }
+
+  async transferNativeAndDeploy(deployWalletDto: DeployWalletDto): Promise<MigrationResponse[]> {
+    const response: MigrationResponse[] = [];
+    try {
+      const { receiver, amount, owner, signer } = deployWalletDto;
+      let amountToTransfer = BigNumber.from(0);
+
+      if (!signer) {
+        throw Error('signer is required');
+      }
+
+      if (amount && BigNumber.from(amount).gt(0)) {
+        amountToTransfer = amount;
+      } else {
+        amountToTransfer = BigNumber.from(
+          await this.ethersProvider.getBalance(owner),
+        );
+
+        if (BigNumber.from(amountToTransfer).gt(0)) {
+          amountToTransfer = amountToTransfer
+            .mul(BigNumber.from(80))
+            .div(BigNumber.from(100));
+        }
+      }
+
+      try {
+        const walletDeploymentResponse =
+          await this.deployWallet(deployWalletDto);
+        response.push({
+          tokenAddress: '',
+          amount: BigNumber.from(0),
+          message: ETHEREUM_ADDRESS_PATTERN.test(walletDeploymentResponse)
+            ? 'Deployment tx sent'
+            : walletDeploymentResponse,
+          txHash: ETHEREUM_ADDRESS_PATTERN.test(walletDeploymentResponse)
+            ? walletDeploymentResponse
+            : '',
+        });
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+      } catch (error: any) {
+        Logger.error(error);
+        response.push({
+          tokenAddress: '',
+          amount: amountToTransfer,
+          message: 'Deployment Tx Failed',
+          txHash: '',
+        });
+      }
+
+      const txHash = await this.permitHelper.performNativeTransfer({
+        senderSigner: signer,
+        recipientAddress: receiver,
+        amount: amountToTransfer,
+      });
+
+      response.push({
+        tokenAddress: '',
+        amount: amountToTransfer,
+        message:
+          typeof txHash === 'string'
+            ? 'Token transfer tx sent'
+            : 'Token transfer tx failed',
+        txHash: typeof txHash === 'string' ? txHash : '',
+      });
+
+      Logger.log(JSON.stringify(response));
+      return response;
+    } catch (error) {
+      Logger.error('transferNativeAndDeploy Error:', error);
+      throw error;
+    }
+  }
+
+  deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
+    const { walletType, owner, signer, nonce } = deployWalletDto;
+
+    if (walletType === WALLET_TYPE.SAFE) {
+      return this.deploySafeSCW(owner, nonce);
+    } else {
+      if (!signer) {
+        throw Error('signer is required');
+      }
+      return this.deployBiconomyScw(signer, owner, nonce);
+    }
   }
 
   /**

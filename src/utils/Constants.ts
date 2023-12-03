@@ -111,3 +111,5 @@ export interface Domain {
   verifyingContract: string;
   salt?: string; // Making salt an optional property
 }
+
+export const ETHEREUM_ADDRESS_PATTERN: RegExp = /^(0x)?[0-9a-fA-F]{40}$/;

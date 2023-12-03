@@ -48,7 +48,7 @@ class Safe {
     return smartWalletAddress;
   }
 
-  async deploySafeSCW(owner: string, saltNonce?: number): Promise<boolean> {
+  async deploySafeSCW(owner: string, saltNonce?: number): Promise<string> {
     // Create a SafeFactory instance using the EthersAdapter
     const safeFactory = await SafeFactory.create({
       ethAdapter: this.ethAdapter,
@@ -77,14 +77,14 @@ class Safe {
         // Handle the specific error message here
         Logger.log('Safe is already deployed');
         // Perform specific actions or additional logging based on this error
-        return true;
+        return 'Safe already deployed';
       } else {
         // Handle other errors if needed
         Logger.error('An error occurred while deploying safe', error);
-        return false;
+        return 'Safe deployment failed';
       }
     }
-    return true;
+    return 'Safe deployed sucessfully';
   }
 }
 export default Safe;

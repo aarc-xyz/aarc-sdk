@@ -76,7 +76,6 @@ class Biconomy {
     owner: string,
     nonce: number = 0,
   ): Promise<string> {
-
     // Input validation
     if (!(signer instanceof Signer)) {
       throw new Error('Invalid signer');

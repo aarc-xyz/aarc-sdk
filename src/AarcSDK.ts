@@ -100,11 +100,17 @@ class AarcSDK {
     return this.safe.deploySafeSCW(owner, saltNonce);
   }
 
-  async deployBiconomyScw(signer: Signer, owner: string, nonce: number = 0): Promise<string> {
+  async deployBiconomyScw(
+    signer: Signer,
+    owner: string,
+    nonce: number = 0,
+  ): Promise<string> {
     return this.biconomy.deployBiconomyScw(signer, this.chainId, owner, nonce);
   }
 
-  async transferNativeAndDeploy(deployWalletDto: DeployWalletDto): Promise<MigrationResponse[]> {
+  async transferNativeAndDeploy(
+    deployWalletDto: DeployWalletDto,
+  ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
     try {
       const { receiver, amount, owner, signer } = deployWalletDto;

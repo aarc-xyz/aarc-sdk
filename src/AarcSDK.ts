@@ -96,8 +96,12 @@ class AarcSDK {
     return this.safe.generateSafeSCW(config, saltNonce);
   }
 
-  deploySafeSCW(owner: string, saltNonce?: number): Promise<string> {
-    return this.safe.deploySafeSCW(owner, saltNonce);
+  deploySafeSCW(
+    signer: Signer,
+    owner: string,
+    saltNonce?: number,
+  ): Promise<string> {
+    return this.safe.deploySafeSCW(signer, owner, saltNonce);
   }
 
   async deployBiconomyScw(
@@ -137,6 +141,8 @@ class AarcSDK {
       try {
         const walletDeploymentResponse =
           await this.deployWallet(deployWalletDto);
+        Logger.log('walletDeploymentResponse ', walletDeploymentResponse);
+        console.log(ETHEREUM_ADDRESS_PATTERN.test(walletDeploymentResponse));
         response.push({
           tokenAddress: '',
           amount: BigNumber.from(0),
@@ -186,11 +192,8 @@ class AarcSDK {
     const { walletType, owner, signer, nonce } = deployWalletDto;
 
     if (walletType === WALLET_TYPE.SAFE) {
-      return this.deploySafeSCW(owner, nonce);
+      return this.deploySafeSCW(signer, owner, nonce);
     } else {
-      if (!signer) {
-        throw Error('signer is required');
-      }
       return this.deployBiconomyScw(signer, owner, nonce);
     }
   }

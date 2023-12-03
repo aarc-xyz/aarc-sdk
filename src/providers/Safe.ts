@@ -2,7 +2,7 @@ import SafeApiKit, { OwnerResponse } from '@safe-global/api-kit';
 import { SafeFactory } from '@safe-global/protocol-kit';
 import { SAFE_TX_SERVICE_URLS } from '../utils/Constants';
 import { EthersAdapter } from '@safe-global/protocol-kit';
-import { ethers } from 'ethers';
+import { Signer, ethers } from 'ethers';
 import { Logger } from '../utils/Logger';
 
 class Safe {
@@ -48,43 +48,56 @@ class Safe {
     return smartWalletAddress;
   }
 
-  async deploySafeSCW(owner: string, saltNonce?: number): Promise<string> {
-    // Create a SafeFactory instance using the EthersAdapter
-    const safeFactory = await SafeFactory.create({
-      ethAdapter: this.ethAdapter,
-    });
-    const config = {
-      owners: [owner],
-      threshold: 1,
-    };
-
-    const callback = (txHash: string): void => {
-      Logger.log('txHash ', txHash);
-      Logger.log('Safe Deployed Sucessfully');
-    };
+  async deploySafeSCW(
+    signer: Signer,
+    owner: string,
+    saltNonce?: number,
+  ): Promise<string> {
     try {
-      await safeFactory.deploySafe({
-        saltNonce: saltNonce ? saltNonce.toString() : '0',
-        safeAccountConfig: config,
-        callback,
+      this.ethAdapter = new EthersAdapter({
+        ethers,
+        signerOrProvider: signer,
       });
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-    } catch (error: any) {
-      if (
-        error instanceof Error &&
-        error.message.includes('execution reverted: Create2 call failed')
-      ) {
-        // Handle the specific error message here
-        Logger.log('Safe is already deployed');
-        // Perform specific actions or additional logging based on this error
-        return 'Safe already deployed';
-      } else {
-        // Handle other errors if needed
-        Logger.error('An error occurred while deploying safe', error);
-        return 'Safe deployment failed';
-      }
+
+      const safeFactory = await SafeFactory.create({
+        ethAdapter: this.ethAdapter,
+      });
+
+      const config = {
+        owners: [owner],
+        threshold: 1,
+      };
+
+      return await new Promise<string>((resolve, reject) => {
+        const callback = (txHash: string): void => {
+          Logger.log('txHash ', txHash);
+          Logger.log('Safe Deployed Successfully');
+          resolve(txHash); // Resolve the Promise with txHash when deployment is successful
+        };
+
+        safeFactory
+          .deploySafe({
+            saltNonce: saltNonce ? saltNonce.toString() : '0',
+            safeAccountConfig: config,
+            callback,
+          })
+          .catch((error: any) => {
+            if (
+              error instanceof Error &&
+              error.message.includes('execution reverted: Create2 call failed')
+            ) {
+              Logger.log('Safe is already deployed');
+              resolve('Safe is already deployed'); // Resolve with message indicating the Safe is already deployed
+            } else {
+              Logger.error('An error occurred while deploying safe', error);
+              reject('Error occurred while deploying safe'); // Reject the Promise with an error message
+            }
+          });
+      });
+    } catch (error) {
+      Logger.error('An error occurred while creating SafeFactory', error);
+      throw new Error('Error occurred while creating SafeFactory');
     }
-    return 'Safe deployed sucessfully';
   }
 }
 export default Safe;

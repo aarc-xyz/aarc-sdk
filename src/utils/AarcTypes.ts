@@ -29,7 +29,7 @@ export type DeployWalletDto = {
   owner: string;
   receiver: string;
   amount?: BigNumber;
-  signer?: Signer;
+  signer: Signer;
   nonce?: number;
 };
 

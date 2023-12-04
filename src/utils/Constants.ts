@@ -8,7 +8,7 @@ export const BICONOMY_TX_SERVICE_URL =
 export const PERMIT_FUNCTION_ABI =
   'function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)';
 
-interface GasTokenAddresses {
+interface GAS_TOKEN_ADDRESSES {
   [ChainId.GOERLI]: string;
   [ChainId.POLYGON_MUMBAI]: string;
   [ChainId.MAINNET]: string;
@@ -22,7 +22,7 @@ interface GasTokenAddresses {
 }
 
 // Update nativeTokenAddresses object with specific ChainId keys
-export const gasTokenAddresses: GasTokenAddresses = {
+export const GAS_TOKEN_ADDRESSES: GAS_TOKEN_ADDRESSES = {
   [ChainId.MAINNET]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.POLYGON_MAINNET]: '0x0000000000000000000000000000000000001010',
   [ChainId.GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
@@ -111,5 +111,3 @@ export interface Domain {
   verifyingContract: string;
   salt?: string; // Making salt an optional property
 }
-
-export const ETHEREUM_ADDRESS_PATTERN: RegExp = /^(0x)?[0-9a-fA-F]{40}$/;

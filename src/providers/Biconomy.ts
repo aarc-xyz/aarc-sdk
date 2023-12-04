@@ -9,8 +9,9 @@ import {
   ECDSAOwnershipValidationModule,
   DEFAULT_ECDSA_OWNERSHIP_MODULE,
 } from '@biconomy/modules';
-import NodeClient, { SmartAccountsResponse } from '@biconomy/node-client';
+import NodeClient from '@biconomy/node-client';
 import { BICONOMY_FACTORY_ABI } from '../utils/abis/BiconomyFactory.abi';
+import { ISmartAccount } from '@biconomy/node-client';
 
 class Biconomy {
   nodeClient: NodeClient;
@@ -22,27 +23,26 @@ class Biconomy {
   async getAllBiconomySCWs(
     chainId: number,
     owner: string,
-    index: number = 0,
-  ): Promise<SmartAccountsResponse> {
+  ): Promise<ISmartAccount[]> {
     try {
+      const accounts: ISmartAccount[] = [];
       const params = {
         chainId: chainId,
         owner: owner,
-        index,
+        index: 0,
       };
-      const account = await this.nodeClient.getSmartAccountsByOwner(params);
-      // Logger.log('fetch account ', account)
-      // while (
-      //   account &&
-      //   account.data &&
-      //   account.data.length > 0
-      // ) {
-      //   accounts.push(...account.data);
-      //   params.index += 1;
-      //   account = await this.nodeClient.getSmartAccountsByOwner(params);
-      // }
-      // Logger.log('return account ', accounts)
-      return account;
+      let account = await this.nodeClient.getSmartAccountsByOwner(params);
+      while (
+        account &&
+        account.data &&
+        account.data.length > 0 &&
+        account.data[0].isDeployed
+      ) {
+        accounts.push(...account.data);
+        params.index += 1;
+        account = await this.nodeClient.getSmartAccountsByOwner(params);
+      }
+      return accounts;
     } catch (error) {
       Logger.error('error while getting biconomy smart accounts');
       throw error;
@@ -89,7 +89,12 @@ class Biconomy {
       throw new Error('Invalid owner address');
     }
 
-    const accountInfo = await this.getAllBiconomySCWs(chainId, owner, nonce);
+    const accountInfo = await this.nodeClient.getSmartAccountsByOwner({
+      chainId: chainId,
+      owner: owner,
+      index: nonce,
+    });
+
     Logger.log('accountInfo ', accountInfo);
 
     // Validate response from getSmartAccountsByOwner

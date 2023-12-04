@@ -6,8 +6,7 @@ import {
   PERMIT2_CONTRACT_ADDRESS,
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
-  gasTokenAddresses,
-  ETHEREUM_ADDRESS_PATTERN,
+  GAS_TOKEN_ADDRESSES,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -44,7 +43,7 @@ import {
 } from './helpers';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
-import { SmartAccountsResponse } from '@biconomy/node-client';
+import { ISmartAccount } from '@biconomy/node-client';
 import { OwnerResponse } from '@safe-global/api-kit';
 
 class AarcSDK {
@@ -76,7 +75,7 @@ class AarcSDK {
     this.permitHelper = new PermitHelper(rpcUrl, chainId);
   }
 
-  async getAllBiconomySCWs(owner: string): Promise<SmartAccountsResponse> {
+  async getAllBiconomySCWs(owner: string): Promise<ISmartAccount[]> {
     return this.biconomy.getAllBiconomySCWs(this.chainId, owner);
   }
 
@@ -142,14 +141,13 @@ class AarcSDK {
         const walletDeploymentResponse =
           await this.deployWallet(deployWalletDto);
         Logger.log('walletDeploymentResponse ', walletDeploymentResponse);
-        console.log(ETHEREUM_ADDRESS_PATTERN.test(walletDeploymentResponse));
         response.push({
           tokenAddress: '',
           amount: BigNumber.from(0),
-          message: ETHEREUM_ADDRESS_PATTERN.test(walletDeploymentResponse)
+          message: walletDeploymentResponse.startsWith('0x')
             ? 'Deployment tx sent'
             : walletDeploymentResponse,
-          txHash: ETHEREUM_ADDRESS_PATTERN.test(walletDeploymentResponse)
+          txHash: walletDeploymentResponse.startsWith('0x')
             ? walletDeploymentResponse
             : '',
         });
@@ -171,7 +169,7 @@ class AarcSDK {
       });
 
       response.push({
-        tokenAddress: '',
+        tokenAddress: GAS_TOKEN_ADDRESSES[this.chainId as ChainId],
         amount: amountToTransfer,
         message:
           typeof txHash === 'string'
@@ -189,12 +187,13 @@ class AarcSDK {
   }
 
   deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
-    const { walletType, owner, signer, nonce } = deployWalletDto;
+    const { walletType, owner, signer, deploymentWalletIndex } =
+      deployWalletDto;
 
     if (walletType === WALLET_TYPE.SAFE) {
-      return this.deploySafeSCW(signer, owner, nonce);
+      return this.deploySafeSCW(signer, owner, deploymentWalletIndex);
     } else {
-      return this.deployBiconomyScw(signer, owner, nonce);
+      return this.deployBiconomyScw(signer, owner, deploymentWalletIndex);
     }
   }
 
@@ -252,10 +251,10 @@ class AarcSDK {
 
       if (tokenAddresses && tokenAddresses.length > 0) {
         const isExist = tokenAddresses.find(
-          (token) => token === gasTokenAddresses[this.chainId as ChainId],
+          (token) => token === GAS_TOKEN_ADDRESSES[this.chainId as ChainId],
         );
         if (!isExist) {
-          tokenAddresses.push(gasTokenAddresses[this.chainId as ChainId]);
+          tokenAddresses.push(GAS_TOKEN_ADDRESSES[this.chainId as ChainId]);
         }
       }
 
@@ -498,10 +497,10 @@ class AarcSDK {
 
       if (tokenAddresses && tokenAddresses.length > 0) {
         const isExist = tokenAddresses.find(
-          (token) => token === gasTokenAddresses[this.chainId as ChainId],
+          (token) => token === GAS_TOKEN_ADDRESSES[this.chainId as ChainId],
         );
         if (!isExist) {
-          tokenAddresses.push(gasTokenAddresses[this.chainId as ChainId]);
+          tokenAddresses.push(GAS_TOKEN_ADDRESSES[this.chainId as ChainId]);
         }
       }
 

@@ -30,7 +30,7 @@ export type DeployWalletDto = {
   receiver: string;
   amount?: BigNumber;
   signer: Signer;
-  nonce?: number;
+  deploymentWalletIndex?: number;
 };
 
 export type GetBalancesDto = {

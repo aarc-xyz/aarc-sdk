@@ -1,5 +1,5 @@
 import { Logger } from '../utils/Logger';
-import { Signer } from 'ethers';
+import { Signer, Contract } from 'ethers';
 import { BICONOMY_TX_SERVICE_URL } from '../utils/Constants';
 import {
   BiconomySmartAccountV2,
@@ -10,6 +10,7 @@ import {
   DEFAULT_ECDSA_OWNERSHIP_MODULE,
 } from '@biconomy/modules';
 import NodeClient from '@biconomy/node-client';
+import { BICONOMY_FACTORY_ABI } from '../utils/abis/BiconomyFactory.abi';
 import { ISmartAccount } from '@biconomy/node-client';
 
 class Biconomy {
@@ -67,6 +68,73 @@ class Biconomy {
       Logger.error('error while generating biconomy smart account');
       throw error;
     }
+  }
+
+  async deployBiconomyScw(
+    signer: Signer,
+    chainId: number,
+    owner: string,
+    nonce: number = 0,
+  ): Promise<string> {
+    // Input validation
+    if (!(signer instanceof Signer)) {
+      throw new Error('Invalid signer');
+    }
+
+    if (typeof chainId !== 'number' || chainId <= 0) {
+      throw new Error('Invalid chainId');
+    }
+
+    if (typeof owner !== 'string' || owner.trim() === '') {
+      throw new Error('Invalid owner address');
+    }
+
+    const accountInfo = await this.nodeClient.getSmartAccountsByOwner({
+      chainId: chainId,
+      owner: owner,
+      index: nonce,
+    });
+
+    Logger.log('accountInfo ', accountInfo);
+
+    // Validate response from getSmartAccountsByOwner
+    if (
+      accountInfo.code !== 200 ||
+      !Array.isArray(accountInfo.data) ||
+      accountInfo.data.length === 0
+    ) {
+      throw new Error(
+        'Invalid or empty response from getSmartaccountInfosByOwner',
+      );
+    }
+
+    if (!accountInfo) {
+      throw new Error(
+        'Invalid or empty response from getSmartaccountInfosByOwner',
+      );
+    }
+
+    const factoryAddress = accountInfo.data[0].factoryAddress;
+    const isDeployed = accountInfo.data[0].isDeployed;
+
+    if (isDeployed) {
+      Logger.log('Biconomy wallet is already deployed');
+      return 'Biconomy wallet is already deployed';
+    }
+
+    // Validate factoryAddress
+    if (typeof factoryAddress !== 'string' || factoryAddress.trim() === '') {
+      throw new Error('Invalid factoryAddress');
+    }
+
+    const factoryInstance = new Contract(
+      factoryAddress,
+      BICONOMY_FACTORY_ABI,
+      signer,
+    );
+    const tx = await factoryInstance.deployCounterFactualAccount(owner, nonce);
+    Logger.log('Wallet deployment tx sent with hash', tx.hash);
+    return tx.hash;
   }
 }
 

@@ -6,7 +6,7 @@ import {
   PERMIT2_CONTRACT_ADDRESS,
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
-  gasTokenAddresses,
+  GAS_TOKEN_ADDRESSES,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -20,6 +20,8 @@ import {
   RelayTrxDto,
   SingleTransferPermitDto,
   TransactionsResponse,
+  WALLET_TYPE,
+  DeployWalletDto,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -93,8 +95,106 @@ class AarcSDK {
     return this.safe.generateSafeSCW(config, saltNonce);
   }
 
-  deploySafeSCW(owner: string, saltNonce?: number): Promise<boolean> {
-    return this.safe.deploySafeSCW(owner, saltNonce);
+  deploySafeSCW(
+    signer: Signer,
+    owner: string,
+    saltNonce?: number,
+  ): Promise<string> {
+    return this.safe.deploySafeSCW(signer, owner, saltNonce);
+  }
+
+  async deployBiconomyScw(
+    signer: Signer,
+    owner: string,
+    nonce: number = 0,
+  ): Promise<string> {
+    return this.biconomy.deployBiconomyScw(signer, this.chainId, owner, nonce);
+  }
+
+  async transferNativeAndDeploy(
+    deployWalletDto: DeployWalletDto,
+  ): Promise<MigrationResponse[]> {
+    const response: MigrationResponse[] = [];
+    try {
+      const { receiver, amount, owner, signer } = deployWalletDto;
+      let amountToTransfer = BigNumber.from(0);
+
+      if (!signer) {
+        throw Error('signer is required');
+      }
+
+      if (amount && BigNumber.from(amount).gt(0)) {
+        amountToTransfer = amount;
+      } else {
+        amountToTransfer = BigNumber.from(
+          await this.ethersProvider.getBalance(owner),
+        );
+
+        if (BigNumber.from(amountToTransfer).gt(0)) {
+          amountToTransfer = amountToTransfer
+            .mul(BigNumber.from(80))
+            .div(BigNumber.from(100));
+        }
+      }
+
+      try {
+        const walletDeploymentResponse =
+          await this.deployWallet(deployWalletDto);
+        Logger.log('walletDeploymentResponse ', walletDeploymentResponse);
+        response.push({
+          tokenAddress: '',
+          amount: BigNumber.from(0),
+          message: walletDeploymentResponse.startsWith('0x')
+            ? 'Deployment tx sent'
+            : walletDeploymentResponse,
+          txHash: walletDeploymentResponse.startsWith('0x')
+            ? walletDeploymentResponse
+            : '',
+        });
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+      } catch (error: any) {
+        Logger.error(error);
+        response.push({
+          tokenAddress: '',
+          amount: amountToTransfer,
+          message: 'Deployment Tx Failed',
+          txHash: '',
+        });
+      }
+
+      const txHash = await this.permitHelper.performNativeTransfer({
+        senderSigner: signer,
+        recipientAddress: receiver,
+        amount: amountToTransfer,
+      });
+
+      response.push({
+        tokenAddress: GAS_TOKEN_ADDRESSES[this.chainId as ChainId],
+        amount: amountToTransfer,
+        message:
+          typeof txHash === 'string'
+            ? 'Token transfer tx sent'
+            : 'Token transfer tx failed',
+        txHash: typeof txHash === 'string' ? txHash : '',
+      });
+
+      Logger.log(JSON.stringify(response));
+      return response;
+    } catch (error) {
+      Logger.error('transferNativeAndDeploy Error:', error);
+      throw error;
+    }
+  }
+
+  deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
+    const { walletType, owner, signer, deploymentWalletIndex } =
+      deployWalletDto;
+
+    if (walletType === WALLET_TYPE.SAFE) {
+      return this.deploySafeSCW(signer, owner, deploymentWalletIndex);
+    } else {
+      return this.deployBiconomyScw(signer, owner, deploymentWalletIndex);
+    }
   }
 
   /**
@@ -151,10 +251,10 @@ class AarcSDK {
 
       if (tokenAddresses && tokenAddresses.length > 0) {
         const isExist = tokenAddresses.find(
-          (token) => token === gasTokenAddresses[this.chainId as ChainId],
+          (token) => token === GAS_TOKEN_ADDRESSES[this.chainId as ChainId],
         );
         if (!isExist) {
-          tokenAddresses.push(gasTokenAddresses[this.chainId as ChainId]);
+          tokenAddresses.push(GAS_TOKEN_ADDRESSES[this.chainId as ChainId]);
         }
       }
 
@@ -397,10 +497,10 @@ class AarcSDK {
 
       if (tokenAddresses && tokenAddresses.length > 0) {
         const isExist = tokenAddresses.find(
-          (token) => token === gasTokenAddresses[this.chainId as ChainId],
+          (token) => token === GAS_TOKEN_ADDRESSES[this.chainId as ChainId],
         );
         if (!isExist) {
-          tokenAddresses.push(gasTokenAddresses[this.chainId as ChainId]);
+          tokenAddresses.push(GAS_TOKEN_ADDRESSES[this.chainId as ChainId]);
         }
       }
 

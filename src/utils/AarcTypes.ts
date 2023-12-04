@@ -19,6 +19,20 @@ export type GetSafeDto = {
   address: string;
 };
 
+export enum WALLET_TYPE {
+  BICONOMY,
+  SAFE,
+}
+
+export type DeployWalletDto = {
+  walletType: WALLET_TYPE;
+  owner: string;
+  receiver: string;
+  amount?: BigNumber;
+  signer: Signer;
+  deploymentWalletIndex?: number;
+};
+
 export type GetBalancesDto = {
   tokenAddresses?: string[];
 };

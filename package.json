@@ -1,6 +1,6 @@
 {
   "name": "aarc-sdk",
-  "version": "0.0.1-beta.6",
+  "version": "0.0.1-beta.8",
   "description": "The Aarc SDK is a TypeScript library that makes it easy for developers to transfer assets from Externally Owned Accounts (EOA) to any destination address. It simplifies the asset transfer process by supporting various token standards, such as ERC20 and ERC721, and offering custom flows like batched transactions, gasless transactions, and paying gas fees with the same asset being moved. Additionally, it enables custom contract interaction within the same transaction using permit2(), allowing for direct swaps and bridge functionality.",
   "main": "dist/index.js",
   "scripts": {

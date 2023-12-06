@@ -4,10 +4,11 @@ import { RPC_URL, PRIVATE_KEY, API_KEY, GELATO_API_KEY, nativeTokenAddress, toke
 import { ERC20_ABI } from '../src/utils/abis/ERC20.abi';
 import { ERC721_ABI } from "../src/utils/abis/ERC721.abi";
 import { delay } from "../src/helpers";
+import { TransferTokenDetails } from "../src/utils/AarcTypes";
 
 
 
-export const transferErc20Tokens = async () => {
+export const mintAndTransferErc20Tokens = async () => {
     let provider = new ethers.providers.JsonRpcProvider(RPC_URL);
     let signer = new ethers.Wallet(PRIVATE_KEY, provider);
     let eoaAddress = signer.address;
@@ -91,6 +92,65 @@ export const transferErc20Tokens = async () => {
         console.log('insufficient native balance for transaction')
         console.log('please send some token to proceed further')
         return
+    }
+}
+
+export const transferErc20Tokens = async () => {
+    let provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+    let signer = new ethers.Wallet(PRIVATE_KEY, provider);
+    let eoaAddress = signer.address;
+    const chainId: ChainID = (await provider.getNetwork()).chainId
+    console.log(' chainId ', chainId);
+
+
+    let aarcSDK = new AarcSDK({
+        rpcUrl: RPC_URL,
+        chainId,
+        apiKey: API_KEY,
+    });
+
+    let balances = await aarcSDK.fetchBalances(eoaAddress);
+    console.log(balances);
+
+    let transferTokenDetails: TransferTokenDetails[] = []
+
+    for (const tokenName in tokenAddresses[chainId]) {
+        console.log(' tokenName ', tokenName);
+        const { address, decimals } = tokenAddresses[chainId][tokenName as keyof typeof TokenName];
+        const token = balances.data.find(token => {
+            return token.token_address.toLowerCase() === address.toLowerCase()
+        })
+        console.log('token ', token);
+
+
+        if (token) {
+            transferTokenDetails.push({ tokenAddress: address, amount: token.balance })
+        }
+
+    }
+
+    if (transferTokenDetails.length > 0) {
+        const resultSet = await aarcSDK.executeMigrationGasless({
+            senderSigner: signer,
+            receiverAddress: "0x786E6045eacb96cAe0259cd761e151b68B85bdA7",
+            transferTokenDetails,
+            gelatoApiKey: GELATO_API_KEY
+        })
+        console.log('ResultSet ', resultSet);
+        for (const result of resultSet) {
+            if (
+                !result ||
+                typeof result !== 'object' ||
+                !('tokenAddress' in result) ||
+                !('amount' in result) ||
+                result.message !== 'Transaction sent' &&
+                result.message !== 'Token Permit tx Sent' ||
+                !result.txHash ||
+                !result.amount
+            ) {
+                throw new Error('Erc20 Transfer Failed');
+            }
+        }
     }
 }
 
@@ -238,6 +298,7 @@ export const transferNftsOnly = async () => {
 
 const executeTransfers = async () => {
     validateEnvironmentVariables()
+    await mintAndTransferErc20Tokens()
     await transferErc20Tokens()
     await transferNftsOnly()
     await transferFullNativeOnly()

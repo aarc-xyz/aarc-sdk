@@ -107,7 +107,7 @@ export const enum GAS_UNITS {
 export interface Domain {
   name: string;
   version: string;
-  chainId: number;
+  chainId?: number;
   verifyingContract: string;
   salt?: string; // Making salt an optional property
 }

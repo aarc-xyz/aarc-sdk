@@ -130,11 +130,12 @@ export class PermitHelper {
 
     if (chainId === ChainId.POLYGON_MAINNET) {
       /* eslint-disable @typescript-eslint/no-explicit-any */
-      return {
+      const domainWithSalt: Domain = {
         ...domain,
         salt: ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32),
-        chainId: undefined as any, // Assigning undefined here (will be removed in the next step)
       };
+      delete domainWithSalt.chainId;
+      return domainWithSalt;
     }
 
     return domain;

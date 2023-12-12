@@ -27,7 +27,12 @@ export async function sendRequest<T>({
   body,
   headers = {},
 }: HttpRequest): Promise<T> {
-  Logger.log('jsonRpc request body ', JSON.stringify(body));
+  const serializedData = JSON.stringify(body, (key, value) => {
+    if (typeof value === 'bigint') {
+      return value.toString(); // Convert BigInt to string
+    }
+    return value;
+  });
   const response = await fetch(url, {
     method,
     headers: {
@@ -35,7 +40,7 @@ export async function sendRequest<T>({
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body),
+    body: serializedData,
   });
 
   let jsonResponse: JsonResponse | undefined;

@@ -3,6 +3,7 @@ import { ChainId } from './ChainTypes';
 
 export const BASE_URL = 'https://migrator.aarc.xyz';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
+export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate`;
 export const BICONOMY_TX_SERVICE_URL =
   'https://sdk-backend.prod.biconomy.io/v1';
 export const PERMIT_FUNCTION_ABI =
@@ -46,6 +47,12 @@ export enum COVALENT_TOKEN_TYPES {
   STABLE_COIN = 'stablecoin',
   NFT = 'nft',
   DUST = 'dust',
+}
+
+export enum PERMIT_TX_TYPES {
+  PERMIT = 'PERMIT',
+  PERMIT_SINGLE = 'PERMIT_SINGLE',
+  PERMIT_BATCH = 'PERMIT_BATCH',
 }
 
 export enum SAFE_TX_SERVICE_URLS {

@@ -1,5 +1,5 @@
 import { Logger } from './utils/Logger';
-import { BigNumber, Contract, ethers, Signer } from 'ethers';
+import { BigNumber, BigNumberish, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import {
   BALANCES_ENDPOINT,
@@ -7,6 +7,8 @@ import {
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
   GAS_TOKEN_ADDRESSES,
+  MIGRATE_ENDPOINT,
+  PERMIT_TX_TYPES,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -14,7 +16,6 @@ import {
   Config,
   ExecuteMigrationDto,
   ExecuteMigrationGaslessDto,
-  GelatoTxStatusDto,
   MigrationResponse,
   PermitDto,
   RelayTrxDto,
@@ -22,6 +23,7 @@ import {
   TransactionsResponse,
   WALLET_TYPE,
   DeployWalletDto,
+  RelayedTxListResponse,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -29,10 +31,6 @@ import { GelatoRelay } from '@gelatonetwork/relay-sdk';
 import Biconomy from './providers/Biconomy';
 import Safe from './providers/Safe';
 import { PermitHelper } from './helpers/PermitHelper';
-import {
-  getGelatoTransactionStatus,
-  relayTransaction,
-} from './helpers/GelatoHelper';
 import {
   logError,
   processERC20TransferrableTokens,
@@ -580,6 +578,7 @@ class AarcSDK {
           BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
       );
       Logger.log('permittedTokens ', permittedTokens);
+      const relayTxList = [];
       const permitResponse = permittedTokens.map(async (token) => {
         const permitDto: PermitDto = {
           signer: senderSigner,
@@ -589,28 +588,14 @@ class AarcSDK {
         };
         try {
           const resultSet = await this.permitHelper.performPermit(permitDto);
-          const relayTrxDto: RelayTrxDto = {
-            relayer: this.relayer,
-            requestData: resultSet,
-            gelatoApiKey,
-          };
-          const taskId = await relayTransaction(relayTrxDto);
-          const gelatoTxStatusDto: GelatoTxStatusDto = {
-            relayer: this.relayer,
-            taskId,
-          };
-          const txStatus = await getGelatoTransactionStatus(gelatoTxStatusDto);
-          if (typeof txStatus === 'string') {
-            permit2TransferableTokens.push(token);
-          }
-          response.push({
-            tokenAddress: token.token_address,
-            amount: token.balance,
-            message:
-              typeof txStatus === 'string'
-                ? 'Token Permit tx Sent'
-                : 'Token Permit Tx Failed',
-            txHash: typeof txStatus === 'string' ? txStatus : '',
+          permit2TransferableTokens.push(token);
+          relayTxList.push({
+            tokenInfo: {
+              tokenAddress: token.token_address,
+              amount: ethers.constants.MaxInt256,
+            },
+            type: PERMIT_TX_TYPES.PERMIT,
+            txData: resultSet,
           });
         } catch (error: any) {
           logError(
@@ -632,133 +617,137 @@ class AarcSDK {
       await Promise.all(permitResponse);
 
       if (permit2TransferableTokens.length === 1) {
-        const singleTransferPermitDto: SingleTransferPermitDto = {
-          signer: senderSigner,
-          chainId: this.chainId,
-          spenderAddress: GELATO_RELAYER_ADDRESS,
-          tokenData: permit2TransferableTokens[0],
-        };
-        const permit2SingleContract = new Contract(
-          PERMIT2_CONTRACT_ADDRESS,
-          PERMIT2_SINGLE_TRANSFER_ABI,
-          senderSigner,
-        );
-        const permitData = await this.permitHelper.getSingleTransferPermitData(
-          singleTransferPermitDto,
-        );
-        const { permitTransferFrom, signature } = permitData;
-
-        const { data } =
-          await permit2SingleContract.populateTransaction.permitTransferFrom(
-            permitTransferFrom,
-            {
-              to: receiverAddress,
-              requestedAmount: permitTransferFrom.permitted.amount,
-            },
-            owner,
-            signature,
-          );
-        if (!data) {
-          throw new Error('unable to get data');
-        }
-        const relayTrxDto: RelayTrxDto = {
-          relayer: this.relayer,
-          requestData: {
-            chainId: BigInt(this.chainId),
-            target: PERMIT2_CONTRACT_ADDRESS,
-            data,
-          },
-          gelatoApiKey,
-        };
+        let permitTransferFrom, signature;
         try {
-          const taskId = await relayTransaction(relayTrxDto);
-          const txStatus = await getGelatoTransactionStatus({
+          const singleTransferPermitDto: SingleTransferPermitDto = {
+            signer: senderSigner,
+            chainId: this.chainId,
+            spenderAddress: GELATO_RELAYER_ADDRESS,
+            tokenData: permit2TransferableTokens[0],
+          };
+          const permit2SingleContract = new Contract(
+            PERMIT2_CONTRACT_ADDRESS,
+            PERMIT2_SINGLE_TRANSFER_ABI,
+            senderSigner,
+          );
+          const permitData =
+            await this.permitHelper.getSingleTransferPermitData(
+              singleTransferPermitDto,
+            );
+
+          permitTransferFrom = permitData.permitTransferFrom;
+          signature = permitData.signature;
+
+          const { data } =
+            await permit2SingleContract.populateTransaction.permitTransferFrom(
+              permitTransferFrom,
+              {
+                to: receiverAddress,
+                requestedAmount: permitTransferFrom.permitted.amount,
+              },
+              owner,
+              signature,
+            );
+          if (!data) {
+            throw new Error('unable to get data');
+          }
+          const relayTrxDto: RelayTrxDto = {
             relayer: this.relayer,
-            taskId,
-          });
-          response.push({
-            tokenAddress: permitTransferFrom.permitted.token,
-            amount: permitTransferFrom.permitted.amount,
-            message:
-              typeof txStatus === 'string'
-                ? 'Transaction sent'
-                : 'Transaction Failed',
-            txHash: typeof txStatus === 'string' ? txStatus : '',
-          });
-        } catch (error: any) {
-          logError(
-            {
+            requestData: {
+              chainId: BigInt(this.chainId),
+              target: PERMIT2_CONTRACT_ADDRESS,
+              data,
+            },
+            gelatoApiKey,
+          };
+          relayTxList.push({
+            tokenInfo: {
               tokenAddress: permitTransferFrom.permitted.token,
               amount: permitTransferFrom.permitted.amount,
             },
-            error,
-          );
-        }
-      } else if (permit2TransferableTokens.length > 1) {
-        const permit2BatchContract = new Contract(
-          PERMIT2_CONTRACT_ADDRESS,
-          PERMIT2_BATCH_TRANSFER_ABI,
-          senderSigner,
-        );
-
-        const batchTransferPermitDto: BatchTransferPermitDto = {
-          signer: senderSigner,
-          chainId: this.chainId,
-          spenderAddress: GELATO_RELAYER_ADDRESS,
-          tokenData: permit2TransferableTokens,
-        };
-        const permitData = await this.permitHelper.getBatchTransferPermitData(
-          batchTransferPermitDto,
-        );
-
-        const { permitBatchTransferFrom, signature } = permitData;
-
-        const tokenPermissions = permitBatchTransferFrom.permitted.map(
-          (batchInfo) => ({
-            to: receiverAddress,
-            requestedAmount: batchInfo.amount,
-          }),
-        );
-
-        const { data } =
-          await permit2BatchContract.populateTransaction.permitTransferFrom(
-            permitBatchTransferFrom,
-            tokenPermissions,
-            owner,
-            signature,
-          );
-        if (!data) {
-          throw new Error('unable to get data');
-        }
-
-        const relayTrxDto: RelayTrxDto = {
-          relayer: this.relayer,
-          requestData: {
-            chainId: BigInt(this.chainId),
-            target: PERMIT2_CONTRACT_ADDRESS,
-            data,
-          },
-          gelatoApiKey,
-        };
-        try {
-          const taskId = await relayTransaction(relayTrxDto);
-          const txStatus = await getGelatoTransactionStatus({
-            relayer: this.relayer,
-            taskId,
-          });
-          permitBatchTransferFrom.permitted.map((token) => {
-            response.push({
-              tokenAddress: token.token,
-              amount: token.amount,
-              message:
-                typeof txStatus === 'string'
-                  ? 'Transaction sent'
-                  : 'Transaction Failed',
-              txHash: typeof txStatus === 'string' ? txStatus : '',
-            });
+            type: PERMIT_TX_TYPES.PERMIT_SINGLE,
+            txData: relayTrxDto.requestData,
           });
         } catch (error: any) {
+          if (permitTransferFrom) {
+            logError(
+              {
+                tokenAddress: permitTransferFrom.permitted.token,
+                amount: permitTransferFrom.permitted.amount,
+              },
+              error,
+            );
+          }
+        }
+      } else if (permit2TransferableTokens.length > 1) {
+        let permitBatchTransferFrom, signature;
+        try {
+          const permit2BatchContract = new Contract(
+            PERMIT2_CONTRACT_ADDRESS,
+            PERMIT2_BATCH_TRANSFER_ABI,
+            senderSigner,
+          );
+
+          const batchTransferPermitDto: BatchTransferPermitDto = {
+            signer: senderSigner,
+            chainId: this.chainId,
+            spenderAddress: GELATO_RELAYER_ADDRESS,
+            tokenData: permit2TransferableTokens,
+          };
+          const permitData = await this.permitHelper.getBatchTransferPermitData(
+            batchTransferPermitDto,
+          );
+
+          permitBatchTransferFrom = permitData.permitBatchTransferFrom;
+          signature = permitData.signature;
+
+          const tokenPermissions = permitBatchTransferFrom.permitted.map(
+            (batchInfo) => ({
+              to: receiverAddress,
+              requestedAmount: batchInfo.amount,
+            }),
+          );
+
+          const { data } =
+            await permit2BatchContract.populateTransaction.permitTransferFrom(
+              permitBatchTransferFrom,
+              tokenPermissions,
+              owner,
+              signature,
+            );
+          if (!data) {
+            throw new Error('unable to get data');
+          }
+
+          const relayTrxDto: RelayTrxDto = {
+            relayer: this.relayer,
+            requestData: {
+              chainId: BigInt(this.chainId),
+              target: PERMIT2_CONTRACT_ADDRESS,
+              data,
+            },
+            gelatoApiKey,
+          };
+
+          const batchTokenAddresses: string[] = [];
+          const batchTokenAmounts: BigNumberish[] = [];
+
           permitBatchTransferFrom.permitted.map((token) => {
+            batchTokenAddresses.push(token.token);
+            batchTokenAmounts.push(token.amount);
+          });
+
+          relayTxList.push({
+            tokenInfo: {
+              tokenAddress: batchTokenAddresses,
+              amount: batchTokenAmounts,
+            },
+            type: PERMIT_TX_TYPES.PERMIT_BATCH,
+            txData: relayTrxDto.requestData,
+          });
+        } catch (error: any) {
+          Logger.log('error ', error);
+          permitBatchTransferFrom?.permitted.map((token) => {
             logError(
               {
                 tokenAddress: token.token,
@@ -774,6 +763,67 @@ class AarcSDK {
             });
           });
         }
+      }
+
+      try {
+        const txResponse: RelayedTxListResponse = await sendRequest({
+          url: MIGRATE_ENDPOINT,
+          method: HttpMethod.POST,
+          body: {
+            chainId: String(this.chainId),
+            txList: relayTxList,
+          },
+        });
+        Logger.log(' response ', txResponse);
+
+        for (const relayResponse of txResponse.data) {
+          const { type, tokenInfo, status } = relayResponse;
+          const { tokenAddress, amount } = tokenInfo;
+          if (
+            type === PERMIT_TX_TYPES.PERMIT_BATCH &&
+            Array.isArray(tokenAddress) &&
+            Array.isArray(amount)
+          ) {
+            for (let index = 0; index < tokenAddress.length; index++) {
+              const token_address = tokenAddress[index];
+              response.push({
+                tokenAddress: token_address,
+                amount: amount[index],
+                message:
+                  typeof status === 'string'
+                    ? 'Transaction sent'
+                    : 'Transaction Failed',
+                txHash: typeof status === 'string' ? status : '',
+              });
+            }
+          }
+          if (type === PERMIT_TX_TYPES.PERMIT) {
+            response.push({
+              tokenAddress: tokenAddress.toString(),
+              amount: BigNumber.from(amount),
+              message:
+                typeof status === 'string'
+                  ? 'Token Permit tx Sent'
+                  : 'Token Permit Tx Failed',
+              txHash: typeof status === 'string' ? status : '',
+            });
+          }
+
+          if (type === PERMIT_TX_TYPES.PERMIT_SINGLE) {
+            response.push({
+              tokenAddress: tokenAddress.toString(),
+              amount: BigNumber.from(amount),
+              message:
+                typeof status === 'string'
+                  ? 'Transaction sent'
+                  : 'Transaction Failed',
+              txHash: typeof status === 'string' ? status : '',
+            });
+          }
+        }
+      } catch (error: any) {
+        Logger.error('error communicating to gasless endpoint');
+        Logger.error(error);
       }
 
       await processNativeTransfer(

@@ -5,8 +5,29 @@ import { ERC20_ABI } from '../src/utils/abis/ERC20.abi';
 import { ERC721_ABI } from "../src/utils/abis/ERC721.abi";
 import { delay } from "../src/helpers";
 import { TransferTokenDetails } from "../src/utils/AarcTypes";
+import { PERMIT2_CONTRACT_ADDRESS } from "../src/utils/Constants";
 
+export const decreaseAllowances = async () => {
+    let provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+    let signer = new ethers.Wallet(PRIVATE_KEY, provider);
+    const chainId: ChainID = (await provider.getNetwork()).chainId
 
+    for (const tokenName in tokenAddresses[chainId]) {
+        const { address } = tokenAddresses[chainId][tokenName as keyof typeof TokenName];
+        const tokenContract = new ethers.Contract(
+            address,
+            ERC20_ABI,
+            signer,
+        );
+        try {
+            await tokenContract.decreaseAllowance(PERMIT2_CONTRACT_ADDRESS, ethers.constants.MaxUint256)
+            console.log(tokenName, 'Allowance decreased successfully');
+
+        } catch (error) {
+            console.error('error decreasing token', error)
+        }
+    }
+}
 
 export const mintAndTransferErc20Tokens = async () => {
     let provider = new ethers.providers.JsonRpcProvider(RPC_URL);
@@ -298,6 +319,7 @@ export const transferNftsOnly = async () => {
 
 const executeTransfers = async () => {
     validateEnvironmentVariables()
+    // await decreaseAllowances()
     await mintAndTransferErc20Tokens()
     await transferErc20Tokens()
     await transferNftsOnly()

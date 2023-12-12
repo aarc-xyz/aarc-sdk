@@ -7,6 +7,7 @@ import {
 } from '@uniswap/permit2-sdk';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
+import { PERMIT_TX_TYPES } from './Constants';
 
 export type Config = {
   chainId: number;
@@ -58,6 +59,22 @@ export type TokenNftData = {
 export type BalancesResponse = {
   code: number;
   data: TokenData[];
+  message: string;
+};
+
+export interface RelayedTxList {
+  tokenInfo: {
+    tokenAddress: string | string[];
+    amount: BigNumber | BigNumberish | BigNumber[] | BigNumberish[]; // TODO: tokenAddress, amount as object
+  };
+  type: PERMIT_TX_TYPES;
+  taskId: string;
+  status: string | boolean; // Update 'status' type according to your requirements
+}
+
+export type RelayedTxListResponse = {
+  code: number;
+  data: RelayedTxList[];
   message: string;
 };
 

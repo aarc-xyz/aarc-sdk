@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 
-export const BASE_URL = 'https://migrator.aarc.xyz';
+export const BASE_URL = 'http://localhost:4000';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
 export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate`;
 export const BICONOMY_TX_SERVICE_URL =
@@ -51,8 +51,8 @@ export enum COVALENT_TOKEN_TYPES {
 
 export enum PERMIT_TX_TYPES {
   PERMIT = 'PERMIT',
-  PERMIT_SINGLE = 'PERMIT_SINGLE',
-  PERMIT_BATCH = 'PERMIT_BATCH',
+  PERMIT2_SINGLE = 'PERMIT2_SINGLE',
+  PERMIT2_BATCH = 'PERMIT2_BATCH',
 }
 
 export enum SAFE_TX_SERVICE_URLS {

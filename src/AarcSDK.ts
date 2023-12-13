@@ -1,5 +1,5 @@
 import { Logger } from './utils/Logger';
-import { BigNumber, BigNumberish, Contract, ethers, Signer } from 'ethers';
+import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import {
   BALANCES_ENDPOINT,
@@ -25,6 +25,7 @@ import {
   DeployWalletDto,
   RelayedTxListResponse,
   RelayTokenInfo,
+  NativeTransferDeployWalletDto,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -94,28 +95,32 @@ class AarcSDK {
     return this.safe.generateSafeSCW(config, saltNonce);
   }
 
-  deploySafeSCW(
-    signer: Signer,
-    owner: string,
-    saltNonce?: number,
-  ): Promise<string> {
-    return this.safe.deploySafeSCW(signer, owner, saltNonce);
-  }
+  deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
+    const {
+      walletType,
+      owner,
+      signer,
+      deploymentWalletIndex = 0,
+    } = deployWalletDto;
 
-  async deployBiconomyScw(
-    signer: Signer,
-    owner: string,
-    nonce: number = 0,
-  ): Promise<string> {
-    return this.biconomy.deployBiconomyScw(signer, this.chainId, owner, nonce);
+    if (walletType === WALLET_TYPE.SAFE) {
+      return this.safe.deploySafeSCW(signer, owner, deploymentWalletIndex);
+    } else {
+      return this.biconomy.deployBiconomyScw(
+        signer,
+        this.chainId,
+        owner,
+        deploymentWalletIndex,
+      );
+    }
   }
 
   async transferNativeAndDeploy(
-    deployWalletDto: DeployWalletDto,
+    nativeTransferDeployWalletDto: NativeTransferDeployWalletDto,
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
     try {
-      const { receiver, amount, owner, signer } = deployWalletDto;
+      const { receiver, amount, owner, signer } = nativeTransferDeployWalletDto;
       let amountToTransfer = BigNumber.from(0);
 
       if (!signer) {
@@ -137,8 +142,9 @@ class AarcSDK {
       }
 
       try {
-        const walletDeploymentResponse =
-          await this.deployWallet(deployWalletDto);
+        const walletDeploymentResponse = await this.deployWallet(
+          nativeTransferDeployWalletDto,
+        );
         Logger.log('walletDeploymentResponse ', walletDeploymentResponse);
         response.push({
           tokenAddress: '',
@@ -182,17 +188,6 @@ class AarcSDK {
     } catch (error) {
       Logger.error('transferNativeAndDeploy Error:', error);
       throw error;
-    }
-  }
-
-  deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
-    const { walletType, owner, signer, deploymentWalletIndex } =
-      deployWalletDto;
-
-    if (walletType === WALLET_TYPE.SAFE) {
-      return this.deploySafeSCW(signer, owner, deploymentWalletIndex);
-    } else {
-      return this.deployBiconomyScw(signer, owner, deploymentWalletIndex);
     }
   }
 
@@ -670,7 +665,7 @@ class AarcSDK {
                 amount: permitTransferFrom.permitted.amount,
               },
             ],
-            type: PERMIT_TX_TYPES.PERMIT_SINGLE,
+            type: PERMIT_TX_TYPES.PERMIT2_SINGLE,
             txData: relayTrxDto.requestData,
           });
         } catch (error: any) {
@@ -745,7 +740,7 @@ class AarcSDK {
 
           relayTxList.push({
             tokenInfo,
-            type: PERMIT_TX_TYPES.PERMIT_BATCH,
+            type: PERMIT_TX_TYPES.PERMIT2_BATCH,
             txData: relayTrxDto.requestData,
           });
         } catch (error: any) {
@@ -781,7 +776,7 @@ class AarcSDK {
 
         for (const relayResponse of txResponse.data) {
           const { type, tokenInfo, status } = relayResponse;
-          if (type === PERMIT_TX_TYPES.PERMIT_BATCH) {
+          if (type === PERMIT_TX_TYPES.PERMIT2_BATCH) {
             for (let index = 0; index < tokenInfo.length; index++) {
               const token_address = tokenInfo[index].tokenAddress;
               const amount = tokenInfo[index].amount;
@@ -808,7 +803,7 @@ class AarcSDK {
             });
           }
 
-          if (type === PERMIT_TX_TYPES.PERMIT_SINGLE) {
+          if (type === PERMIT_TX_TYPES.PERMIT2_SINGLE) {
             response.push({
               tokenAddress: tokenInfo[0].tokenAddress,
               amount: tokenInfo[0].amount,

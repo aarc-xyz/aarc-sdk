@@ -28,6 +28,13 @@ export enum WALLET_TYPE {
 export type DeployWalletDto = {
   walletType: WALLET_TYPE;
   owner: string;
+  signer: Signer;
+  deploymentWalletIndex?: number;
+};
+
+export type NativeTransferDeployWalletDto = {
+  walletType: WALLET_TYPE;
+  owner: string;
   receiver: string;
   amount?: BigNumber;
   signer: Signer;

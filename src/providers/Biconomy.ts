@@ -77,10 +77,6 @@ class Biconomy {
     nonce: number = 0,
   ): Promise<string> {
     // Input validation
-    if (!(signer instanceof Signer)) {
-      throw new Error('Invalid signer');
-    }
-
     if (typeof chainId !== 'number' || chainId <= 0) {
       throw new Error('Invalid chainId');
     }

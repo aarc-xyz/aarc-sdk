@@ -97,13 +97,22 @@ class AarcSDK {
   }
 
   deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
-    const { walletType, owner, signer, deploymentWalletIndex = 0 } =
-      deployWalletDto;
+    const {
+      walletType,
+      owner,
+      signer,
+      deploymentWalletIndex = 0,
+    } = deployWalletDto;
 
     if (walletType === WALLET_TYPE.SAFE) {
       return this.safe.deploySafeSCW(signer, owner, deploymentWalletIndex);
     } else {
-      return this.biconomy.deployBiconomyScw(signer, this.chainId, owner, deploymentWalletIndex);
+      return this.biconomy.deployBiconomyScw(
+        signer,
+        this.chainId,
+        owner,
+        deploymentWalletIndex,
+      );
     }
   }
 
@@ -134,8 +143,9 @@ class AarcSDK {
       }
 
       try {
-        const walletDeploymentResponse =
-          await this.deployWallet(nativeTransferDeployWalletDto);
+        const walletDeploymentResponse = await this.deployWallet(
+          nativeTransferDeployWalletDto,
+        );
         Logger.log('walletDeploymentResponse ', walletDeploymentResponse);
         response.push({
           tokenAddress: '',

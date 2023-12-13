@@ -123,28 +123,6 @@ Output:
 ]
 ```
 
-## Wallet Deployment
-
-You have the capability to deploy Biconomy or Safe wallets by utilizing the provided code snippets.
-
-The code snippet below showcases how to deploy a wallet using the AarcSDK. It involves specifying essential parameters such as the owner's address (EOA_ADDRESS), the type of wallet to deploy (WALLET_TYPE.BICONOMY or WALLET_TYPE.SAFE), the signer (ethers.signer object), and an optional index for deploying multiple wallets under the same EOA.
-
-#### NOTE
-If the wallet corresponding to the provided owner address (EOA_ADDRESS) and index (deploymentWalletIndex) is already deployed, the deployment process will not occur.
-
-
-```typescript
-import { WALLET_TYPE } from "aarc-sdk/dist/utils/AarcTypes";
-
-await aarcSDK.deployWallet({
-  owner: EOA_ADDRESS,
-  walletType: WALLET_TYPE.SAFE,
-  signer: signer, // ethers.signer object
-  deploymentWalletIndex: 0 // Optional -- Number: Since an EOA, can be used to deploy multiple wallets. you can supply any index and it will deploy wallet for you
-})
-```
-
-
 ## Moving Native Tokens and Wallet Deployment
 
 The following code snippet demonstrates a method to transfer native tokens while simultaneously deploying a wallet using the aarcSDK.
@@ -161,7 +139,7 @@ import { WALLET_TYPE } from "aarc-sdk/dist/utils/AarcTypes";
 
 await aarcSDK.transferNativeAndDeploy({
   owner: EOA_ADDRESS,
-  walletType: WALLET_TYPE.SAFE,
+  walletType: WALLET_TYPE, // WALLET_TYPE.SAFE or WALLET_TYPE.BICONOMY
   signer: signer, // ethers.signer object
   receiverAddress: RECEIVER_WALLET_ADDRESS,
   amount: BigNumber, // Optional. if not paseed 80% of native tokens will get transferred.
@@ -212,6 +190,27 @@ const newBiconomySCWAddress = await aarcSDK.generateBiconomySCW(
   signer // wallet owner's ethers.signer object
 );
 // Returns a counterfactual address for the new Biconomy wallet
+```
+
+## Wallet Deployment
+
+You have the capability to deploy Biconomy or Safe wallets by utilizing the provided code snippets.
+
+The code snippet below showcases how to deploy a wallet using the AarcSDK. It involves specifying essential parameters such as the owner's address (EOA_ADDRESS), the type of wallet to deploy (WALLET_TYPE.BICONOMY or WALLET_TYPE.SAFE), the signer (ethers.signer object), and an optional index for deploying multiple wallets under the same EOA.
+
+#### NOTE
+If the wallet corresponding to the provided owner address (EOA_ADDRESS) and index (deploymentWalletIndex) is already deployed, the deployment process will not occur.
+
+
+```typescript
+import { WALLET_TYPE } from "aarc-sdk/dist/utils/AarcTypes";
+
+await aarcSDK.deployWallet({
+  owner: EOA_ADDRESS,
+  walletType: WALLET_TYPE, // WALLET_TYPE.SAFE or WALLET_TYPE.BICONOMY
+  signer: signer, // ethers.signer object
+  deploymentWalletIndex: 0 // Optional -- Number: Since an EOA, can be used to deploy multiple wallets. you can supply any index and it will deploy wallet for you
+})
 ```
 
 #### More coming soon

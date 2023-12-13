@@ -7,7 +7,6 @@ import {
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
   GAS_TOKEN_ADDRESSES,
-  MIGRATE_ENDPOINT,
   PERMIT_TX_TYPES,
 } from './utils/Constants';
 import {
@@ -23,9 +22,9 @@ import {
   TransactionsResponse,
   WALLET_TYPE,
   DeployWalletDto,
-  RelayedTxListResponse,
   RelayTokenInfo,
   NativeTransferDeployWalletDto,
+  RelayedTxListDto,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -35,6 +34,7 @@ import Safe from './providers/Safe';
 import { PermitHelper } from './helpers/PermitHelper';
 import {
   logError,
+  makeGaslessCall,
   processERC20TransferrableTokens,
   processNativeTransfer,
   processNftTransactions,
@@ -574,7 +574,7 @@ class AarcSDK {
           BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
       );
       Logger.log('permittedTokens ', permittedTokens);
-      const relayTxList = [];
+      const relayTxList: RelayedTxListDto[] = [];
       const permitResponse = permittedTokens.map(async (token) => {
         const permitDto: PermitDto = {
           signer: senderSigner,
@@ -764,17 +764,9 @@ class AarcSDK {
       }
 
       try {
-        const txResponse: RelayedTxListResponse = await sendRequest({
-          url: MIGRATE_ENDPOINT,
-          method: HttpMethod.POST,
-          body: {
-            chainId: String(this.chainId),
-            txList: relayTxList,
-          },
-        });
-        Logger.log(' response ', txResponse);
+        const txResponse = await makeGaslessCall(this.chainId, relayTxList);
 
-        for (const relayResponse of txResponse.data) {
+        for (const relayResponse of txResponse) {
           const { type, tokenInfo, status } = relayResponse;
           if (type === PERMIT_TX_TYPES.PERMIT2_BATCH) {
             for (let index = 0; index < tokenInfo.length; index++) {

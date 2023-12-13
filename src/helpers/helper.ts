@@ -1,6 +1,9 @@
 import { BigNumber } from 'ethers';
 import {
   MigrationResponse,
+  RelayTxListResponse,
+  RelayedTxListDto,
+  RelayedTxListResponse,
   TokenData,
   TokenNftData,
   TransactionsResponse,
@@ -8,9 +11,14 @@ import {
 } from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 import { BalancesResponse } from '../utils/AarcTypes';
-import { COVALENT_TOKEN_TYPES, GAS_TOKEN_ADDRESSES } from '../utils/Constants';
+import {
+  COVALENT_TOKEN_TYPES,
+  GAS_TOKEN_ADDRESSES,
+  MIGRATE_ENDPOINT,
+} from '../utils/Constants';
 import { ChainId } from '../utils/ChainTypes';
 import AarcSDK from '../AarcSDK';
+import { sendRequest, HttpMethod } from '../utils/HttpRequest';
 
 export const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -275,5 +283,26 @@ export const processNativeTransfer = async (
       amount: amountTransfer,
       type: COVALENT_TOKEN_TYPES.DUST,
     });
+  }
+};
+
+export const makeGaslessCall = async (
+  chainId: number,
+  relayTxList: RelayedTxListDto[],
+): Promise<RelayTxListResponse[]> => {
+  try {
+    const txResponse: RelayedTxListResponse = await sendRequest({
+      url: MIGRATE_ENDPOINT,
+      method: HttpMethod.POST,
+      body: {
+        chainId: String(chainId),
+        txList: relayTxList,
+      },
+    });
+    Logger.log('txResponse from server ', JSON.stringify(txResponse.data));
+    return txResponse.data;
+  } catch (error) {
+    Logger.error('error while getting consuming gasless endpoint');
+    throw error;
   }
 };

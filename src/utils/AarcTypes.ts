@@ -69,7 +69,13 @@ export type BalancesResponse = {
   message: string;
 };
 
-export interface RelayedTxList {
+export interface RelayedTxListDto {
+  tokenInfo: RelayTokenInfo[];
+  type: PERMIT_TX_TYPES;
+  txData: BaseRelayParams;
+}
+
+export interface RelayTxListResponse {
   tokenInfo: RelayTokenInfo[];
   type: PERMIT_TX_TYPES;
   taskId: string;
@@ -78,7 +84,7 @@ export interface RelayedTxList {
 
 export type RelayedTxListResponse = {
   code: number;
-  data: RelayedTxList[];
+  data: RelayTxListResponse[];
   message: string;
 };
 
@@ -214,4 +220,9 @@ export type TransactionsResponse = {
 export type RelayTokenInfo = {
   tokenAddress: string;
   amount: BigNumber | BigNumberish;
+};
+
+export type RelayTransactionDto = {
+  chainId: string;
+  txList: RelayedTxListDto[];
 };

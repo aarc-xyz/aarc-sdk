@@ -3,7 +3,7 @@ import { ChainId } from './ChainTypes';
 
 export const BASE_URL = 'https://migrator.aarc.xyz';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
-export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate`;
+export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate/gasless`;
 export const BICONOMY_TX_SERVICE_URL =
   'https://sdk-backend.prod.biconomy.io/v1';
 export const PERMIT_FUNCTION_ABI =

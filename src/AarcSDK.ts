@@ -24,6 +24,7 @@ import {
   WALLET_TYPE,
   DeployWalletDto,
   RelayedTxListResponse,
+  RelayTokenInfo,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -590,10 +591,12 @@ class AarcSDK {
           const resultSet = await this.permitHelper.performPermit(permitDto);
           permit2TransferableTokens.push(token);
           relayTxList.push({
-            tokenInfo: {
-              tokenAddress: token.token_address,
-              amount: ethers.constants.MaxInt256,
-            },
+            tokenInfo: [
+              {
+                tokenAddress: token.token_address,
+                amount: ethers.constants.MaxInt256,
+              },
+            ],
             type: PERMIT_TX_TYPES.PERMIT,
             txData: resultSet,
           });
@@ -661,10 +664,12 @@ class AarcSDK {
             gelatoApiKey,
           };
           relayTxList.push({
-            tokenInfo: {
-              tokenAddress: permitTransferFrom.permitted.token,
-              amount: permitTransferFrom.permitted.amount,
-            },
+            tokenInfo: [
+              {
+                tokenAddress: permitTransferFrom.permitted.token,
+                amount: permitTransferFrom.permitted.amount,
+              },
+            ],
             type: PERMIT_TX_TYPES.PERMIT_SINGLE,
             txData: relayTrxDto.requestData,
           });
@@ -729,19 +734,17 @@ class AarcSDK {
             gelatoApiKey,
           };
 
-          const batchTokenAddresses: string[] = [];
-          const batchTokenAmounts: BigNumberish[] = [];
+          const tokenInfo: RelayTokenInfo[] = [];
 
           permitBatchTransferFrom.permitted.map((token) => {
-            batchTokenAddresses.push(token.token);
-            batchTokenAmounts.push(token.amount);
+            tokenInfo.push({
+              tokenAddress: token.token,
+              amount: token.amount,
+            });
           });
 
           relayTxList.push({
-            tokenInfo: {
-              tokenAddress: batchTokenAddresses,
-              amount: batchTokenAmounts,
-            },
+            tokenInfo,
             type: PERMIT_TX_TYPES.PERMIT_BATCH,
             txData: relayTrxDto.requestData,
           });
@@ -778,17 +781,13 @@ class AarcSDK {
 
         for (const relayResponse of txResponse.data) {
           const { type, tokenInfo, status } = relayResponse;
-          const { tokenAddress, amount } = tokenInfo;
-          if (
-            type === PERMIT_TX_TYPES.PERMIT_BATCH &&
-            Array.isArray(tokenAddress) &&
-            Array.isArray(amount)
-          ) {
-            for (let index = 0; index < tokenAddress.length; index++) {
-              const token_address = tokenAddress[index];
+          if (type === PERMIT_TX_TYPES.PERMIT_BATCH) {
+            for (let index = 0; index < tokenInfo.length; index++) {
+              const token_address = tokenInfo[index].tokenAddress;
+              const amount = tokenInfo[index].amount;
               response.push({
                 tokenAddress: token_address,
-                amount: amount[index],
+                amount: amount,
                 message:
                   typeof status === 'string'
                     ? 'Transaction sent'
@@ -799,8 +798,8 @@ class AarcSDK {
           }
           if (type === PERMIT_TX_TYPES.PERMIT) {
             response.push({
-              tokenAddress: tokenAddress.toString(),
-              amount: BigNumber.from(amount),
+              tokenAddress: tokenInfo[0].tokenAddress,
+              amount: tokenInfo[0].amount,
               message:
                 typeof status === 'string'
                   ? 'Token Permit tx Sent'
@@ -811,8 +810,8 @@ class AarcSDK {
 
           if (type === PERMIT_TX_TYPES.PERMIT_SINGLE) {
             response.push({
-              tokenAddress: tokenAddress.toString(),
-              amount: BigNumber.from(amount),
+              tokenAddress: tokenInfo[0].tokenAddress,
+              amount: tokenInfo[0].amount,
               message:
                 typeof status === 'string'
                   ? 'Transaction sent'

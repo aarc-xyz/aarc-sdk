@@ -63,10 +63,7 @@ export type BalancesResponse = {
 };
 
 export interface RelayedTxList {
-  tokenInfo: {
-    tokenAddress: string | string[];
-    amount: BigNumber | BigNumberish | BigNumber[] | BigNumberish[]; // TODO: tokenAddress, amount as object
-  };
+  tokenInfo: RelayTokenInfo[];
   type: PERMIT_TX_TYPES;
   taskId: string;
   status: string | boolean; // Update 'status' type according to your requirements
@@ -205,4 +202,9 @@ export type TransactionsResponse = {
   signature?: string;
   data?: string;
   gasCost?: BigNumber;
+};
+
+export type RelayTokenInfo = {
+  tokenAddress: string;
+  amount: BigNumber | BigNumberish;
 };

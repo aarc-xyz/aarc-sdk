@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 
-export const BASE_URL = 'http://localhost:4000';
+export const BASE_URL = 'https://migrator.aarc.xyz';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
 export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate`;
 export const BICONOMY_TX_SERVICE_URL =

@@ -69,6 +69,21 @@ export type BalancesResponse = {
   message: string;
 };
 
+export type TrxInfo = {
+  txHash: string;
+  taskId: string;
+  txStatus: string;
+  createAt: number;
+  updatedAt: number;
+  fee: number;
+};
+
+export type TrxStatusResponse = {
+  code: number;
+  data: TrxInfo;
+  message: string;
+};
+
 export interface RelayedTxListDto {
   tokenInfo: RelayTokenInfo[];
   type: PERMIT_TX_TYPES;
@@ -104,7 +119,6 @@ export type ExecuteMigrationGaslessDto = {
   senderSigner: Signer;
   receiverAddress: string;
   transferTokenDetails?: TransferTokenDetails[];
-  gelatoApiKey: string;
 };
 
 export type TokenTransferDto = {
@@ -156,7 +170,6 @@ export type BatchPermitData = {
 export type RelayTrxDto = {
   relayer: GelatoRelay;
   requestData: BaseRelayParams;
-  gelatoApiKey: string;
 };
 
 export type GelatoTxStatusDto = {
@@ -192,6 +205,7 @@ export type PermitDomainDto = {
 
 export type MigrationResponse = {
   tokenAddress: string;
+  taskId?: string;
   amount?: BigNumber | BigNumberish;
   message: string;
   txHash?: string;

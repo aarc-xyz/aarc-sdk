@@ -289,11 +289,15 @@ export const processNativeTransfer = async (
 export const makeGaslessCall = async (
   chainId: number,
   relayTxList: RelayedTxListDto[],
+  dappApiKey: string,
 ): Promise<RelayTxListResponse[]> => {
   try {
     const txResponse: RelayedTxListResponse = await sendRequest({
       url: MIGRATE_ENDPOINT,
       method: HttpMethod.POST,
+      headers: {
+        'x-api-key': dappApiKey,
+      },
       body: {
         chainId: String(chainId),
         txList: relayTxList,

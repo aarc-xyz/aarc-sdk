@@ -8,6 +8,7 @@ import {
   COVALENT_TOKEN_TYPES,
   GAS_TOKEN_ADDRESSES,
   PERMIT_TX_TYPES,
+  TRX_STATUS_ENDPOINT,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -25,6 +26,7 @@ import {
   RelayTokenInfo,
   NativeTransferDeployWalletDto,
   RelayedTxListDto,
+  TrxStatusResponse,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -481,8 +483,7 @@ class AarcSDK {
     const transactions: TransactionsResponse[] = [];
 
     try {
-      const { senderSigner, receiverAddress, gelatoApiKey } =
-        executeMigrationGaslessDto;
+      const { senderSigner, receiverAddress } = executeMigrationGaslessDto;
       const { transferTokenDetails } = executeMigrationGaslessDto;
       const owner = await senderSigner.getAddress();
       const tokenAddresses = transferTokenDetails?.map(
@@ -656,7 +657,6 @@ class AarcSDK {
               target: PERMIT2_CONTRACT_ADDRESS,
               data,
             },
-            gelatoApiKey,
           };
           relayTxList.push({
             tokenInfo: [
@@ -726,7 +726,6 @@ class AarcSDK {
               target: PERMIT2_CONTRACT_ADDRESS,
               data,
             },
-            gelatoApiKey,
           };
 
           const tokenInfo: RelayTokenInfo[] = [];
@@ -764,46 +763,47 @@ class AarcSDK {
       }
 
       try {
-        const txResponse = await makeGaslessCall(this.chainId, relayTxList);
+        const txResponse = await makeGaslessCall(
+          this.chainId,
+          relayTxList,
+          this.apiKey,
+        );
 
         for (const relayResponse of txResponse) {
-          const { type, tokenInfo, status } = relayResponse;
+          const { type, tokenInfo, status, taskId } = relayResponse;
           if (type === PERMIT_TX_TYPES.PERMIT2_BATCH) {
             for (let index = 0; index < tokenInfo.length; index++) {
               const token_address = tokenInfo[index].tokenAddress;
               const amount = tokenInfo[index].amount;
               response.push({
+                taskId,
                 tokenAddress: token_address,
                 amount: amount,
                 message:
-                  typeof status === 'string'
-                    ? 'Transaction sent'
-                    : 'Transaction Failed',
-                txHash: typeof status === 'string' ? status : '',
+                  typeof status === 'string' ? status : 'Transaction Failed',
+                txHash: '',
               });
             }
           }
           if (type === PERMIT_TX_TYPES.PERMIT) {
             response.push({
+              taskId,
               tokenAddress: tokenInfo[0].tokenAddress,
               amount: tokenInfo[0].amount,
               message:
-                typeof status === 'string'
-                  ? 'Token Permit tx Sent'
-                  : 'Token Permit Tx Failed',
-              txHash: typeof status === 'string' ? status : '',
+                typeof status === 'string' ? status : 'Transaction Failed',
+              txHash: '',
             });
           }
 
           if (type === PERMIT_TX_TYPES.PERMIT2_SINGLE) {
             response.push({
+              taskId,
               tokenAddress: tokenInfo[0].tokenAddress,
               amount: tokenInfo[0].amount,
               message:
-                typeof status === 'string'
-                  ? 'Transaction sent'
-                  : 'Transaction Failed',
-              txHash: typeof status === 'string' ? status : '',
+                typeof status === 'string' ? status : 'Transaction Failed',
+              txHash: '',
             });
           }
         }
@@ -937,6 +937,22 @@ class AarcSDK {
     }
     Logger.log(JSON.stringify(response));
     return response;
+  }
+
+  async getTransactionStatus(taskId: string): Promise<TrxStatusResponse> {
+    try {
+      // Make the API call using the sendRequest function
+      const response: TrxStatusResponse = await sendRequest({
+        url: `${TRX_STATUS_ENDPOINT + '/' + taskId}`,
+        method: HttpMethod.GET,
+      });
+      Logger.log('Transaction Status Response:', response);
+      return response;
+    } catch (error) {
+      // Handle any errors that may occur during the API request
+      Logger.error('Error getting transaction status:', error);
+      throw error;
+    }
   }
 }
 

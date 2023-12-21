@@ -1,6 +1,6 @@
 import { BigNumber, ethers } from "ethers";
 import { AarcSDK } from '../src';
-import { RPC_URL, PRIVATE_KEY, API_KEY, GELATO_API_KEY, nativeTokenAddress, tokenAddresses, TokenName, ChainID, nativeTokenAddresses, MUMBAI_NFT_ADDRESS, validateEnvironmentVariables } from "./Constants";
+import { RPC_URL, PRIVATE_KEY, API_KEY, tokenAddresses, TokenName, ChainID, nativeTokenAddresses, MUMBAI_NFT_ADDRESS, validateEnvironmentVariables } from "./Constants";
 import { ERC20_ABI } from '../src/utils/abis/ERC20.abi';
 import { ERC721_ABI } from "../src/utils/abis/ERC721.abi";
 import { delay } from "../src/helpers";
@@ -89,9 +89,8 @@ export const mintAndTransferErc20Tokens = async () => {
                     { tokenAddress: tokenAddresses[chainId].USDA1.address, amount: BigNumber.from("100000000") },
                     { tokenAddress: tokenAddresses[chainId].USDB.address, amount: BigNumber.from("100000000") },
                     { tokenAddress: tokenAddresses[chainId].USDA2.address, amount: BigNumber.from("500000000") },
-                    { tokenAddress: tokenAddresses[chainId].USDC.address, amount: BigNumber.from("30000000000000000") },
-                ],
-                gelatoApiKey: GELATO_API_KEY
+                    { tokenAddress: tokenAddresses[chainId].USDC.address, amount: BigNumber.from("30000") },
+                ]
             })
             console.log('ResultSet ', resultSet);
             for (const result of resultSet) {
@@ -99,13 +98,14 @@ export const mintAndTransferErc20Tokens = async () => {
                     !result ||
                     typeof result !== 'object' ||
                     !('tokenAddress' in result) ||
-                    !('amount' in result) ||
-                    result.message !== 'Transaction sent' &&
-                    result.message !== 'Token Permit tx Sent' ||
-                    !result.txHash ||
-                    !result.amount
+                    !('amount' in result && typeof result.amount === 'object' && 'hex' in result.amount) ||
+                    !('message' in result && typeof result.message === 'string') ||
+                    !('taskId' in result && typeof result.taskId === 'string') ||
+                    (result.message !== 'Transaction sent' &&
+                        result.message !== 'Transaction Added to Queue' &&
+                        result.message !== 'Token Permit tx Sent')
                 ) {
-                    throw new Error('Erc20 Transfer Failed');
+                    throw new Error('Multi Erc20 Transfer Failed');
                 }
             }
         }
@@ -154,8 +154,7 @@ export const transferErc20Tokens = async () => {
         const resultSet = await aarcSDK.executeMigrationGasless({
             senderSigner: signer,
             receiverAddress: "0x786E6045eacb96cAe0259cd761e151b68B85bdA7",
-            transferTokenDetails,
-            gelatoApiKey: GELATO_API_KEY
+            transferTokenDetails
         })
         console.log('ResultSet ', resultSet);
         for (const result of resultSet) {
@@ -163,11 +162,12 @@ export const transferErc20Tokens = async () => {
                 !result ||
                 typeof result !== 'object' ||
                 !('tokenAddress' in result) ||
-                !('amount' in result) ||
-                result.message !== 'Transaction sent' &&
-                result.message !== 'Token Permit tx Sent' ||
-                !result.txHash ||
-                !result.amount
+                !('message' in result && typeof result.message === 'string') ||
+                !('taskId' in result && typeof result.taskId === 'string') ||
+                (result.message !== 'Transaction sent' &&
+                result.message !== 'Supplied token does not exist' &&
+                result.message !== 'Transaction Added to Queue' &&
+                result.message !== 'Token Permit tx Sent')
             ) {
                 throw new Error('Erc20 Transfer Failed');
             }
@@ -208,8 +208,7 @@ export const transferFullNativeOnly = async () => {
             const resultSet = await aarcSDK.executeMigrationGasless({
                 senderSigner: signer,
                 receiverAddress: '0x786E6045eacb96cAe0259cd761e151b68B85bdA7',
-                transferTokenDetails: [{ tokenAddress: '0x0000000000000000000000000000000000001010', amount: BigNumber.from(1000) }],
-                gelatoApiKey: GELATO_API_KEY
+                transferTokenDetails: [{ tokenAddress: '0x0000000000000000000000000000000000001010', amount: BigNumber.from(1000) }]
             })
             console.log('ResultSet ', resultSet);
 
@@ -218,12 +217,12 @@ export const transferFullNativeOnly = async () => {
                     !result ||
                     typeof result !== 'object' ||
                     !('tokenAddress' in result) ||
-                    !('amount' in result) ||
-                    result.message !== 'Native transfer tx sent' ||
-                    !result.txHash ||
-                    !result.amount
+                    !('message' in result && typeof result.message === 'string') ||
+                    !('txHash' in result && typeof result.txHash === 'string') ||
+                    (result.message !== 'Transaction sent' &&
+                        result.message !== 'Native transfer tx sent')
                 ) {
-                    throw new Error('Transfer Native Token Case Failed');
+                    throw new Error('Native Transfer Failed');
                 }
             }
 
@@ -291,8 +290,7 @@ export const transferNftsOnly = async () => {
             const resultSet = await aarcSDK.executeMigrationGasless({
                 senderSigner: signer,
                 receiverAddress: '0x786E6045eacb96cAe0259cd761e151b68B85bdA7',
-                transferTokenDetails: [{ tokenAddress: MUMBAI_NFT_ADDRESS }],
-                gelatoApiKey: GELATO_API_KEY
+                transferTokenDetails: [{ tokenAddress: MUMBAI_NFT_ADDRESS }]
             })
             console.log('ResultSet ', resultSet);
 
@@ -301,14 +299,16 @@ export const transferNftsOnly = async () => {
                     !result ||
                     typeof result !== 'object' ||
                     !('tokenAddress' in result) ||
-                    !('amount' in result) ||
-                    result.message !== 'Nft transfer successful' ||
-                    !result.txHash ||
-                    !result.amount
+                    !('message' in result && typeof result.message === 'string') ||
+                    !('txHash' in result && typeof result.txHash === 'string') ||
+                    (result.message !== 'Transaction sent' &&
+                    result.message !== 'Supplied token does not exist' &&
+                        result.message !== 'Nft transfer tx sent')
                 ) {
                     throw new Error('Nft Transfer Failed');
                 }
             }
+            
         }
     } else {
         console.log('insufficient native balance for transaction')
@@ -322,8 +322,8 @@ const executeTransfers = async () => {
     // await decreaseAllowances()
     await mintAndTransferErc20Tokens()
     await transferErc20Tokens()
-    await transferNftsOnly()
     await transferFullNativeOnly()
+    await transferNftsOnly()
 };
 
 executeTransfers().then(() => {

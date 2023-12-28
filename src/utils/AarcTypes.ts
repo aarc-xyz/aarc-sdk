@@ -72,7 +72,7 @@ export type BalancesResponse = {
 export type PriceResponse = {
   code: number;
   data: {
-    price: number
+    price: number;
   };
   message: string;
 };
@@ -127,6 +127,12 @@ export type ExecuteMigrationGaslessDto = {
   senderSigner: Signer;
   receiverAddress: string;
   transferTokenDetails?: TransferTokenDetails[];
+};
+
+export type ExecuteMigrationForwardDto = {
+  senderSigner: Signer;
+  receiverAddress: string;
+  transferTokenDetails: TransferTokenDetails[];
 };
 
 export type TokenTransferDto = {

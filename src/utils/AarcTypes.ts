@@ -69,6 +69,14 @@ export type BalancesResponse = {
   message: string;
 };
 
+export type PriceResponse = {
+  code: number;
+  data: {
+    price: number
+  };
+  message: string;
+};
+
 export type TrxInfo = {
   txHash: string;
   taskId: string;

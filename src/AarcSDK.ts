@@ -2,13 +2,14 @@ import { Logger } from './utils/Logger';
 import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import {
-  BALANCES_ENDPOINT,
   PERMIT2_CONTRACT_ADDRESS,
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
   GAS_TOKEN_ADDRESSES,
   PERMIT_TX_TYPES,
   TRX_STATUS_ENDPOINT,
+  TRAGERY_ADDRESS,
+  GEWI_UNITS,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -27,6 +28,7 @@ import {
   NativeTransferDeployWalletDto,
   RelayedTxListDto,
   TrxStatusResponse,
+  TokenData,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -36,10 +38,13 @@ import Safe from './providers/Safe';
 import { PermitHelper } from './helpers/PermitHelper';
 import {
   logError,
+  makeForwardCall,
   makeGaslessCall,
   processERC20TransferrableTokens,
+  processGasFeeAndTokens,
   processNativeTransfer,
   processNftTransactions,
+  processPermit2TransferableTokens,
   processTokenData,
   processTransferTokenDetails,
 } from './helpers';
@@ -47,6 +52,7 @@ import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
 import { ISmartAccount } from '@biconomy/node-client';
 import { OwnerResponse } from '@safe-global/api-kit';
+import { fetchBalances, fetchNativeToUsdPrice } from './helpers/HttpHelper';
 
 class AarcSDK {
   biconomy: Biconomy;
@@ -193,40 +199,14 @@ class AarcSDK {
     }
   }
 
-  /**
-   * @description this function will return balances of ERC-20, ERC-721 and native tokens
-   * @param balancesDto
-   * @returns
-   */
   async fetchBalances(
     eoaAddress: string,
     fetchBalancesOnly: boolean = true,
     tokenAddresses?: string[],
   ): Promise<BalancesResponse> {
-    try {
-      // Make the API call using the sendRequest function
-      const response: BalancesResponse = await sendRequest({
-        url: BALANCES_ENDPOINT,
-        method: HttpMethod.POST,
-        headers: {
-          'x-api-key': this.apiKey,
-        },
-        body: {
-          chainId: String(this.chainId),
-          address: eoaAddress,
-          onlyBalances: fetchBalancesOnly,
-          tokenAddresses: tokenAddresses,
-        },
-      });
-
-      Logger.log('Fetching API Response:', response);
-      return response;
-    } catch (error) {
-      // Handle any errors that may occur during the API request
-      Logger.error('Error making backend API call:', error);
-      throw error;
-    }
+    return fetchBalances(this.apiKey, this.chainId, eoaAddress, fetchBalancesOnly, tokenAddresses)
   }
+
 
   async executeMigration(
     executeMigrationDto: ExecuteMigrationDto,
@@ -254,7 +234,9 @@ class AarcSDK {
         }
       }
 
-      const balancesList = await this.fetchBalances(
+      const balancesList = await fetchBalances(
+        this.apiKey,
+        this.chainId,
         owner,
         false,
         tokenAddresses,
@@ -475,7 +457,7 @@ class AarcSDK {
     return response;
   }
 
-  async executeMigrationGasless(
+  async executeForwardTransaction(
     executeMigrationGaslessDto: ExecuteMigrationGaslessDto,
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
@@ -499,7 +481,9 @@ class AarcSDK {
         }
       }
 
-      const balancesList = await this.fetchBalances(
+      const balancesList = await fetchBalances(
+        this.apiKey,
+        this.chainId,
         owner,
         false,
         tokenAddresses,
@@ -561,12 +545,28 @@ class AarcSDK {
         true,
       );
 
+      const feeData = await this.ethersProvider.getFeeData()
+      console.log('feeData ', feeData);
+      const gasPrice = BigNumber.from(30).mul(GEWI_UNITS)
+      const nativePriceInUsd = (await fetchNativeToUsdPrice(this.chainId)).data.price
+
+      if (!gasPrice)
+      throw new Error('Unable to fetch gas price')
+
+      if (!nativePriceInUsd)
+      throw new Error('Unable to fetch nativePriceInUsd')
+
       // filter out tokens that have already given allowance
-      const permit2TransferableTokens = erc20Tokens.filter(
-        (balanceObj) =>
-          BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)) ||
-          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)),
-      );
+      const permit2TransferableTokens: TokenData[] =       
+        erc20Tokens.filter(
+          (balanceObj) =>
+            BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)) ||
+            BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)),
+        );
+
+      const txIndexes: number [] = []
+
+      processPermit2TransferableTokens(permit2TransferableTokens, gasPrice, nativePriceInUsd, txIndexes)
 
       // Filtering out tokens to do permit transaction
       const permittedTokens = erc20Tokens.filter(
@@ -584,8 +584,12 @@ class AarcSDK {
           tokenAddress: token.token_address,
         };
         try {
+
           const resultSet = await this.permitHelper.performPermit(permitDto);
           permit2TransferableTokens.push(token);
+
+          processGasFeeAndTokens(permit2TransferableTokens.length - 1, gasPrice, nativePriceInUsd, permit2TransferableTokens, txIndexes)
+
           relayTxList.push({
             tokenInfo: [
               {
@@ -701,12 +705,15 @@ class AarcSDK {
           permitBatchTransferFrom = permitData.permitBatchTransferFrom;
           signature = permitData.signature;
 
-          const tokenPermissions = permitBatchTransferFrom.permitted.map(
-            (batchInfo) => ({
-              to: receiverAddress,
+          const tokenPermissions = []
+
+          for (let i = 0; i < permitBatchTransferFrom.permitted.length; i++) {
+            const batchInfo = permitBatchTransferFrom.permitted[i];
+            tokenPermissions.push({
+              to: txIndexes.includes(i) ? TRAGERY_ADDRESS : receiverAddress,
               requestedAmount: batchInfo.amount,
-            }),
-          );
+            });
+          }
 
           const { data } =
             await permit2BatchContract.populateTransaction.permitTransferFrom(
@@ -763,7 +770,7 @@ class AarcSDK {
       }
 
       try {
-        const txResponse = await makeGaslessCall(
+        const txResponse = await makeForwardCall(
           this.chainId,
           relayTxList,
           this.apiKey,

@@ -1,14 +1,24 @@
-import { ethers } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 
-export const BASE_URL = 'https://migrator.aarc.xyz';
+export const BASE_URL = 'http://localhost:4000';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
 export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate/gasless`;
 export const TRX_STATUS_ENDPOINT = `${BASE_URL}/migrator/tx/status`;
+export const PRICE_ENDPOINT =  `${BASE_URL}/migrator/price`;
+export const FORWARD_ENDPOINT =  `${BASE_URL}/migrator/migrate/forward`;
 export const BICONOMY_TX_SERVICE_URL =
   'https://sdk-backend.prod.biconomy.io/v1';
 export const PERMIT_FUNCTION_ABI =
   'function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)';
+
+
+export const TRAGERY_ADDRESS = '0x72dB87F13544A3CB59fa8D67ba3A8Ca17F44fB44'
+export const PERMIT_GAS_UNITS = 220000;
+export const PERMIT_PER_TRX_UNITS = 70000;
+export const GEWI_UNITS = BigNumber.from(10).pow(9)
+export const ETH_UNITS = BigNumber.from(10).pow(18)
+
 
 interface GAS_TOKEN_ADDRESSES {
   [ChainId.GOERLI]: string;

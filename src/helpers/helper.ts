@@ -1,4 +1,4 @@
-import { BigNumber } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 import {
   MigrationResponse,
   RelayTxListResponse,
@@ -13,8 +13,11 @@ import { Logger } from '../utils/Logger';
 import { BalancesResponse } from '../utils/AarcTypes';
 import {
   COVALENT_TOKEN_TYPES,
+  FORWARD_ENDPOINT,
   GAS_TOKEN_ADDRESSES,
   MIGRATE_ENDPOINT,
+  PERMIT_GAS_UNITS,
+  PERMIT_PER_TRX_UNITS,
 } from '../utils/Constants';
 import { ChainId } from '../utils/ChainTypes';
 import AarcSDK from '../AarcSDK';
@@ -310,3 +313,74 @@ export const makeGaslessCall = async (
     throw error;
   }
 };
+
+export const makeForwardCall = async (
+  chainId: number,
+  relayTxList: RelayedTxListDto[],
+  dappApiKey: string,
+): Promise<RelayTxListResponse[]> => {
+  try {
+    const txResponse: RelayedTxListResponse = await sendRequest({
+      url: FORWARD_ENDPOINT,
+      method: HttpMethod.POST,
+      headers: {
+        'x-api-key': dappApiKey,
+      },
+      body: {
+        chainId: String(chainId),
+        txList: relayTxList,
+      },
+    });
+    Logger.log('txResponse from server ', JSON.stringify(txResponse.data));
+    return txResponse.data;
+  } catch (error) {
+    Logger.error('error while getting consuming forward endpoint');
+    throw error;
+  }
+};
+
+export const processGasFeeAndTokens = (
+  index: number,
+  gasPrice: BigNumber,
+  nativePriceInUsd: number,
+  permit2TransferableTokens: TokenData[],
+  txIndexes: number[],
+) => {
+  const currentTrx = permit2TransferableTokens[index]
+  const trageryTransaction = { ...currentTrx };
+  let trageryGasUnits = BigNumber.from(0);
+
+  if (txIndexes.length === 0) {
+    const gasUnits = BigNumber.from(PERMIT_GAS_UNITS + PERMIT_PER_TRX_UNITS);
+    trageryGasUnits = trageryGasUnits.add(gasPrice.mul(gasUnits));
+  } else {
+    trageryGasUnits = trageryGasUnits.add(gasPrice.mul(PERMIT_PER_TRX_UNITS));
+  }
+
+  const gasFeeInEth = ethers.utils.formatEther(trageryGasUnits);
+  const gasFeeInUsd = nativePriceInUsd * Number(gasFeeInEth);
+  const tokensToDeduct = BigNumber.from(parseInt(String(Math.pow(10, trageryTransaction.decimals) * gasFeeInUsd)));
+
+  trageryTransaction.balance = tokensToDeduct;
+  currentTrx.balance = currentTrx.balance.sub(tokensToDeduct);
+  if ( currentTrx.balance.lt(0) ){
+    permit2TransferableTokens.splice(index, 1);
+  }else{
+    permit2TransferableTokens.push(trageryTransaction);
+    txIndexes.push(permit2TransferableTokens.length - 1);  
+  }
+};
+
+export const processPermit2TransferableTokens = async (
+  permit2TransferableTokens: TokenData[],
+  gasPrice: BigNumber,
+  nativePriceInUsd: number,
+  txIndexes: number[],
+) => {
+  const permit2Length = permit2TransferableTokens.length;
+
+  for (let index = 0; index < permit2Length; index++) {
+    processGasFeeAndTokens(index, gasPrice, nativePriceInUsd, permit2TransferableTokens, txIndexes);
+  }
+};
+

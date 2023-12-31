@@ -8,7 +8,7 @@ import {
   GAS_TOKEN_ADDRESSES,
   PERMIT_TX_TYPES,
   TRX_STATUS_ENDPOINT,
-  TRAGERY_ADDRESS,
+  TREASURY_ADDRESS,
   SUPPORTED_STABLE_TOKENS,
 } from './utils/Constants';
 import {
@@ -1080,6 +1080,7 @@ class AarcSDK {
             nativePriceInUsd,
             permit2TransferableTokens,
             txIndexes,
+            true,
           );
 
           relayTxList.push({
@@ -1202,7 +1203,7 @@ class AarcSDK {
           for (let i = 0; i < permitBatchTransferFrom.permitted.length; i++) {
             const batchInfo = permitBatchTransferFrom.permitted[i];
             tokenPermissions.push({
-              to: txIndexes.includes(i) ? TRAGERY_ADDRESS : receiverAddress,
+              to: txIndexes.includes(i) ? TREASURY_ADDRESS : receiverAddress,
               requestedAmount: batchInfo.amount,
             });
           }

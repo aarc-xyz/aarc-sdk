@@ -348,6 +348,7 @@ export const processGasFeeAndTokens = (
   nativePriceInUsd: number,
   permit2TransferableTokens: TokenData[],
   txIndexes: number[],
+  isDirectCall: boolean = false,
 ) => {
   const currentTrx = permit2TransferableTokens[index];
   const treasuryTransaction = { ...currentTrx };
@@ -368,20 +369,20 @@ export const processGasFeeAndTokens = (
 
   treasuryTransaction.balance = tokensToDeduct;
   currentTrx.balance = currentTrx.balance.sub(tokensToDeduct);
-  if (currentTrx.balance.lt(0)) {
-    const removedIndex = index; // Store the index being removed
-    permit2TransferableTokens.splice(removedIndex, 1);
 
-    // Adjust the txIndexes array for elements after the removed index
-    txIndexes = txIndexes.map((txIndex) => {
-      if (txIndex > removedIndex) {
-        return txIndex - 1; // Decrement the indexes after the removed element
-      }
-      return txIndex;
+  if (currentTrx.balance.lt(BigNumber.from(0))) {
+    currentTrx.balance = BigNumber.from(0);
+    response.push({
+      tokenAddress: currentTrx.token_address,
+      message: 'Token does not have enough balance to pay for fee',
     });
   } else {
     permit2TransferableTokens.push(treasuryTransaction);
     txIndexes.push(permit2TransferableTokens.length - 1);
+  }
+  if (currentTrx.balance.lt(BigNumber.from(0)) && isDirectCall) {
+    permit2TransferableTokens.splice(index, 1);
+    txIndexes.splice(txIndexes.length - 1, 1);
   }
 };
 
@@ -403,5 +404,25 @@ export const processPermit2TransferableTokens = async (
       permit2TransferableTokens,
       txIndexes,
     );
+  }
+
+  // Find tokens with balance 0 and adjust txIndexes
+  for (let i = 0; i < permit2TransferableTokens.length; i++) {
+    if (permit2TransferableTokens[i].balance.eq(BigNumber.from(0))) {
+      for (let j = 0; j < txIndexes.length; j++) {
+        txIndexes[j] = txIndexes[j] - 1;
+      }
+    }
+  }
+
+  if (permit2TransferableTokens.length > 0) {
+    // Remove elements with a balance of 0
+    const updatedTokens = permit2TransferableTokens.filter((token) =>
+      token.balance.gt(BigNumber.from(0)),
+    );
+
+    // Clear the original array and push the filtered tokens back
+    permit2TransferableTokens.length = 0;
+    permit2TransferableTokens.push(...updatedTokens);
   }
 };

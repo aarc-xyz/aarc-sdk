@@ -12,7 +12,7 @@ export const BICONOMY_TX_SERVICE_URL =
 export const PERMIT_FUNCTION_ABI =
   'function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)';
 
-export const TRAGERY_ADDRESS = '0x72dB87F13544A3CB59fa8D67ba3A8Ca17F44fB44';
+export const TREASURY_ADDRESS = '0x72db87f13544a3cb59fa8d67ba3a8ca17f44fb44';
 export const PERMIT_GAS_UNITS = 220000;
 export const PERMIT_PER_TRX_UNITS = 70000;
 export const GEWI_UNITS = BigNumber.from(10).pow(9);

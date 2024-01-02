@@ -2,13 +2,14 @@ import { Logger } from './utils/Logger';
 import { BigNumber, Contract, ethers, Signer } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import {
-  BALANCES_ENDPOINT,
   PERMIT2_CONTRACT_ADDRESS,
   GELATO_RELAYER_ADDRESS,
   COVALENT_TOKEN_TYPES,
   GAS_TOKEN_ADDRESSES,
   PERMIT_TX_TYPES,
   TRX_STATUS_ENDPOINT,
+  TREASURY_ADDRESS,
+  SUPPORTED_STABLE_TOKENS,
 } from './utils/Constants';
 import {
   BatchTransferPermitDto,
@@ -27,6 +28,8 @@ import {
   NativeTransferDeployWalletDto,
   RelayedTxListDto,
   TrxStatusResponse,
+  TokenData,
+  ExecuteMigrationForwardDto,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -36,10 +39,13 @@ import Safe from './providers/Safe';
 import { PermitHelper } from './helpers/PermitHelper';
 import {
   logError,
+  makeForwardCall,
   makeGaslessCall,
   processERC20TransferrableTokens,
+  processGasFeeAndTokens,
   processNativeTransfer,
   processNftTransactions,
+  processPermit2TransferableTokens,
   processTokenData,
   processTransferTokenDetails,
 } from './helpers';
@@ -47,6 +53,11 @@ import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
 import { ISmartAccount } from '@biconomy/node-client';
 import { OwnerResponse } from '@safe-global/api-kit';
+import {
+  fetchBalances,
+  fetchGasPrice,
+  fetchNativeToUsdPrice,
+} from './helpers/HttpHelper';
 
 class AarcSDK {
   biconomy: Biconomy;
@@ -193,39 +204,18 @@ class AarcSDK {
     }
   }
 
-  /**
-   * @description this function will return balances of ERC-20, ERC-721 and native tokens
-   * @param balancesDto
-   * @returns
-   */
   async fetchBalances(
     eoaAddress: string,
     fetchBalancesOnly: boolean = true,
     tokenAddresses?: string[],
   ): Promise<BalancesResponse> {
-    try {
-      // Make the API call using the sendRequest function
-      const response: BalancesResponse = await sendRequest({
-        url: BALANCES_ENDPOINT,
-        method: HttpMethod.POST,
-        headers: {
-          'x-api-key': this.apiKey,
-        },
-        body: {
-          chainId: String(this.chainId),
-          address: eoaAddress,
-          onlyBalances: fetchBalancesOnly,
-          tokenAddresses: tokenAddresses,
-        },
-      });
-
-      Logger.log('Fetching API Response:', response);
-      return response;
-    } catch (error) {
-      // Handle any errors that may occur during the API request
-      Logger.error('Error making backend API call:', error);
-      throw error;
-    }
+    return fetchBalances(
+      this.apiKey,
+      this.chainId,
+      eoaAddress,
+      fetchBalancesOnly,
+      tokenAddresses,
+    );
   }
 
   async executeMigration(
@@ -254,7 +244,9 @@ class AarcSDK {
         }
       }
 
-      const balancesList = await this.fetchBalances(
+      const balancesList = await fetchBalances(
+        this.apiKey,
+        this.chainId,
         owner,
         false,
         tokenAddresses,
@@ -929,6 +921,400 @@ class AarcSDK {
         }
         // Deduct the gas cost from the remaining balance after the transaction
         if (tx.gasCost) remainingBalance = remainingBalance.sub(tx.gasCost);
+      }
+    } catch (error) {
+      // Handle any errors that occur during the migration process
+      Logger.error('Migration Error:', error);
+      throw error;
+    }
+    Logger.log(JSON.stringify(response));
+    return response;
+  }
+
+  async executeForwardTransaction(
+    executeMigrationForwardDto: ExecuteMigrationForwardDto,
+  ): Promise<MigrationResponse[]> {
+    const response: MigrationResponse[] = [];
+
+    try {
+      const { senderSigner, receiverAddress } = executeMigrationForwardDto;
+      let { transferTokenDetails } = executeMigrationForwardDto;
+      const owner = await senderSigner.getAddress();
+      const tokenAddresses = transferTokenDetails.map(
+        (token) => token.tokenAddress,
+      );
+
+      if (tokenAddresses && tokenAddresses.length > 0) {
+        const isExist = tokenAddresses.find(
+          (token) => token === GAS_TOKEN_ADDRESSES[this.chainId as ChainId],
+        );
+        if (!isExist) {
+          tokenAddresses.push(GAS_TOKEN_ADDRESSES[this.chainId as ChainId]);
+        }
+      }
+
+      if (
+        this.chainId === ChainId.MAINNET ||
+        this.chainId === ChainId.POLYGON_MAINNET ||
+        this.chainId === ChainId.ARBITRUM ||
+        this.chainId === ChainId.BASE
+      ) {
+        const supportedTokens =
+          SUPPORTED_STABLE_TOKENS[this.chainId as ChainId];
+
+        if (!supportedTokens) {
+          throw new Error('Migration is not supported on supplied chain id');
+        }
+
+        if (tokenAddresses && tokenAddresses.length > 0) {
+          const filteredTokens = transferTokenDetails.filter((token) => {
+            const isSupported =
+              !!SUPPORTED_STABLE_TOKENS[this.chainId as ChainId]?.[
+                token.tokenAddress
+              ];
+            if (!isSupported) {
+              response.push({
+                tokenAddress: token.tokenAddress,
+                message: `Migration is not supported for ${token.tokenAddress} on the chain ID ${this.chainId}`,
+              });
+              return false; // Remove the token from the filtered array
+            }
+            return true; // Keep the token in the filtered array
+          });
+          transferTokenDetails = filteredTokens;
+        }
+      }
+
+      const balancesList = await fetchBalances(
+        this.apiKey,
+        this.chainId,
+        owner,
+        false,
+        tokenAddresses,
+      );
+
+      transferTokenDetails?.map((tandA) => {
+        const matchingToken = balancesList.data.find(
+          (mToken) =>
+            mToken.token_address.toLowerCase() ===
+            tandA.tokenAddress.toLowerCase(),
+        );
+        if (!matchingToken) {
+          response.push({
+            tokenAddress: tandA.tokenAddress,
+            amount: tandA?.amount,
+            message: 'Supplied token does not exist',
+          });
+        }
+        tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
+      });
+
+      if (transferTokenDetails) {
+        // Now, updatedTokens contains the filtered array without the undesired elements
+        balancesList.data = processTransferTokenDetails(
+          transferTokenDetails,
+          response,
+          balancesList,
+        );
+      }
+
+      const tokens = processTokenData(balancesList, transferTokenDetails);
+
+      Logger.log('tokens ', tokens);
+
+      const erc20Tokens = tokens.filter(
+        (token) =>
+          (token.type === COVALENT_TOKEN_TYPES.STABLE_COIN ||
+            token.type === COVALENT_TOKEN_TYPES.CRYPTO_CURRENCY) &&
+          token.native_token === false,
+      );
+      Logger.log('erc20Tokens ', erc20Tokens);
+
+      const feeData = await fetchGasPrice(this.chainId);
+      const gasPrice = BigNumber.from(feeData.data.gasPrice);
+      // const gasPrice = BigNumber.from(30).mul(GEWI_UNITS)
+      const nativePriceInUsd = (await fetchNativeToUsdPrice(this.chainId)).data
+        .price;
+
+      if (!gasPrice) throw new Error('Unable to fetch gas price');
+
+      if (!nativePriceInUsd)
+        throw new Error('Unable to fetch nativePriceInUsd');
+
+      // filter out tokens that have already given allowance
+      const permit2TransferableTokens: TokenData[] = erc20Tokens.filter(
+        (balanceObj) =>
+          BigNumber.from(balanceObj.permit2Allowance).gt(BigNumber.from(0)) ||
+          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(-1)),
+      );
+
+      const txIndexes: number[] = [];
+
+      processPermit2TransferableTokens(
+        response,
+        permit2TransferableTokens,
+        gasPrice,
+        nativePriceInUsd,
+        txIndexes,
+      );
+
+      // Filtering out tokens to do permit transaction
+      const permittedTokens = erc20Tokens.filter(
+        (balanceObj) =>
+          balanceObj.permitExist &&
+          BigNumber.from(balanceObj.permit2Allowance).eq(BigNumber.from(0)),
+      );
+      Logger.log('permittedTokens ', permittedTokens);
+      const relayTxList: RelayedTxListDto[] = [];
+      const permitResponse = permittedTokens.map(async (token) => {
+        const permitDto: PermitDto = {
+          signer: senderSigner,
+          chainId: this.chainId,
+          eoaAddress: owner,
+          tokenAddress: token.token_address,
+        };
+        try {
+          const resultSet = await this.permitHelper.performPermit(permitDto);
+          permit2TransferableTokens.push(token);
+
+          processGasFeeAndTokens(
+            response,
+            permit2TransferableTokens.length - 1,
+            gasPrice,
+            nativePriceInUsd,
+            permit2TransferableTokens,
+            txIndexes,
+            true,
+          );
+
+          relayTxList.push({
+            tokenInfo: [
+              {
+                tokenAddress: token.token_address,
+                amount: ethers.constants.MaxInt256,
+              },
+            ],
+            type: PERMIT_TX_TYPES.PERMIT,
+            txData: resultSet,
+          });
+        } catch (error: any) {
+          logError(
+            {
+              tokenAddress: token.token_address,
+              amount: token.balance,
+            },
+            error,
+          );
+          response.push({
+            tokenAddress: token.token_address,
+            amount: token.balance,
+            message: 'Permit token failed',
+            txHash: '',
+          });
+        }
+      });
+
+      await Promise.all(permitResponse);
+
+      if (permit2TransferableTokens.length === 1) {
+        let permitTransferFrom, signature;
+        try {
+          const singleTransferPermitDto: SingleTransferPermitDto = {
+            signer: senderSigner,
+            chainId: this.chainId,
+            spenderAddress: GELATO_RELAYER_ADDRESS,
+            tokenData: permit2TransferableTokens[0],
+          };
+          const permit2SingleContract = new Contract(
+            PERMIT2_CONTRACT_ADDRESS,
+            PERMIT2_SINGLE_TRANSFER_ABI,
+            senderSigner,
+          );
+          const permitData =
+            await this.permitHelper.getSingleTransferPermitData(
+              singleTransferPermitDto,
+            );
+
+          permitTransferFrom = permitData.permitTransferFrom;
+          signature = permitData.signature;
+
+          const { data } =
+            await permit2SingleContract.populateTransaction.permitTransferFrom(
+              permitTransferFrom,
+              {
+                to: receiverAddress,
+                requestedAmount: permitTransferFrom.permitted.amount,
+              },
+              owner,
+              signature,
+            );
+          if (!data) {
+            throw new Error('unable to get data');
+          }
+          const relayTrxDto: RelayTrxDto = {
+            relayer: this.relayer,
+            requestData: {
+              chainId: BigInt(this.chainId),
+              target: PERMIT2_CONTRACT_ADDRESS,
+              data,
+            },
+          };
+          relayTxList.push({
+            tokenInfo: [
+              {
+                tokenAddress: permitTransferFrom.permitted.token,
+                amount: permitTransferFrom.permitted.amount,
+              },
+            ],
+            type: PERMIT_TX_TYPES.PERMIT2_SINGLE,
+            txData: relayTrxDto.requestData,
+          });
+        } catch (error: any) {
+          if (permitTransferFrom) {
+            logError(
+              {
+                tokenAddress: permitTransferFrom.permitted.token,
+                amount: permitTransferFrom.permitted.amount,
+              },
+              error,
+            );
+          }
+        }
+      } else if (permit2TransferableTokens.length > 1) {
+        let permitBatchTransferFrom, signature;
+        try {
+          const permit2BatchContract = new Contract(
+            PERMIT2_CONTRACT_ADDRESS,
+            PERMIT2_BATCH_TRANSFER_ABI,
+            senderSigner,
+          );
+
+          const batchTransferPermitDto: BatchTransferPermitDto = {
+            signer: senderSigner,
+            chainId: this.chainId,
+            spenderAddress: GELATO_RELAYER_ADDRESS,
+            tokenData: permit2TransferableTokens,
+          };
+          const permitData = await this.permitHelper.getBatchTransferPermitData(
+            batchTransferPermitDto,
+          );
+
+          permitBatchTransferFrom = permitData.permitBatchTransferFrom;
+          signature = permitData.signature;
+
+          const tokenPermissions = [];
+
+          for (let i = 0; i < permitBatchTransferFrom.permitted.length; i++) {
+            const batchInfo = permitBatchTransferFrom.permitted[i];
+            tokenPermissions.push({
+              to: txIndexes.includes(i) ? TREASURY_ADDRESS : receiverAddress,
+              requestedAmount: batchInfo.amount,
+            });
+          }
+
+          const { data } =
+            await permit2BatchContract.populateTransaction.permitTransferFrom(
+              permitBatchTransferFrom,
+              tokenPermissions,
+              owner,
+              signature,
+            );
+          if (!data) {
+            throw new Error('unable to get data');
+          }
+
+          const relayTrxDto: RelayTrxDto = {
+            relayer: this.relayer,
+            requestData: {
+              chainId: BigInt(this.chainId),
+              target: PERMIT2_CONTRACT_ADDRESS,
+              data,
+            },
+          };
+
+          const tokenInfo: RelayTokenInfo[] = [];
+
+          permitBatchTransferFrom.permitted.map((token) => {
+            tokenInfo.push({
+              tokenAddress: token.token,
+              amount: token.amount,
+            });
+          });
+
+          relayTxList.push({
+            tokenInfo,
+            type: PERMIT_TX_TYPES.PERMIT2_BATCH,
+            txData: relayTrxDto.requestData,
+          });
+        } catch (error: any) {
+          Logger.log('error ', error);
+          permitBatchTransferFrom?.permitted.map((token) => {
+            logError(
+              {
+                tokenAddress: token.token,
+                amount: token.amount,
+              },
+              error,
+            );
+            response.push({
+              tokenAddress: token.token,
+              amount: token.amount,
+              message: 'Transaction Failed',
+              txHash: '',
+            });
+          });
+        }
+      }
+
+      try {
+        const txResponse = await makeForwardCall(
+          this.chainId,
+          relayTxList,
+          txIndexes,
+          this.apiKey,
+        );
+
+        for (const relayResponse of txResponse) {
+          const { type, tokenInfo, status, taskId } = relayResponse;
+          if (type === PERMIT_TX_TYPES.PERMIT2_BATCH) {
+            for (let index = 0; index < tokenInfo.length; index++) {
+              const token_address = tokenInfo[index].tokenAddress;
+              const amount = tokenInfo[index].amount;
+              response.push({
+                taskId,
+                tokenAddress: token_address,
+                amount: amount,
+                message:
+                  typeof status === 'string' ? status : 'Transaction Failed',
+                txHash: '',
+              });
+            }
+          }
+          if (type === PERMIT_TX_TYPES.PERMIT) {
+            response.push({
+              taskId,
+              tokenAddress: tokenInfo[0].tokenAddress,
+              amount: tokenInfo[0].amount,
+              message:
+                typeof status === 'string' ? status : 'Transaction Failed',
+              txHash: '',
+            });
+          }
+
+          if (type === PERMIT_TX_TYPES.PERMIT2_SINGLE) {
+            response.push({
+              taskId,
+              tokenAddress: tokenInfo[0].tokenAddress,
+              amount: tokenInfo[0].amount,
+              message:
+                typeof status === 'string' ? status : 'Transaction Failed',
+              txHash: '',
+            });
+          }
+        }
+      } catch (error: any) {
+        Logger.error('error communicating to gasless endpoint');
+        Logger.error(error);
       }
     } catch (error) {
       // Handle any errors that occur during the migration process

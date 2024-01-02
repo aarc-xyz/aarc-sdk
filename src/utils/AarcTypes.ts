@@ -69,6 +69,22 @@ export type BalancesResponse = {
   message: string;
 };
 
+export type PriceResponse = {
+  code: number;
+  data: {
+    price: number;
+  };
+  message: string;
+};
+
+export type GasPriceResponse = {
+  code: number;
+  data: {
+    gasPrice: BigNumber;
+  };
+  message: string;
+};
+
 export type TrxInfo = {
   txHash: string;
   taskId: string;
@@ -119,6 +135,12 @@ export type ExecuteMigrationGaslessDto = {
   senderSigner: Signer;
   receiverAddress: string;
   transferTokenDetails?: TransferTokenDetails[];
+};
+
+export type ExecuteMigrationForwardDto = {
+  senderSigner: Signer;
+  receiverAddress: string;
+  transferTokenDetails: TransferTokenDetails[];
 };
 
 export type TokenTransferDto = {

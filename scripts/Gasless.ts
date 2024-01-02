@@ -2,10 +2,11 @@ import { BigNumber, ethers } from "ethers";
 import { AarcSDK } from '../src';
 import { RPC_URL, PRIVATE_KEY, API_KEY, tokenAddresses, TokenName, ChainID, nativeTokenAddresses, MUMBAI_NFT_ADDRESS, validateEnvironmentVariables } from "./Constants";
 import { ERC20_ABI } from '../src/utils/abis/ERC20.abi';
+import { PERMIT2_CONTRACT_ADDRESS } from "../src/utils/Constants";
+import { hashMessage } from  "@ethersproject/hash"
+import { TransferTokenDetails } from "../src/utils/AarcTypes";
 import { ERC721_ABI } from "../src/utils/abis/ERC721.abi";
 import { delay } from "../src/helpers";
-import { TransferTokenDetails } from "../src/utils/AarcTypes";
-import { PERMIT2_CONTRACT_ADDRESS } from "../src/utils/Constants";
 
 export const decreaseAllowances = async () => {
     let provider = new ethers.providers.JsonRpcProvider(RPC_URL);
@@ -317,8 +318,25 @@ export const transferNftsOnly = async () => {
     }
 }
 
+export const signAndVerifyMessage = async () => {
+    let provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+    const message = "Signing for Aarc";
+    // Message we are signing
+    const walletInst = new ethers.Wallet(PRIVATE_KEY, provider);
+    // Unlike Web3.js, Ethers seperates the provider instance and wallet instance, so we must also create a wallet instance
+    const signMessage = await walletInst.signMessage(message);
+    console.log('signMessage ', signMessage)
+    // Using our wallet instance which holds our private key, we call the Ethers signMessage function and pass our message inside
+    // const messageSigner = await signMessage.then((value) => {
+    const verifySigner = ethers.utils.recoverAddress(hashMessage(message), signMessage);
+    return verifySigner;
+        // Now we verify the signature by calling the recoverAddress function which takes a message hash and signature hash and returns the signer address
+    // });
+}
+
 const executeTransfers = async () => {
     validateEnvironmentVariables()
+    // await signAndVerifyMessage()
     // await decreaseAllowances()
     await mintAndTransferErc20Tokens()
     await transferErc20Tokens()

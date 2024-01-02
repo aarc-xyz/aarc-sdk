@@ -9,6 +9,14 @@ import {
 import * as helperFunctions from '../src/helpers/helper'; // Import the helper file
 import { RelayTxListResponse } from '../src/utils/AarcTypes';
 
+jest.mock('../src/helpers/HttpHelper', () => ({
+  fetchBalances: jest.fn(),
+  fetchNativeToUsdPrice: jest.requireActual('../src/helpers/HttpHelper')
+    .fetchNativeToUsdPrice,
+}));
+
+import { fetchBalances } from '../src/helpers/HttpHelper';
+
 let aarcSDK: any;
 
 describe('Aarc SDK executeMigrationGasless', () => {
@@ -17,7 +25,7 @@ describe('Aarc SDK executeMigrationGasless', () => {
   const privateKey =
     '29822a62aaeb9a16e9d1fd88412bac4fe37574bbcb245b4232e3b3612496fd96';
   const rpcUrl = 'https://ethereum-goerli.publicnode.com';
-  const apiKey = '097ce80e-4dcc-4265-8aa7-2ed0e19901ff';
+  const apiKey = 'd2ded745-c5f5-43d6-9577-869daf62488d';
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
   const signer = new ethers.Wallet(privateKey, provider);
   const eoaAddress = signer.address;
@@ -415,7 +423,7 @@ describe('Aarc SDK executeMigrationGasless', () => {
 
   it('should do gasless migration flow', async () => {
     // Mocking the fetchBalances function
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {

@@ -2,6 +2,14 @@ import { BigNumber, ethers } from 'ethers';
 import { AarcSDK } from '../src'; // Adjust the path according to your directory structure
 import { PermitHelper } from '../src/helpers/PermitHelper'; // Import the original class
 
+jest.mock('../src/helpers/HttpHelper', () => ({
+  fetchBalances: jest.fn(),
+  fetchNativeToUsdPrice: jest.requireActual('../src/helpers/HttpHelper')
+    .fetchNativeToUsdPrice,
+}));
+
+import { fetchBalances } from '../src/helpers/HttpHelper';
+
 describe('Aarc SDK executeMigration', () => {
   let receiver: string;
   let aarcSDK: any;
@@ -9,7 +17,7 @@ describe('Aarc SDK executeMigration', () => {
   const privateKey =
     '29822a62aaeb9a16e9d1fd88412bac4fe37574bbcb245b4232e3b3612496fd96';
   const rpcURl = 'https://ethereum-goerli.publicnode.com';
-  const apiKey = '097ce80e-4dcc-4265-8aa7-2ed0e19901ff';
+  const apiKey = 'd2ded745-c5f5-43d6-9577-869daf62488d';
   const provider = new ethers.providers.JsonRpcProvider(rpcURl);
   const signer = new ethers.Wallet(privateKey, provider);
   const eoaAddress = signer.address;
@@ -64,7 +72,7 @@ describe('Aarc SDK executeMigration', () => {
   }, 30000);
   it('should handle native token transfer without ERC20 tokens', async () => {
     // Mock a different implementation for fetchBalances
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {
@@ -113,7 +121,7 @@ describe('Aarc SDK executeMigration', () => {
 
   it('should handle native token transfer of 80% without ERC20 tokens', async () => {
     // Mock a different implementation for fetchBalances
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {
@@ -157,7 +165,7 @@ describe('Aarc SDK executeMigration', () => {
 
   it('should handle an error when performing native transfer', async () => {
     // Mock balances with only native token (ETH)
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {

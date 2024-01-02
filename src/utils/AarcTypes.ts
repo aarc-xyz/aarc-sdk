@@ -77,6 +77,14 @@ export type PriceResponse = {
   message: string;
 };
 
+export type GasPriceResponse = {
+  code: number;
+  data: {
+    gasPrice: BigNumber;
+  };
+  message: string;
+};
+
 export type TrxInfo = {
   txHash: string;
   taskId: string;

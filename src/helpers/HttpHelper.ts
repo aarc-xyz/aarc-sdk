@@ -1,5 +1,13 @@
-import { BalancesResponse, PriceResponse } from '../utils/AarcTypes';
-import { BALANCES_ENDPOINT, PRICE_ENDPOINT } from '../utils/Constants';
+import {
+  BalancesResponse,
+  GasPriceResponse,
+  PriceResponse,
+} from '../utils/AarcTypes';
+import {
+  BALANCES_ENDPOINT,
+  GAS_PRICE_ENDPOINT,
+  PRICE_ENDPOINT,
+} from '../utils/Constants';
 import { sendRequest, HttpMethod } from '../utils/HttpRequest';
 import { Logger } from '../utils/Logger';
 
@@ -55,6 +63,25 @@ export const fetchNativeToUsdPrice = async (
   } catch (error) {
     // Handle any errors that may occur during the API request
     Logger.error(' Error Making Price Request :', error);
+    throw error;
+  }
+};
+
+export const fetchGasPrice = async (
+  chainId: number,
+): Promise<GasPriceResponse> => {
+  try {
+    // Make the API call using the sendRequest function
+    const response: GasPriceResponse = await sendRequest({
+      url: GAS_PRICE_ENDPOINT + '/' + chainId,
+      method: HttpMethod.GET,
+    });
+
+    Logger.log(' Gas Price Endpoint Response :', response);
+    return response;
+  } catch (error) {
+    // Handle any errors that may occur during the API request
+    Logger.error(' Error Making Gas Price Request :', error);
     throw error;
   }
 };

@@ -6,6 +6,7 @@ export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
 export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate/gasless`;
 export const TRX_STATUS_ENDPOINT = `${BASE_URL}/migrator/tx/status`;
 export const PRICE_ENDPOINT = `${BASE_URL}/migrator/price`;
+export const GAS_PRICE_ENDPOINT = `${BASE_URL}/migrator/gas-price`;
 export const FORWARD_ENDPOINT = `${BASE_URL}/migrator/migrate/forward`;
 export const BICONOMY_TX_SERVICE_URL =
   'https://sdk-backend.prod.biconomy.io/v1';

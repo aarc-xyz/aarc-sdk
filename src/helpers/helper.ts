@@ -366,6 +366,7 @@ export const processGasFeeAndTokens = (
   const tokensToDeduct = BigNumber.from(
     parseInt(String(Math.pow(10, treasuryTransaction.decimals) * gasFeeInUsd)),
   );
+  const actualToken = BigNumber.from(currentTrx.balance);
 
   treasuryTransaction.balance = tokensToDeduct;
   currentTrx.balance = currentTrx.balance.sub(tokensToDeduct);
@@ -373,8 +374,11 @@ export const processGasFeeAndTokens = (
   if (currentTrx.balance.lt(BigNumber.from(0))) {
     currentTrx.balance = BigNumber.from(0);
     response.push({
+      taskId: '',
       tokenAddress: currentTrx.token_address,
       message: 'Token does not have enough balance to pay for fee',
+      amount: actualToken,
+      txHash: '',
     });
   } else {
     permit2TransferableTokens.push(treasuryTransaction);

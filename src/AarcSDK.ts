@@ -53,7 +53,11 @@ import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
 import { ISmartAccount } from '@biconomy/node-client';
 import { OwnerResponse } from '@safe-global/api-kit';
-import { fetchBalances, fetchNativeToUsdPrice } from './helpers/HttpHelper';
+import {
+  fetchBalances,
+  fetchGasPrice,
+  fetchNativeToUsdPrice,
+} from './helpers/HttpHelper';
 
 class AarcSDK {
   biconomy: Biconomy;
@@ -1026,8 +1030,8 @@ class AarcSDK {
       );
       Logger.log('erc20Tokens ', erc20Tokens);
 
-      const feeData = await this.ethersProvider.getFeeData();
-      const gasPrice = feeData.gasPrice;
+      const feeData = await fetchGasPrice(this.chainId);
+      const gasPrice = BigNumber.from(feeData.data.gasPrice);
       // const gasPrice = BigNumber.from(30).mul(GEWI_UNITS)
       const nativePriceInUsd = (await fetchNativeToUsdPrice(this.chainId)).data
         .price;

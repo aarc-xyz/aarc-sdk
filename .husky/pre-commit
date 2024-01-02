@@ -7,4 +7,5 @@ npm run test
 npm run build
 npm run execute:nongasless
 npm run execute:gasless
+git add .
 

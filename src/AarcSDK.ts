@@ -22,6 +22,7 @@ import {
   TransactionsResponse,
   WALLET_TYPE,
   DeployWalletDto,
+  NativeTransferDeployWalletDto,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -95,28 +96,32 @@ class AarcSDK {
     return this.safe.generateSafeSCW(config, saltNonce);
   }
 
-  deploySafeSCW(
-    signer: Signer,
-    owner: string,
-    saltNonce?: number,
-  ): Promise<string> {
-    return this.safe.deploySafeSCW(signer, owner, saltNonce);
-  }
+  deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
+    const {
+      walletType,
+      owner,
+      signer,
+      deploymentWalletIndex = 0,
+    } = deployWalletDto;
 
-  async deployBiconomyScw(
-    signer: Signer,
-    owner: string,
-    nonce: number = 0,
-  ): Promise<string> {
-    return this.biconomy.deployBiconomyScw(signer, this.chainId, owner, nonce);
+    if (walletType === WALLET_TYPE.SAFE) {
+      return this.safe.deploySafeSCW(signer, owner, deploymentWalletIndex);
+    } else {
+      return this.biconomy.deployBiconomyScw(
+        signer,
+        this.chainId,
+        owner,
+        deploymentWalletIndex,
+      );
+    }
   }
 
   async transferNativeAndDeploy(
-    deployWalletDto: DeployWalletDto,
+    nativeTransferDeployWalletDto: NativeTransferDeployWalletDto,
   ): Promise<MigrationResponse[]> {
     const response: MigrationResponse[] = [];
     try {
-      const { receiver, amount, owner, signer } = deployWalletDto;
+      const { receiver, amount, owner, signer } = nativeTransferDeployWalletDto;
       let amountToTransfer = BigNumber.from(0);
 
       if (!signer) {
@@ -138,8 +143,9 @@ class AarcSDK {
       }
 
       try {
-        const walletDeploymentResponse =
-          await this.deployWallet(deployWalletDto);
+        const walletDeploymentResponse = await this.deployWallet(
+          nativeTransferDeployWalletDto,
+        );
         Logger.log('walletDeploymentResponse ', walletDeploymentResponse);
         response.push({
           tokenAddress: '',
@@ -183,17 +189,6 @@ class AarcSDK {
     } catch (error) {
       Logger.error('transferNativeAndDeploy Error:', error);
       throw error;
-    }
-  }
-
-  deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
-    const { walletType, owner, signer, deploymentWalletIndex } =
-      deployWalletDto;
-
-    if (walletType === WALLET_TYPE.SAFE) {
-      return this.deploySafeSCW(signer, owner, deploymentWalletIndex);
-    } else {
-      return this.deployBiconomyScw(signer, owner, deploymentWalletIndex);
     }
   }
 

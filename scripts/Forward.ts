@@ -42,10 +42,12 @@ export const mintAndTransferErc20Tokens = async () => {
     });
     const resultSet = await aarcSDK.executeForwardTransaction({
         senderSigner: signer,
-        receiverAddress: "0x05041d5b6EaED9C44fd488d9a98455067A49B363",
+        receiverAddress: "0x786E6045eacb96cAe0259cd761e151b68B85bdA7",
         transferTokenDetails: [
-            { tokenAddress: tokenAddresses[chainId].USDC.address, amount: BigNumber.from("100000") },
-            { tokenAddress: tokenAddresses[chainId].USDT.address, amount: BigNumber.from("100000") }
+            { tokenAddress: tokenAddresses[chainId].USDA1.address, amount: BigNumber.from("100000000") },
+            { tokenAddress: tokenAddresses[chainId].USDB.address, amount: BigNumber.from("100000000") },
+            { tokenAddress: tokenAddresses[chainId].USDA2.address, amount: BigNumber.from("500000000") },
+            { tokenAddress: tokenAddresses[chainId].USDC.address, amount: BigNumber.from("300000") },
         ]
     })
     console.log('ResultSet ', resultSet);

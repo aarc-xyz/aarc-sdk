@@ -6,13 +6,21 @@ import { PermitHelper } from '../src/helpers/PermitHelper'; // Import the origin
 import './EthersMock';
 let aarcSDK: any;
 
+jest.mock('../src/helpers/HttpHelper', () => ({
+  fetchBalances: jest.fn(),
+  fetchNativeToUsdPrice: jest.requireActual('../src/helpers/HttpHelper')
+    .fetchNativeToUsdPrice,
+}));
+
+import { fetchBalances } from '../src/helpers/HttpHelper';
+
 describe('Aarc SDK executeMigration', () => {
   const receiver = '0xe7a35625b23710C131Fa38c92CF5F7793c50604A';
 
   const privateKey =
     '29822a62aaeb9a16e9d1fd88412bac4fe37574bbcb245b4232e3b3612496fd96';
   const rpcUrl = 'https://ethereum-goerli.publicnode.com';
-  const apiKey = '097ce80e-4dcc-4265-8aa7-2ed0e19901ff';
+  const apiKey = 'd2ded745-c5f5-43d6-9577-869daf62488d';
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
   const signer = new ethers.Wallet(privateKey, provider);
   const eoaAddress = signer.address;
@@ -66,9 +74,9 @@ describe('Aarc SDK executeMigration', () => {
   }, 30000);
 
   it('should handle an error when fetching balances', async () => {
-    aarcSDK.fetchBalances = jest
-      .fn()
-      .mockRejectedValue(new Error('Failed to fetch balances'));
+    (fetchBalances as jest.Mock).mockRejectedValue(
+      new Error('Failed to fetch balances'),
+    );
 
     const executeMigrationDto = {
       senderSigner: signer,
@@ -82,7 +90,7 @@ describe('Aarc SDK executeMigration', () => {
 
   it('should handle a successful migration', async () => {
     // Mocking the fetchBalances function
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {
@@ -174,7 +182,7 @@ describe('Aarc SDK executeMigration', () => {
 
   it('should handle a successful migration for native token only', async () => {
     // Mock a different implementation for fetchBalances
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {
@@ -249,7 +257,7 @@ describe('Aarc SDK executeMigration', () => {
 
   it('token transfer where balance is less then permit allowance', async () => {
     // Mocking the fetchBalances function
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {
@@ -454,7 +462,7 @@ describe('Aarc SDK executeMigration', () => {
 
   it('should transfer token and native sucessfully', async () => {
     // Mock a different implementation for fetchBalances
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {
@@ -542,7 +550,7 @@ describe('Aarc SDK executeMigration', () => {
 
   it('should handle batch transfer with permit data', async () => {
     // Mocking the fetchBalances function
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {
@@ -662,7 +670,7 @@ describe('Aarc SDK executeMigration', () => {
 
   it('should handle insufficient gas case', async () => {
     // Mocking the fetchBalances function
-    aarcSDK.fetchBalances = jest.fn().mockResolvedValue({
+    (fetchBalances as jest.Mock).mockResolvedValue({
       code: 200,
       data: [
         {

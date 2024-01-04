@@ -7,6 +7,7 @@ import {
 } from '@uniswap/permit2-sdk';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';
 import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
+import { PERMIT_TX_TYPES } from './Constants';
 
 export type Config = {
   chainId: number;
@@ -68,6 +69,56 @@ export type BalancesResponse = {
   message: string;
 };
 
+export type PriceResponse = {
+  code: number;
+  data: {
+    price: number;
+  };
+  message: string;
+};
+
+export type GasPriceResponse = {
+  code: number;
+  data: {
+    gasPrice: BigNumber;
+  };
+  message: string;
+};
+
+export type TrxInfo = {
+  txHash: string;
+  taskId: string;
+  txStatus: string;
+  createAt: number;
+  updatedAt: number;
+  fee: number;
+};
+
+export type TrxStatusResponse = {
+  code: number;
+  data: TrxInfo;
+  message: string;
+};
+
+export interface RelayedTxListDto {
+  tokenInfo: RelayTokenInfo[];
+  type: PERMIT_TX_TYPES;
+  txData: BaseRelayParams;
+}
+
+export interface RelayTxListResponse {
+  tokenInfo: RelayTokenInfo[];
+  type: PERMIT_TX_TYPES;
+  taskId: string;
+  status: string | boolean; // Update 'status' type according to your requirements
+}
+
+export type RelayedTxListResponse = {
+  code: number;
+  data: RelayTxListResponse[];
+  message: string;
+};
+
 export type TransferTokenDetails = {
   tokenAddress: string;
   amount?: BigNumber; // for ERC20
@@ -84,7 +135,12 @@ export type ExecuteMigrationGaslessDto = {
   senderSigner: Signer;
   receiverAddress: string;
   transferTokenDetails?: TransferTokenDetails[];
-  gelatoApiKey: string;
+};
+
+export type ExecuteMigrationForwardDto = {
+  senderSigner: Signer;
+  receiverAddress: string;
+  transferTokenDetails: TransferTokenDetails[];
 };
 
 export type TokenTransferDto = {
@@ -136,7 +192,6 @@ export type BatchPermitData = {
 export type RelayTrxDto = {
   relayer: GelatoRelay;
   requestData: BaseRelayParams;
-  gelatoApiKey: string;
 };
 
 export type GelatoTxStatusDto = {
@@ -172,6 +227,7 @@ export type PermitDomainDto = {
 
 export type MigrationResponse = {
   tokenAddress: string;
+  taskId?: string;
   amount?: BigNumber | BigNumberish;
   message: string;
   txHash?: string;
@@ -195,4 +251,14 @@ export type TransactionsResponse = {
   signature?: string;
   data?: string;
   gasCost?: BigNumber;
+};
+
+export type RelayTokenInfo = {
+  tokenAddress: string;
+  amount: BigNumber | BigNumberish;
+};
+
+export type RelayTransactionDto = {
+  chainId: string;
+  txList: RelayedTxListDto[];
 };

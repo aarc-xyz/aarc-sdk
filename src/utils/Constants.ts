@@ -1,7 +1,7 @@
 import { BigNumber, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 
-export const BASE_URL = 'http://localhost:4000';
+export const BASE_URL = 'https://migrator.aarc.xyz';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
 export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate/gasless`;
 export const TRX_STATUS_ENDPOINT = `${BASE_URL}/migrator/tx/status`;

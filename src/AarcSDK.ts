@@ -1005,7 +1005,7 @@ class AarcSDK {
             if (!isSupported) {
               response.push({
                 tokenAddress: token.tokenAddress,
-                message: `Migration is not supported for ${token.tokenAddress} on the chain ID ${this.chainId}`,
+                message: `Forward migration is not supported for ${token.tokenAddress} on the chain ID ${this.chainId}`,
               });
               return false; // Remove the token from the filtered array
             }

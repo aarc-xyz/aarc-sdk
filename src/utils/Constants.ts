@@ -1,15 +1,27 @@
-import { ethers } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 
 export const BASE_URL = 'https://migrator.aarc.xyz';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
+export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate/gasless`;
+export const TRX_STATUS_ENDPOINT = `${BASE_URL}/migrator/tx/status`;
+export const PRICE_ENDPOINT = `${BASE_URL}/migrator/price`;
+export const GAS_PRICE_ENDPOINT = `${BASE_URL}/migrator/gas-price`;
+export const FORWARD_ENDPOINT = `${BASE_URL}/migrator/migrate/forward`;
 export const BICONOMY_TX_SERVICE_URL =
   'https://sdk-backend.prod.biconomy.io/v1';
 export const PERMIT_FUNCTION_ABI =
   'function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)';
 
+export const TREASURY_ADDRESS = '0xfa59d56b4bb6bdbd28883eef1b7bdf504a124f64';
+export const PERMIT_GAS_UNITS = 220000;
+export const PERMIT_PER_TRX_UNITS = 70000;
+export const GEWI_UNITS = BigNumber.from(10).pow(9);
+export const ETH_UNITS = BigNumber.from(10).pow(18);
+
 interface GAS_TOKEN_ADDRESSES {
   [ChainId.GOERLI]: string;
+  [ChainId.SEPOLIA]: string;
   [ChainId.POLYGON_MUMBAI]: string;
   [ChainId.MAINNET]: string;
   [ChainId.POLYGON_MAINNET]: string;
@@ -26,6 +38,7 @@ export const GAS_TOKEN_ADDRESSES: GAS_TOKEN_ADDRESSES = {
   [ChainId.MAINNET]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.POLYGON_MAINNET]: '0x0000000000000000000000000000000000001010',
   [ChainId.GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.SEPOLIA]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.POLYGON_MUMBAI]: '0x0000000000000000000000000000000000001010',
   [ChainId.ARBITRUM]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.ARBITRUM_GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
@@ -48,9 +61,16 @@ export enum COVALENT_TOKEN_TYPES {
   DUST = 'dust',
 }
 
+export enum PERMIT_TX_TYPES {
+  PERMIT = 'PERMIT',
+  PERMIT2_SINGLE = 'PERMIT2_SINGLE',
+  PERMIT2_BATCH = 'PERMIT2_BATCH',
+}
+
 export enum SAFE_TX_SERVICE_URLS {
   'https://safe-transaction-mainnet.safe.global' = 1,
   'https://safe-transaction-goerli.safe.global' = 5,
+  'https://safe-transaction-sepolia.safe.global' = 11155111,
   'https://safe-transaction-arbitrum.safe.global' = 42161,
   'https://safe-transaction-aurora.safe.global' = 1313161554,
   'https://safe-transaction-avalanche.safe.global' = 43114,
@@ -111,3 +131,34 @@ export interface Domain {
   verifyingContract: string;
   salt?: string; // Making salt an optional property
 }
+
+type SupportedTokens = Record<string, string>;
+export const SUPPORTED_STABLE_TOKENS: Partial<
+  Record<ChainId, SupportedTokens>
+> = {
+  [ChainId.MAINNET]: {
+    USDC: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    USDT: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+    BUSD: '0x4fabb145d64652a948d72533023f6e7a623c7c53',
+    DAI: '0x6b175474e89094c44da98b954eedeac495271d0f',
+    UNI: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+  },
+  [ChainId.POLYGON_MAINNET]: {
+    USDC: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+    USDT: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f',
+    BUSD: '0x9c9e5fd8bbc25984b178fdce6117defa39d2db39',
+    DAI: '0x8f3cf7ad23cd3cadbd9735aff958023239c6a063',
+    UNI: '0xb33eaad8d922b1083446dc23f610c2567fb5180f',
+  },
+  [ChainId.ARBITRUM]: {
+    USDC: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+    USDT: '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+    DAI: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1',
+    UNI: '0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0',
+  },
+  [ChainId.OPTIMISM]: {
+    USDC: '0x7f5c764cbc14f9669b88837ca1490cca17c31607',
+    USDT: '0x94b008aa00579c1307b0ef2c499ad98a8ce58e58',
+    DAI: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1',
+  },
+};

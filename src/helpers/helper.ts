@@ -1,6 +1,9 @@
-import { BigNumber } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
 import {
   MigrationResponse,
+  RelayTxListResponse,
+  RelayedTxListDto,
+  RelayedTxListResponse,
   TokenData,
   TokenNftData,
   TransactionsResponse,
@@ -8,9 +11,17 @@ import {
 } from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 import { BalancesResponse } from '../utils/AarcTypes';
-import { COVALENT_TOKEN_TYPES, GAS_TOKEN_ADDRESSES } from '../utils/Constants';
+import {
+  COVALENT_TOKEN_TYPES,
+  FORWARD_ENDPOINT,
+  GAS_TOKEN_ADDRESSES,
+  MIGRATE_ENDPOINT,
+  PERMIT_GAS_UNITS,
+  PERMIT_PER_TRX_UNITS,
+} from '../utils/Constants';
 import { ChainId } from '../utils/ChainTypes';
 import AarcSDK from '../AarcSDK';
+import { sendRequest, HttpMethod } from '../utils/HttpRequest';
 
 export const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -275,5 +286,147 @@ export const processNativeTransfer = async (
       amount: amountTransfer,
       type: COVALENT_TOKEN_TYPES.DUST,
     });
+  }
+};
+
+export const makeGaslessCall = async (
+  chainId: number,
+  relayTxList: RelayedTxListDto[],
+  dappApiKey: string,
+): Promise<RelayTxListResponse[]> => {
+  try {
+    const txResponse: RelayedTxListResponse = await sendRequest({
+      url: MIGRATE_ENDPOINT,
+      method: HttpMethod.POST,
+      headers: {
+        'x-api-key': dappApiKey,
+      },
+      body: {
+        chainId: String(chainId),
+        txList: relayTxList,
+      },
+    });
+    Logger.log('txResponse from server ', JSON.stringify(txResponse.data));
+    return txResponse.data;
+  } catch (error) {
+    Logger.error('error while getting consuming gasless endpoint');
+    throw error;
+  }
+};
+
+export const makeForwardCall = async (
+  chainId: number,
+  relayTxList: RelayedTxListDto[],
+  txIndexes: number[],
+  dappApiKey: string,
+): Promise<RelayTxListResponse[]> => {
+  try {
+    const txResponse: RelayedTxListResponse = await sendRequest({
+      url: FORWARD_ENDPOINT,
+      method: HttpMethod.POST,
+      headers: {
+        'x-api-key': dappApiKey,
+      },
+      body: {
+        chainId: String(chainId),
+        txList: relayTxList,
+        txIndexes,
+      },
+    });
+    Logger.log('txResponse from server ', JSON.stringify(txResponse.data));
+    return txResponse.data;
+  } catch (error) {
+    Logger.error('error while getting consuming forward endpoint');
+    throw error;
+  }
+};
+
+export const processGasFeeAndTokens = (
+  response: MigrationResponse[],
+  index: number,
+  gasPrice: BigNumber,
+  nativePriceInUsd: number,
+  permit2TransferableTokens: TokenData[],
+  txIndexes: number[],
+  isDirectCall: boolean = false,
+) => {
+  const currentTrx = permit2TransferableTokens[index];
+  const treasuryTransaction = { ...currentTrx };
+  let treasuryGasUnits = BigNumber.from(0);
+
+  if (txIndexes.length === 0) {
+    const gasUnits = BigNumber.from(PERMIT_GAS_UNITS + PERMIT_PER_TRX_UNITS);
+    treasuryGasUnits = treasuryGasUnits.add(gasPrice.mul(gasUnits));
+  } else {
+    treasuryGasUnits = treasuryGasUnits.add(gasPrice.mul(PERMIT_PER_TRX_UNITS));
+  }
+
+  const gasFeeInEth = ethers.utils.formatEther(treasuryGasUnits);
+  const gasFeeInUsd = nativePriceInUsd * Number(gasFeeInEth);
+  const tokensToDeduct = BigNumber.from(
+    parseInt(String(Math.pow(10, treasuryTransaction.decimals) * gasFeeInUsd)),
+  );
+  const actualToken = BigNumber.from(currentTrx.balance);
+
+  treasuryTransaction.balance = tokensToDeduct;
+  currentTrx.balance = currentTrx.balance.sub(tokensToDeduct);
+
+  if (currentTrx.balance.lt(BigNumber.from(0))) {
+    currentTrx.balance = BigNumber.from(0);
+    response.push({
+      taskId: '',
+      tokenAddress: currentTrx.token_address,
+      message: 'Token does not have enough balance to pay for fee',
+      amount: actualToken,
+      txHash: '',
+    });
+  } else {
+    permit2TransferableTokens.push(treasuryTransaction);
+    txIndexes.push(permit2TransferableTokens.length - 1);
+  }
+  if (currentTrx.balance.lt(BigNumber.from(0)) && isDirectCall) {
+    permit2TransferableTokens.splice(index, 1);
+    txIndexes.splice(txIndexes.length - 1, 1);
+  }
+};
+
+export const processPermit2TransferableTokens = async (
+  response: MigrationResponse[],
+  permit2TransferableTokens: TokenData[],
+  gasPrice: BigNumber,
+  nativePriceInUsd: number,
+  txIndexes: number[],
+) => {
+  const permit2Length = permit2TransferableTokens.length;
+
+  for (let index = 0; index < permit2Length; index++) {
+    processGasFeeAndTokens(
+      response,
+      index,
+      gasPrice,
+      nativePriceInUsd,
+      permit2TransferableTokens,
+      txIndexes,
+    );
+  }
+
+  // Find tokens with balance 0 and adjust txIndexes
+  for (let i = 0; i < permit2TransferableTokens.length; i++) {
+    if (permit2TransferableTokens[i].balance.eq(BigNumber.from(0))) {
+      for (let j = 0; j < txIndexes.length; j++) {
+        txIndexes[j] = txIndexes[j] - 1;
+      }
+    }
+  }
+
+  if (permit2TransferableTokens.length > 0) {
+    // Remove elements with a balance of 0
+    const updatedTokens = permit2TransferableTokens.filter((token) =>
+      token.balance.gt(BigNumber.from(0)),
+    );
+
+    // Clear the original array and push the filtered tokens back
+    permit2TransferableTokens.length = 0;
+    permit2TransferableTokens.push(...updatedTokens);
   }
 };

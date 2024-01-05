@@ -30,6 +30,7 @@ import {
   TrxStatusResponse,
   TokenData,
   ExecuteMigrationForwardDto,
+  TransferTokenDetails,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -476,8 +477,19 @@ class AarcSDK {
 
     try {
       const { senderSigner, receiverAddress } = executeMigrationGaslessDto;
-      const { transferTokenDetails } = executeMigrationGaslessDto;
+      let { transferTokenDetails } = executeMigrationGaslessDto;
       const owner = await senderSigner.getAddress();
+
+      if (transferTokenDetails)
+        transferTokenDetails = transferTokenDetails.map(
+          (token: TransferTokenDetails) => {
+            return {
+              ...token,
+              tokenAddress: token.tokenAddress.toLowerCase(),
+            };
+          },
+        );
+
       const tokenAddresses = transferTokenDetails?.map(
         (token) => token.tokenAddress,
       );
@@ -939,6 +951,17 @@ class AarcSDK {
     try {
       const { senderSigner, receiverAddress } = executeMigrationForwardDto;
       let { transferTokenDetails } = executeMigrationForwardDto;
+
+      // Convert tokenAddress to lowercase for all tokens in transferTokenDetails
+      transferTokenDetails = transferTokenDetails.map(
+        (token: TransferTokenDetails) => {
+          return {
+            ...token,
+            tokenAddress: token.tokenAddress.toLowerCase(),
+          };
+        },
+      );
+
       const owner = await senderSigner.getAddress();
       const tokenAddresses = transferTokenDetails.map(
         (token) => token.tokenAddress,
@@ -968,10 +991,17 @@ class AarcSDK {
 
         if (tokenAddresses && tokenAddresses.length > 0) {
           const filteredTokens = transferTokenDetails.filter((token) => {
-            const isSupported =
-              !!SUPPORTED_STABLE_TOKENS[this.chainId as ChainId]?.[
-                token.tokenAddress
-              ];
+            const supportedTokensForChain =
+              SUPPORTED_STABLE_TOKENS[this.chainId as ChainId];
+            let isSupported = false;
+            if (
+              supportedTokensForChain &&
+              Object.values(supportedTokensForChain).includes(
+                token.tokenAddress,
+              )
+            ) {
+              isSupported = true;
+            }
             if (!isSupported) {
               response.push({
                 tokenAddress: token.tokenAddress,
@@ -1267,49 +1297,51 @@ class AarcSDK {
       }
 
       try {
-        const txResponse = await makeForwardCall(
-          this.chainId,
-          relayTxList,
-          txIndexes,
-          this.apiKey,
-        );
+        if (relayTxList.length > 0) {
+          const txResponse = await makeForwardCall(
+            this.chainId,
+            relayTxList,
+            txIndexes,
+            this.apiKey,
+          );
 
-        for (const relayResponse of txResponse) {
-          const { type, tokenInfo, status, taskId } = relayResponse;
-          if (type === PERMIT_TX_TYPES.PERMIT2_BATCH) {
-            for (let index = 0; index < tokenInfo.length; index++) {
-              const token_address = tokenInfo[index].tokenAddress;
-              const amount = tokenInfo[index].amount;
+          for (const relayResponse of txResponse) {
+            const { type, tokenInfo, status, taskId } = relayResponse;
+            if (type === PERMIT_TX_TYPES.PERMIT2_BATCH) {
+              for (let index = 0; index < tokenInfo.length; index++) {
+                const token_address = tokenInfo[index].tokenAddress;
+                const amount = tokenInfo[index].amount;
+                response.push({
+                  taskId,
+                  tokenAddress: token_address,
+                  amount: amount,
+                  message:
+                    typeof status === 'string' ? status : 'Transaction Failed',
+                  txHash: '',
+                });
+              }
+            }
+            if (type === PERMIT_TX_TYPES.PERMIT) {
               response.push({
                 taskId,
-                tokenAddress: token_address,
-                amount: amount,
+                tokenAddress: tokenInfo[0].tokenAddress,
+                amount: tokenInfo[0].amount,
                 message:
                   typeof status === 'string' ? status : 'Transaction Failed',
                 txHash: '',
               });
             }
-          }
-          if (type === PERMIT_TX_TYPES.PERMIT) {
-            response.push({
-              taskId,
-              tokenAddress: tokenInfo[0].tokenAddress,
-              amount: tokenInfo[0].amount,
-              message:
-                typeof status === 'string' ? status : 'Transaction Failed',
-              txHash: '',
-            });
-          }
 
-          if (type === PERMIT_TX_TYPES.PERMIT2_SINGLE) {
-            response.push({
-              taskId,
-              tokenAddress: tokenInfo[0].tokenAddress,
-              amount: tokenInfo[0].amount,
-              message:
-                typeof status === 'string' ? status : 'Transaction Failed',
-              txHash: '',
-            });
+            if (type === PERMIT_TX_TYPES.PERMIT2_SINGLE) {
+              response.push({
+                taskId,
+                tokenAddress: tokenInfo[0].tokenAddress,
+                amount: tokenInfo[0].amount,
+                message:
+                  typeof status === 'string' ? status : 'Transaction Failed',
+                txHash: '',
+              });
+            }
           }
         }
       } catch (error: any) {

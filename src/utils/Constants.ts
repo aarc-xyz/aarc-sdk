@@ -1,7 +1,7 @@
 import { BigNumber, ethers } from 'ethers';
 import { ChainId } from './ChainTypes';
 
-export const BASE_URL = 'http://localhost:4000';
+export const BASE_URL = 'https://migrator.aarc.xyz';
 export const BALANCES_ENDPOINT = `${BASE_URL}/migrator/balances`;
 export const MIGRATE_ENDPOINT = `${BASE_URL}/migrator/migrate/gasless`;
 export const TRX_STATUS_ENDPOINT = `${BASE_URL}/migrator/tx/status`;
@@ -13,7 +13,7 @@ export const BICONOMY_TX_SERVICE_URL =
 export const PERMIT_FUNCTION_ABI =
   'function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s)';
 
-export const TREASURY_ADDRESS = '0x72db87f13544a3cb59fa8d67ba3a8ca17f44fb44';
+export const TREASURY_ADDRESS = '0xfa59d56b4bb6bdbd28883eef1b7bdf504a124f64';
 export const PERMIT_GAS_UNITS = 220000;
 export const PERMIT_PER_TRX_UNITS = 70000;
 export const GEWI_UNITS = BigNumber.from(10).pow(9);

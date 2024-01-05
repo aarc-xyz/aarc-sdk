@@ -3,11 +3,13 @@ export enum ChainNames {
   Matic = 'matic',
   Mumbai = 'mumbai',
   Goerli = 'goerli',
+  Sepolia = 'sepolia',
 }
 
 export enum ChainId {
   MAINNET = 1,
   GOERLI = 5,
+  SEPOLIA = 11155111,
   POLYGON_MAINNET = 137,
   POLYGON_MUMBAI = 80001,
   ARBITRUM = 42161,

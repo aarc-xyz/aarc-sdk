@@ -21,6 +21,7 @@ export const ETH_UNITS = BigNumber.from(10).pow(18);
 
 interface GAS_TOKEN_ADDRESSES {
   [ChainId.GOERLI]: string;
+  [ChainId.SEPOLIA]: string;
   [ChainId.POLYGON_MUMBAI]: string;
   [ChainId.MAINNET]: string;
   [ChainId.POLYGON_MAINNET]: string;
@@ -37,6 +38,7 @@ export const GAS_TOKEN_ADDRESSES: GAS_TOKEN_ADDRESSES = {
   [ChainId.MAINNET]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.POLYGON_MAINNET]: '0x0000000000000000000000000000000000001010',
   [ChainId.GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.SEPOLIA]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.POLYGON_MUMBAI]: '0x0000000000000000000000000000000000001010',
   [ChainId.ARBITRUM]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.ARBITRUM_GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
@@ -68,6 +70,7 @@ export enum PERMIT_TX_TYPES {
 export enum SAFE_TX_SERVICE_URLS {
   'https://safe-transaction-mainnet.safe.global' = 1,
   'https://safe-transaction-goerli.safe.global' = 5,
+  'https://safe-transaction-sepolia.safe.global' = 11155111,
   'https://safe-transaction-arbitrum.safe.global' = 42161,
   'https://safe-transaction-aurora.safe.global' = 1313161554,
   'https://safe-transaction-avalanche.safe.global' = 43114,

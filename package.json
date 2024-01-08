@@ -13,7 +13,8 @@
     "execute:gasless": "ts-node scripts/Gasless.ts",
     "execute:nongasless": "ts-node scripts/NonGasless.ts",
     "execute:forward": "ts-node scripts/Forward.ts",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "publish": "npm run build && npm publish"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,css,scss,md}": [

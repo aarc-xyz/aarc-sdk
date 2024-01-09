@@ -166,7 +166,7 @@ export const transferErc20Tokens = async () => {
                 !('message' in result && typeof result.message === 'string') ||
                 !('taskId' in result && typeof result.taskId === 'string') ||
                 (result.message !== 'Transaction sent' &&
-                result.message !== 'Supplied token does not exist' &&
+                result.message !== 'Insufficient balance' &&
                 result.message !== 'Transaction Added to Queue' &&
                 result.message !== 'Token Permit tx Sent')
             ) {
@@ -303,7 +303,7 @@ export const transferNftsOnly = async () => {
                     !('message' in result && typeof result.message === 'string') ||
                     !('txHash' in result && typeof result.txHash === 'string') ||
                     (result.message !== 'Transaction sent' &&
-                    result.message !== 'Supplied token does not exist' &&
+                    result.message !== 'Insufficient balance' &&
                         result.message !== 'Nft transfer tx sent')
                 ) {
                     throw new Error('Nft Transfer Failed');

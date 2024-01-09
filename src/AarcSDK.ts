@@ -268,7 +268,7 @@ class AarcSDK {
           response.push({
             tokenAddress: tandA.tokenAddress,
             amount: tandA?.amount,
-            message: `Insufficient balance for token ${tandA.tokenAddress}`,
+            message: `Insufficient balance`,
           });
         }
         tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
@@ -523,7 +523,7 @@ class AarcSDK {
           response.push({
             tokenAddress: tandA.tokenAddress,
             amount: tandA?.amount,
-            message: `Insufficient balance for token ${tandA.tokenAddress}`,
+            message: `Insufficient balance`,
           });
         }
         tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
@@ -1033,7 +1033,7 @@ class AarcSDK {
           response.push({
             tokenAddress: tandA.tokenAddress,
             amount: tandA?.amount,
-            message: `Insufficient balance for token ${tandA.tokenAddress}`,
+            message: `Insufficient balance`,
           });
         }
         tandA.tokenAddress = tandA.tokenAddress.toLowerCase();

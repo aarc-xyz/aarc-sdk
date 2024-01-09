@@ -205,6 +205,11 @@ class AarcSDK {
     }
   }
 
+  /**
+   * @description this function will return balances of ERC-20, ERC-721 and native tokens
+   * @param balancesDto
+   * @returns
+   */
   async fetchBalances(
     eoaAddress: string,
     fetchBalancesOnly: boolean = true,

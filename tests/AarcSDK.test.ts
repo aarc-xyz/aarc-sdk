@@ -167,7 +167,7 @@ describe('Aarc SDK executeMigration', () => {
       amount: expect.objectContaining({
         _hex: '0x77359400',
       }),
-      message: 'Supplied token does not exist',
+      message: 'Insufficient balance',
     });
 
     expect(migrationResponse[1]).toEqual({

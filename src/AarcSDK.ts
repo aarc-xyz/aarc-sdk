@@ -273,7 +273,7 @@ class AarcSDK {
           response.push({
             tokenAddress: tandA.tokenAddress,
             amount: tandA?.amount,
-            message: 'Supplied token does not exist',
+            message: `Insufficient balance`,
           });
         }
         tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
@@ -528,7 +528,7 @@ class AarcSDK {
           response.push({
             tokenAddress: tandA.tokenAddress,
             amount: tandA?.amount,
-            message: 'Supplied token does not exist',
+            message: `Insufficient balance`,
           });
         }
         tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
@@ -1038,10 +1038,23 @@ class AarcSDK {
           response.push({
             tokenAddress: tandA.tokenAddress,
             amount: tandA?.amount,
-            message: 'Supplied token does not exist',
+            message: `Insufficient balance`,
           });
         }
         tandA.tokenAddress = tandA.tokenAddress.toLowerCase();
+
+        if (
+          matchingToken &&
+          !matchingToken.permitExist &&
+          BigNumber.from(matchingToken.permit2Allowance).eq(BigNumber.from(0))
+        ) {
+          response.push({
+            tokenAddress: tandA.tokenAddress.toLowerCase(),
+            message: `Forward migration is not supported for ${tandA.tokenAddress.toLowerCase()} on the chain ID ${
+              this.chainId
+            }`,
+          });
+        }
       });
 
       if (transferTokenDetails) {

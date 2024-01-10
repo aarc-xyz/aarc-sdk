@@ -34,7 +34,6 @@ import {
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
-import { GelatoRelay } from '@gelatonetwork/relay-sdk';
 import Biconomy from './providers/Biconomy';
 import Safe from './providers/Safe';
 import { PermitHelper } from './helpers/PermitHelper';
@@ -65,7 +64,6 @@ class AarcSDK {
   safe: Safe;
   chainId: number;
   apiKey: string;
-  relayer: GelatoRelay;
   ethersProvider!: ethers.providers.JsonRpcProvider;
   permitHelper: PermitHelper;
 
@@ -85,7 +83,6 @@ class AarcSDK {
     this.ethersProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
     // instantiating Gelato Relay SDK
-    this.relayer = new GelatoRelay();
     this.permitHelper = new PermitHelper(rpcUrl, chainId);
   }
 
@@ -660,7 +657,6 @@ class AarcSDK {
             throw new Error('unable to get data');
           }
           const relayTrxDto: RelayTrxDto = {
-            relayer: this.relayer,
             requestData: {
               chainId: BigInt(this.chainId),
               target: PERMIT2_CONTRACT_ADDRESS,
@@ -729,7 +725,6 @@ class AarcSDK {
           }
 
           const relayTrxDto: RelayTrxDto = {
-            relayer: this.relayer,
             requestData: {
               chainId: BigInt(this.chainId),
               target: PERMIT2_CONTRACT_ADDRESS,
@@ -1200,7 +1195,6 @@ class AarcSDK {
             throw new Error('unable to get data');
           }
           const relayTrxDto: RelayTrxDto = {
-            relayer: this.relayer,
             requestData: {
               chainId: BigInt(this.chainId),
               target: PERMIT2_CONTRACT_ADDRESS,
@@ -1272,7 +1266,6 @@ class AarcSDK {
           }
 
           const relayTrxDto: RelayTrxDto = {
-            relayer: this.relayer,
             requestData: {
               chainId: BigInt(this.chainId),
               target: PERMIT2_CONTRACT_ADDRESS,

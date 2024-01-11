@@ -377,7 +377,7 @@ export const processGasFeeAndTokens = (
       taskId: '',
       tokenAddress: currentTrx.token_address,
       message: 'Token does not have enough balance to pay for fee',
-      amount: actualToken,
+      amount: actualToken._hex,
       txHash: '',
     });
   } else {

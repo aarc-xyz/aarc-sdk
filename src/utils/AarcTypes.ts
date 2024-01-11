@@ -40,7 +40,7 @@ export type NativeTransferDeployWalletDto = {
   walletType: WALLET_TYPE;
   owner: string;
   receiver: string;
-  amount?: BigNumber;
+  amount?: string;
   signer: Signer;
   deploymentWalletIndex?: number;
 };
@@ -226,7 +226,7 @@ export type PermitDomainDto = {
 export type MigrationResponse = {
   tokenAddress: string;
   taskId?: string;
-  amount?: BigNumber | BigNumberish;
+  amount?: string;
   message: string;
   txHash?: string;
   tokenId?: string;

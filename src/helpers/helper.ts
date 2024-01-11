@@ -164,7 +164,7 @@ export const processTokenData = (
       matchingToken.amount !== undefined &&
       BigNumber.from(matchingToken.amount).gt(0)
     ) {
-      element.balance = matchingToken.amount;
+      element.balance = BigNumber.from(matchingToken.amount);
     }
 
     // Case: transferTokenDetails contains amount for token but it's greater than the given allowance
@@ -269,7 +269,7 @@ export const processNativeTransfer = async (
       matchingToken.amount !== undefined &&
       BigNumber.from(matchingToken.amount).gt(0)
     ) {
-      amountTransfer = matchingToken.amount;
+      amountTransfer = BigNumber.from(matchingToken.amount);
     } else {
       const updatedNativeToken = await sdkObject.fetchBalances(owner, true, [
         nativeToken[0].token_address,
@@ -364,7 +364,7 @@ export const processGasFeeAndTokens = (
   const gasFeeInEth = ethers.utils.formatEther(treasuryGasUnits);
   const gasFeeInUsd = nativePriceInUsd * Number(gasFeeInEth);
   const tokensToDeduct = BigNumber.from(
-    parseInt(String(Math.pow(10, treasuryTransaction.decimals) * gasFeeInUsd)),
+    String(Math.ceil(Math.pow(10, treasuryTransaction.decimals) * gasFeeInUsd)),
   );
   const actualToken = BigNumber.from(currentTrx.balance);
 

@@ -125,7 +125,7 @@ export type RelayedTxListResponse = {
 
 export type TransferTokenDetails = {
   tokenAddress: string;
-  amount?: BigNumber; // for ERC20
+  amount?: string; // for ERC20
   tokenIds?: string[]; // for ERC721
 };
 

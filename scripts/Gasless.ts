@@ -63,6 +63,10 @@ export const mintAndTransferErc20Tokens = async () => {
             for (const tokenName in tokenAddresses[chainId]) {
                 console.log(' tokenName ', tokenName);
                 const { address, decimals } = tokenAddresses[chainId][tokenName as keyof typeof TokenName];
+
+                if (!address)
+                continue
+                
                 const token = balances.data.find(token => {
                     return token.token_address.toLowerCase() === address.toLowerCase()
                 })
@@ -87,10 +91,10 @@ export const mintAndTransferErc20Tokens = async () => {
                 senderSigner: signer,
                 receiverAddress: "0x786E6045eacb96cAe0259cd761e151b68B85bdA7",
                 transferTokenDetails: [
-                    { tokenAddress: tokenAddresses[chainId].USDA1.address, amount: BigNumber.from("100000000") },
-                    { tokenAddress: tokenAddresses[chainId].USDB.address, amount: BigNumber.from("100000000") },
-                    { tokenAddress: tokenAddresses[chainId].USDA2.address, amount: BigNumber.from("500000000") },
-                    { tokenAddress: tokenAddresses[chainId].USDC.address, amount: BigNumber.from("30000") },
+                    { tokenAddress: tokenAddresses[chainId].USDA1.address, amount: BigNumber.from("100000000")._hex },
+                    { tokenAddress: tokenAddresses[chainId].USDB.address, amount: BigNumber.from("100000000")._hex },
+                    { tokenAddress: tokenAddresses[chainId].USDA2.address, amount: BigNumber.from("500000000")._hex },
+                    { tokenAddress: tokenAddresses[chainId].USDC.address, amount: BigNumber.from("30000")._hex },
                 ]
             })
             console.log('ResultSet ', resultSet);
@@ -146,7 +150,7 @@ export const transferErc20Tokens = async () => {
 
 
         if (token) {
-            transferTokenDetails.push({ tokenAddress: address, amount: token.balance })
+            transferTokenDetails.push({ tokenAddress: address, amount: (token.balance)._hex })
         }
 
     }
@@ -209,7 +213,7 @@ export const transferFullNativeOnly = async () => {
             const resultSet = await aarcSDK.executeMigrationGasless({
                 senderSigner: signer,
                 receiverAddress: '0x786E6045eacb96cAe0259cd761e151b68B85bdA7',
-                transferTokenDetails: [{ tokenAddress: '0x0000000000000000000000000000000000001010', amount: BigNumber.from(1000) }]
+                transferTokenDetails: [{ tokenAddress: '0x0000000000000000000000000000000000001010', amount: BigNumber.from(1000)._hex }]
             })
             console.log('ResultSet ', resultSet);
 

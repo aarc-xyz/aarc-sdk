@@ -1,13 +1,17 @@
-import { BigNumber, BigNumberish, Signer } from 'ethers';
+import { BigNumber, BigNumberish, Signer, BytesLike } from 'ethers';
 import { ChainId } from './ChainTypes';
 import {
   PermitTransferFrom,
   PermitBatchTransferFrom,
   TokenPermissions,
 } from '@uniswap/permit2-sdk';
-import { GelatoRelay } from '@gelatonetwork/relay-sdk';
-import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 import { PERMIT_TX_TYPES } from './Constants';
+
+export type BaseRelayParams = {
+  chainId: bigint;
+  target: string;
+  data: BytesLike;
+};
 
 export type Config = {
   chainId: number;
@@ -190,13 +194,7 @@ export type BatchPermitData = {
 };
 
 export type RelayTrxDto = {
-  relayer: GelatoRelay;
   requestData: BaseRelayParams;
-};
-
-export type GelatoTxStatusDto = {
-  relayer: GelatoRelay;
-  taskId: string;
 };
 
 export type PermitDto = {

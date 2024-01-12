@@ -1,5 +1,5 @@
 import { Logger } from './utils/Logger';
-import { BigNumber, Contract, ethers, Signer } from 'ethers';
+import { BigNumber, Contract, ethers } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import {
   PERMIT2_CONTRACT_ADDRESS,
@@ -31,11 +31,13 @@ import {
   TokenData,
   ExecuteMigrationForwardDto,
   TransferTokenDetails,
+  SmartAccountResponse,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
 import Biconomy from './providers/Biconomy';
 import Safe from './providers/Safe';
+import Alchemy from './providers/Alchemy';
 import { PermitHelper } from './helpers/PermitHelper';
 import {
   logError,
@@ -51,7 +53,6 @@ import {
 } from './helpers';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
-import { ISmartAccount } from '@biconomy/node-client';
 import { OwnerResponse } from '@safe-global/api-kit';
 import {
   fetchBalances,
@@ -62,6 +63,7 @@ import {
 class AarcSDK {
   biconomy: Biconomy;
   safe: Safe;
+  alchemy: Alchemy;
   chainId: number;
   apiKey: string;
   ethersProvider!: ethers.providers.JsonRpcProvider;
@@ -71,8 +73,9 @@ class AarcSDK {
     const { rpcUrl, apiKey, chainId } = config;
     Logger.log('Aarc SDK initiated');
 
-    this.biconomy = new Biconomy();
+    this.biconomy = new Biconomy(chainId);
     this.safe = new Safe(rpcUrl);
+    this.alchemy = new Alchemy(chainId, rpcUrl);
 
     if (Object.values(ChainId).includes(chainId)) {
       this.chainId = chainId;
@@ -81,17 +84,11 @@ class AarcSDK {
     }
     this.apiKey = apiKey;
     this.ethersProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
-
-    // instantiating Gelato Relay SDK
     this.permitHelper = new PermitHelper(rpcUrl, chainId);
   }
 
-  async getAllBiconomySCWs(owner: string): Promise<ISmartAccount[]> {
+  async getAllBiconomySCWs(owner: string): Promise<SmartAccountResponse[]> {
     return this.biconomy.getAllBiconomySCWs(this.chainId, owner);
-  }
-
-  async generateBiconomySCW(signer: Signer): Promise<string> {
-    return this.biconomy.generateBiconomySCW(signer);
   }
 
   // Forward the methods from Safe
@@ -106,23 +103,21 @@ class AarcSDK {
     return this.safe.generateSafeSCW(config, saltNonce);
   }
 
+  async getAllAlchemySCWs(owner: string): Promise<SmartAccountResponse[]> {
+    return this.alchemy.getAllAlchemySCWs(owner);
+  }
+
   deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
-    const {
-      walletType,
-      owner,
-      signer,
-      deploymentWalletIndex = 0,
-    } = deployWalletDto;
+    const { walletType } = deployWalletDto;
 
     if (walletType === WALLET_TYPE.SAFE) {
-      return this.safe.deploySafeSCW(signer, owner, deploymentWalletIndex);
+      return this.safe.deploySafeSCW(deployWalletDto);
+    } else if (walletType == WALLET_TYPE.ALCHEMY) {
+      return this.alchemy.deployAlchemySCW(deployWalletDto);
+    } else if (walletType == WALLET_TYPE.BICONOMY) {
+      return this.biconomy.deployBiconomyScw(deployWalletDto);
     } else {
-      return this.biconomy.deployBiconomyScw(
-        signer,
-        this.chainId,
-        owner,
-        deploymentWalletIndex,
-      );
+      throw new Error('Unsupported wallet type');
     }
   }
 

@@ -2,8 +2,9 @@ import SafeApiKit, { OwnerResponse } from '@safe-global/api-kit';
 import { SafeFactory } from '@safe-global/protocol-kit';
 import { SAFE_TX_SERVICE_URLS } from '../utils/Constants';
 import { EthersAdapter } from '@safe-global/protocol-kit';
-import { Signer, ethers } from 'ethers';
+import { ethers } from 'ethers';
 import { Logger } from '../utils/Logger';
+import { DeployWalletDto } from '../utils/AarcTypes';
 
 class Safe {
   ethAdapter!: EthersAdapter;
@@ -25,6 +26,13 @@ class Safe {
         ethAdapter: this.ethAdapter,
       });
       const safes = await safeService.getSafesByOwner(eoaAddress);
+      if (safes.safes.length === 0) {
+        const newSafe = await this.generateSafeSCW({
+          owners: [eoaAddress],
+          threshold: 1,
+        });
+        safes.safes.push(newSafe);
+      }
       return safes;
     } catch (error) {
       Logger.log('error while getting safes');
@@ -48,12 +56,10 @@ class Safe {
     return smartWalletAddress;
   }
 
-  async deploySafeSCW(
-    signer: Signer,
-    owner: string,
-    saltNonce?: number,
-  ): Promise<string> {
+  async deploySafeSCW(deployWalletDto: DeployWalletDto): Promise<string> {
     try {
+      const { owner, signer } = deployWalletDto;
+      const saltNonce = deployWalletDto.deploymentWalletIndex || 0;
       this.ethAdapter = new EthersAdapter({
         ethers,
         signerOrProvider: signer,
@@ -77,7 +83,7 @@ class Safe {
 
         safeFactory
           .deploySafe({
-            saltNonce: saltNonce ? saltNonce.toString() : '0',
+            saltNonce: saltNonce.toString(),
             safeAccountConfig: config,
             callback,
           })

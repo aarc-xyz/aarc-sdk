@@ -28,7 +28,7 @@ interface GAS_TOKEN_ADDRESSES {
   [ChainId.ARBITRUM]: string;
   [ChainId.ARBITRUM_GOERLI]: string;
   [ChainId.BASE]: string;
-  [ChainId.BASE_TESTNET]: string;
+  [ChainId.BASE_GOERLI]: string;
   [ChainId.OPTIMISM]: string;
   [ChainId.POLYGON_ZKEVM]: string;
 }
@@ -43,7 +43,7 @@ export const GAS_TOKEN_ADDRESSES: GAS_TOKEN_ADDRESSES = {
   [ChainId.ARBITRUM]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.ARBITRUM_GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.BASE]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-  [ChainId.BASE_TESTNET]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  [ChainId.BASE_GOERLI]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.OPTIMISM]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
   [ChainId.POLYGON_ZKEVM]: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
 };
@@ -161,4 +161,34 @@ export const SUPPORTED_STABLE_TOKENS: Partial<
     USDT: '0x94b008aa00579c1307b0ef2c499ad98a8ce58e58',
     DAI: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1',
   },
+};
+
+/**
+ * Utility method returning the default simple account factory address given a {@link Chain} object
+ *
+ * @param chain - a {@link Chain} object
+ * @returns a {@link abi.Address} for the given chain
+ * @throws if the chain doesn't have an address currently deployed
+ */
+export const getAlchemySimpleAccountFactoryAddress = (
+  chain: number,
+): string => {
+  switch (chain) {
+    case ChainId.MAINNET:
+    case ChainId.POLYGON_MAINNET:
+    case ChainId.OPTIMISM:
+    case ChainId.ARBITRUM:
+    case ChainId.BASE:
+    case ChainId.BASE_GOERLI:
+      return '0x15Ba39375ee2Ab563E8873C8390be6f2E2F50232';
+    case ChainId.SEPOLIA:
+    case ChainId.GOERLI:
+    case ChainId.POLYGON_MUMBAI:
+    case ChainId.ARBITRUM_GOERLI:
+      return '0x9406Cc6185a346906296840746125a0E44976454';
+  }
+
+  throw new Error(
+    `no default simple account factory contract exists for ${chain}`,
+  );
 };

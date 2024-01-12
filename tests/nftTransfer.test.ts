@@ -185,7 +185,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '1',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -193,7 +193,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '2',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -333,7 +333,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '1',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -341,7 +341,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '2',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -349,7 +349,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[2]).toEqual({
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '4',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -357,7 +357,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[3]).toEqual({
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '8',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -365,7 +365,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[4]).toEqual({
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '11',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -508,7 +508,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '1',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -516,7 +516,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '2',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -524,7 +524,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[2]).toEqual({
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '4',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -532,7 +532,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[3]).toEqual({
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '8',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -540,7 +540,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[4]).toEqual({
       tokenAddress: '0x897ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '11',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -641,7 +641,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '1',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -744,7 +744,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '1',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -845,7 +845,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '1',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',
@@ -853,7 +853,7 @@ describe('Aarc SDK nft transfer', () => {
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0x932ca55b9ef0b3094e8fa82435b3b4c50d713043',
-      amount: BigNumber.from(1),
+      amount: BigNumber.from(1)._hex,
       tokenId: '2',
       message: 'Nft transfer tx sent',
       txHash: 'nft-transfer-0x1234567890',

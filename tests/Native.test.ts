@@ -111,9 +111,7 @@ describe('Aarc SDK executeMigration', () => {
     expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalledTimes(1);
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      amount: expect.objectContaining({
-        _hex: '0x989680',
-      }),
+      amount: '0x989680',
       message: 'Native transfer tx sent',
       txHash: 'native-transfer-0x1234567890',
     });
@@ -155,9 +153,7 @@ describe('Aarc SDK executeMigration', () => {
     expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalledTimes(1);
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      amount: expect.objectContaining({
-        _hex: '0x7a1200',
-      }),
+      amount: '0x7a1200',
       message: 'Native transfer tx sent',
       txHash: 'native-transfer-0x1234567890',
     });

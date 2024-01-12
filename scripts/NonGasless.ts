@@ -1,6 +1,6 @@
 import { BigNumber, ethers } from "ethers";
 import { AarcSDK } from '../src';
-import { RPC_URL, PRIVATE_KEY, API_KEY, GELATO_API_KEY, nativeTokenAddress, tokenAddresses, TokenName, ChainID, nativeTokenAddresses, MUMBAI_NFT_ADDRESS, validateEnvironmentVariables } from "./Constants";
+import { RPC_URL, PRIVATE_KEY, API_KEY, tokenAddresses, TokenName, ChainID, nativeTokenAddresses, MUMBAI_NFT_ADDRESS, validateEnvironmentVariables } from "./Constants";
 import { ERC20_ABI } from '../src/utils/abis/ERC20.abi';
 import { ERC721_ABI } from "../src/utils/abis/ERC721.abi";
 import { delay } from "../src/helpers";
@@ -65,10 +65,10 @@ export const transferErc20Tokens = async () => {
                 senderSigner: signer,
                 receiverAddress: "0x786E6045eacb96cAe0259cd761e151b68B85bdA7",
                 transferTokenDetails: [
-                    { tokenAddress: tokenAddresses[chainId].USDA1.address, amount: BigNumber.from("100000000") },
-                    { tokenAddress: tokenAddresses[chainId].USDB.address, amount: BigNumber.from("100000000") },
-                    { tokenAddress: tokenAddresses[chainId].USDA2.address, amount: BigNumber.from("500000000") },
-                    { tokenAddress: tokenAddresses[chainId].USDC.address, amount: BigNumber.from("30000000000000000") },
+                    { tokenAddress: tokenAddresses[chainId].USDA1.address, amount: BigNumber.from("100000000")._hex },
+                    { tokenAddress: tokenAddresses[chainId].USDB.address, amount: BigNumber.from("100000000")._hex },
+                    { tokenAddress: tokenAddresses[chainId].USDA2.address, amount: BigNumber.from("500000000")._hex },
+                    { tokenAddress: tokenAddresses[chainId].USDC.address, amount: BigNumber.from("30000000000000000")._hex },
                 ],
             })
             console.log('ResultSet ', resultSet);
@@ -126,7 +126,7 @@ export const transferFullNativeOnly = async () => {
             const resultSet = await aarcSDK.executeMigration({
                 senderSigner: signer,
                 receiverAddress: '0x786E6045eacb96cAe0259cd761e151b68B85bdA7',
-                transferTokenDetails: [{tokenAddress: '0x0000000000000000000000000000000000001010', amount: BigNumber.from(1000)}],
+                transferTokenDetails: [{tokenAddress: '0x0000000000000000000000000000000000001010', amount: BigNumber.from(1000)._hex}],
             })
             console.log('ResultSet ', resultSet);
 

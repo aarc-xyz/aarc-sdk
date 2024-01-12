@@ -134,11 +134,11 @@ describe('Aarc SDK executeMigration', () => {
       transferTokenDetails: [
         {
           tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-          amount: BigNumber.from('1000000'),
+          amount: BigNumber.from('1000000')._hex,
         },
         {
           tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-          amount: BigNumber.from('2000000000'),
+          amount: BigNumber.from('2000000000')._hex,
         },
       ],
       receiverAddress: receiver,
@@ -164,17 +164,13 @@ describe('Aarc SDK executeMigration', () => {
     // Verify the content of the response
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-      amount: expect.objectContaining({
-        _hex: '0x77359400',
-      }),
+      amount: BigNumber.from(0x77359400)._hex,
       message: 'Insufficient balance',
     });
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-      amount: expect.objectContaining({
-        _hex: '0x0f4240',
-      }),
+      amount: '0x0f4240',
       message: 'Token transfer tx sent',
       txHash: 'token-transfer-0x1234567890',
     });
@@ -247,9 +243,7 @@ describe('Aarc SDK executeMigration', () => {
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      amount: expect.objectContaining({
-        _hex: '0x64',
-      }),
+      amount: '0x64',
       message: 'Native transfer tx sent',
       txHash: 'native-transfer-0x1234567890',
     });
@@ -380,19 +374,19 @@ describe('Aarc SDK executeMigration', () => {
       transferTokenDetails: [
         {
           tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-          amount: BigNumber.from('0x1dcd6500'),
+          amount: BigNumber.from('0x1dcd6500')._hex,
         },
         {
           tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-          amount: BigNumber.from('0x05f5e100'),
+          amount: BigNumber.from('0x05f5e100')._hex,
         },
         {
           tokenAddress: '0xb18059aa6483ba71d6d3dfabad53616b00ea2aba',
-          amount: BigNumber.from('0x6a94d74f430000'),
+          amount: BigNumber.from('0x6a94d74f430000')._hex,
         },
         {
           tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
-          amount: BigNumber.from('0x05f5e100'),
+          amount: BigNumber.from('0x05f5e100')._hex,
         },
       ],
       receiverAddress: receiver,
@@ -415,18 +409,14 @@ describe('Aarc SDK executeMigration', () => {
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xb18059aa6483ba71d6d3dfabad53616b00ea2aba',
-      amount: expect.objectContaining({
-        hex: '0x989680',
-      }),
+      amount: '0x989680',
       message: 'Token transfer tx sent',
       txHash: 'permit-token-transfer-0x1234567890',
     });
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-      amount: expect.objectContaining({
-        hex: '0x174876e800',
-      }),
+      amount: '0x174876e800',
       message: 'Token transfer tx sent',
       txHash: 'permit-token-transfer-0x1234567890',
     });
@@ -435,12 +425,12 @@ describe('Aarc SDK executeMigration', () => {
       senderSigner: signer,
       recipientAddress: receiver,
       tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
-      amount: BigNumber.from(0x05f5e100),
+      amount: BigNumber.from('0x05f5e100'),
     });
 
     expect(migrationResponse[2]).toEqual({
       tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
-      amount: BigNumber.from(0x05f5e100),
+      amount: '0x05f5e100',
       message: 'Token transfer tx sent',
       txHash: 'token-transfer-0x1234567890',
     });
@@ -449,12 +439,12 @@ describe('Aarc SDK executeMigration', () => {
       senderSigner: signer,
       recipientAddress: receiver,
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-      amount: BigNumber.from(0x1dcd6500),
+      amount: BigNumber.from('0x1dcd6500'),
     });
 
     expect(migrationResponse[3]).toEqual({
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-      amount: BigNumber.from(0x1dcd6500),
+      amount: '0x1dcd6500',
       message: 'Token transfer tx sent',
       txHash: 'token-transfer-0x1234567890',
     });
@@ -526,23 +516,21 @@ describe('Aarc SDK executeMigration', () => {
       senderSigner: signer,
       recipientAddress: receiver,
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-      amount: { type: 'BigNumber', hex: '0x989680' },
+      amount: BigNumber.from('0x989680'),
     });
 
     expect(aarcSDK.permitHelper.performNativeTransfer).toHaveBeenCalledTimes(1);
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-      amount: { type: 'BigNumber', hex: '0x989680' },
+      amount: '0x989680',
       message: 'Token transfer tx sent',
       txHash: 'token-transfer-0x1234567890',
     });
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      amount: expect.objectContaining({
-        _hex: '0x7a1200',
-      }),
+      amount: '0x7a1200',
       message: 'Native transfer tx sent',
       txHash: 'native-transfer-0x1234567890',
     });
@@ -649,20 +637,14 @@ describe('Aarc SDK executeMigration', () => {
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-      amount: expect.objectContaining({
-        type: 'BigNumber',
-        hex: '0x989680',
-      }),
+      amount: '0x989680',
       message: 'Token transfer tx sent',
       txHash: 'permit-token-transfer-0x1234567890',
     });
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-      amount: expect.objectContaining({
-        type: 'BigNumber',
-        hex: '0x174876e800',
-      }),
+      amount: '0x174876e800',
       message: 'Token transfer tx sent',
       txHash: 'permit-token-transfer-0x1234567890',
     });
@@ -748,11 +730,11 @@ describe('Aarc SDK executeMigration', () => {
       transferTokenDetails: [
         {
           tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-          amount: BigNumber.from('1000000'),
+          amount: BigNumber.from('0x0f4240')._hex,
         },
         {
           tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-          amount: BigNumber.from('2000000000'),
+          amount: BigNumber.from('0x77359400')._hex,
         },
       ],
       receiverAddress: receiver,
@@ -767,18 +749,14 @@ describe('Aarc SDK executeMigration', () => {
 
     expect(migrationResponse[0]).toEqual({
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-      amount: expect.objectContaining({
-        _hex: '0x0f4240',
-      }),
+      amount: '0x0f4240',
       message: 'Insufficient balance for transaction',
       txHash: '',
     });
 
     expect(migrationResponse[1]).toEqual({
       tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-      amount: expect.objectContaining({
-        _hex: '0x77359400',
-      }),
+      amount: '0x77359400',
       message: 'Insufficient balance for transaction',
       txHash: '',
     });

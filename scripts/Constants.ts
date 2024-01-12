@@ -4,7 +4,6 @@ dotenv.config();
 export const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 export const RPC_URL = process.env.RPC_URL || "";
 export const API_KEY = process.env.API_KEY || "";
-export const GELATO_API_KEY = process.env.GELATO_API_KEY || "";
 export const DAPP_API_KEY = process.env.DAPP_API_KEY || ""
 
 
@@ -85,7 +84,6 @@ export const validateEnvironmentVariables = () => {
     if (!PRIVATE_KEY) missingVariables.push('PRIVATE_KEY');
     if (!RPC_URL) missingVariables.push('RPC_URL');
     if (!API_KEY) missingVariables.push('API_KEY');
-    if (!GELATO_API_KEY) missingVariables.push('GELATO_API_KEY');
 
     if (missingVariables.length > 0) {
         throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`);

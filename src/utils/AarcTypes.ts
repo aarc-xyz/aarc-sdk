@@ -1,13 +1,17 @@
-import { BigNumber, BigNumberish, Signer } from 'ethers';
+import { BigNumber, BigNumberish, Signer, BytesLike } from 'ethers';
 import { ChainId } from './ChainTypes';
 import {
   PermitTransferFrom,
   PermitBatchTransferFrom,
   TokenPermissions,
 } from '@uniswap/permit2-sdk';
-import { GelatoRelay } from '@gelatonetwork/relay-sdk';
-import { BaseRelayParams } from '@gelatonetwork/relay-sdk/dist/lib/types';
 import { PERMIT_TX_TYPES } from './Constants';
+
+export type BaseRelayParams = {
+  chainId: bigint;
+  target: string;
+  data: BytesLike;
+};
 
 export type Config = {
   chainId: number;
@@ -36,7 +40,7 @@ export type NativeTransferDeployWalletDto = {
   walletType: WALLET_TYPE;
   owner: string;
   receiver: string;
-  amount?: BigNumber;
+  amount?: string;
   signer: Signer;
   deploymentWalletIndex?: number;
 };
@@ -121,7 +125,7 @@ export type RelayedTxListResponse = {
 
 export type TransferTokenDetails = {
   tokenAddress: string;
-  amount?: BigNumber; // for ERC20
+  amount?: string; // for ERC20
   tokenIds?: string[]; // for ERC721
 };
 
@@ -190,13 +194,7 @@ export type BatchPermitData = {
 };
 
 export type RelayTrxDto = {
-  relayer: GelatoRelay;
   requestData: BaseRelayParams;
-};
-
-export type GelatoTxStatusDto = {
-  relayer: GelatoRelay;
-  taskId: string;
 };
 
 export type PermitDto = {
@@ -228,7 +226,7 @@ export type PermitDomainDto = {
 export type MigrationResponse = {
   tokenAddress: string;
   taskId?: string;
-  amount?: BigNumber | BigNumberish;
+  amount?: string;
   message: string;
   txHash?: string;
   tokenId?: string;

@@ -28,6 +28,7 @@ export enum WALLET_TYPE {
   BICONOMY,
   SAFE,
   ALCHEMY,
+  ZERODEV,
 }
 
 export type DeployWalletDto = {

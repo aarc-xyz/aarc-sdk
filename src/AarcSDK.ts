@@ -38,6 +38,7 @@ import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.
 import Biconomy from './providers/Biconomy';
 import Safe from './providers/Safe';
 import Alchemy from './providers/Alchemy';
+import Zerodev from './providers/Zerodev';
 import { PermitHelper } from './helpers/PermitHelper';
 import {
   logError,
@@ -64,6 +65,7 @@ class AarcSDK {
   biconomy: Biconomy;
   safe: Safe;
   alchemy: Alchemy;
+  zerodev: Zerodev;
   chainId: number;
   apiKey: string;
   ethersProvider!: ethers.providers.JsonRpcProvider;
@@ -76,6 +78,7 @@ class AarcSDK {
     this.biconomy = new Biconomy(chainId);
     this.safe = new Safe(rpcUrl);
     this.alchemy = new Alchemy(chainId, rpcUrl);
+    this.zerodev = new Zerodev(chainId, rpcUrl);
 
     if (Object.values(ChainId).includes(chainId)) {
       this.chainId = chainId;
@@ -115,7 +118,9 @@ class AarcSDK {
     } else if (walletType == WALLET_TYPE.ALCHEMY) {
       return this.alchemy.deployAlchemySCW(deployWalletDto);
     } else if (walletType == WALLET_TYPE.BICONOMY) {
-      return this.biconomy.deployBiconomyScw(deployWalletDto);
+      return this.biconomy.deployBiconomySCW(deployWalletDto);
+    } else if (walletType == WALLET_TYPE.ZERODEV) {
+      return this.zerodev.deployZerodevSCW(deployWalletDto);
     } else {
       throw new Error('Unsupported wallet type');
     }

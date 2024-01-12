@@ -46,7 +46,7 @@ class Biconomy {
     }
   }
 
-  async deployBiconomyScw(deployWalletDto: DeployWalletDto): Promise<string> {
+  async deployBiconomySCW(deployWalletDto: DeployWalletDto): Promise<string> {
     // Input validation
     const { owner, signer } = deployWalletDto;
     const nonce = deployWalletDto.deploymentWalletIndex || 0;

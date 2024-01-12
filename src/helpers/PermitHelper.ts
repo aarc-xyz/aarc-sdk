@@ -441,7 +441,7 @@ export class PermitHelper {
             (token: TokenPermissions) => {
               response.push({
                 tokenAddress: token.token,
-                amount: token.amount,
+                amount: BigNumber.from(token.amount)._hex,
                 message: 'Token transfer tx sent',
                 txHash: txInfo.hash,
               });
@@ -458,13 +458,13 @@ export class PermitHelper {
               logError(
                 {
                   tokenAddress: token.token,
-                  amount: token.amount,
+                  amount: BigNumber.from(token.amount)._hex,
                 },
                 error,
               );
               response.push({
                 tokenAddress: token.token,
-                amount: token.amount,
+                amount: BigNumber.from(token.amount)._hex,
                 message: 'Token transfer failed',
                 txHash: '',
               });
@@ -476,7 +476,7 @@ export class PermitHelper {
           (token: TokenPermissions) => {
             response.push({
               tokenAddress: token.token,
-              amount: token.amount,
+              amount: BigNumber.from(token.amount)._hex,
               message: 'Token transfer failed',
               txHash: '',
             });

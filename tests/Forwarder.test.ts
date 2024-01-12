@@ -268,7 +268,7 @@ describe('Aarc SDK executeForwardTransactions', () => {
     const migrationResponse =
       await aarcSDK.executeForwardTransaction(executeMigrationDto);
     expect(Array.isArray(migrationResponse)).toBe(true);
-    expect(migrationResponse).toHaveLength(6);
+    expect(migrationResponse).toHaveLength(7);
 
     expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalled();
     expect(aarcSDK.permitHelper.performPermit).toHaveBeenCalledTimes(2);
@@ -280,49 +280,57 @@ describe('Aarc SDK executeForwardTransactions', () => {
     });
     expect(aarcSDK.permitHelper.getBatchTransferPermitData).toHaveBeenCalled();
     expect(migrationResponse[0]).toEqual({
+      tokenAddress: '0xb18059aa6483ba71d6d3dfabad53616b00ea2aba',
+      amount: BigNumber.from(0x1dcd6500)._hex,
+      message: 'Token does not have enough balance to pay for fee',
+      taskId: '',
+      txHash: '',
+    });
+
+    expect(migrationResponse[1]).toEqual({
       tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-      amount: BigNumber.from(ethers.constants.MaxUint256),
+      amount: BigNumber.from(ethers.constants.MaxUint256)._hex,
       message: 'permit-hash-12345',
       taskId: 'permit-tx-123456',
       txHash: '',
     });
 
-    expect(migrationResponse[1]).toEqual({
+    expect(migrationResponse[2]).toEqual({
       tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
-      amount: BigNumber.from(ethers.constants.MaxUint256),
+      amount: BigNumber.from(ethers.constants.MaxUint256)._hex,
       message: 'permit-hash-12345',
       taskId: 'permit-tx-123456',
       txHash: '',
     });
 
     // Verify the content of the response
-    expect(migrationResponse[2]).toEqual({
-      tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
-      amount: BigNumber.from(0x05f5e100),
-      message: 'permit-batch-hash-12345',
-      taskId: 'permit-batch-tx-123456',
-      txHash: '',
-    });
-
     expect(migrationResponse[3]).toEqual({
-      tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
-      amount: BigNumber.from(0x1dcd6500),
+      tokenAddress: '0xbb8bb7e16d8f03969d49fd3ed0efd13e65c8f5b5',
+      amount: BigNumber.from(0x05f5e100)._hex,
       message: 'permit-batch-hash-12345',
       taskId: 'permit-batch-tx-123456',
       txHash: '',
     });
 
     expect(migrationResponse[4]).toEqual({
-      tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
-      amount: BigNumber.from(0x05f5e100),
+      tokenAddress: '0xf4ca1a280ebccdaebf80e3c128e55de01fabd893',
+      amount: BigNumber.from(0x1dcd6500)._hex,
       message: 'permit-batch-hash-12345',
       taskId: 'permit-batch-tx-123456',
       txHash: '',
     });
 
     expect(migrationResponse[5]).toEqual({
+      tokenAddress: '0xbb8db535d685f2742d6e84ec391c63e6a1ce3593',
+      amount: BigNumber.from(0x05f5e100)._hex,
+      message: 'permit-batch-hash-12345',
+      taskId: 'permit-batch-tx-123456',
+      txHash: '',
+    });
+
+    expect(migrationResponse[6]).toEqual({
       tokenAddress: '0xb18059aa6483ba71d6d3dfabad53616b00ea2aba',
-      amount: BigNumber.from(0x1dcd6500),
+      amount: BigNumber.from(0x1dcd6500)._hex,
       message: 'permit-batch-hash-12345',
       taskId: 'permit-batch-tx-123456',
       txHash: '',

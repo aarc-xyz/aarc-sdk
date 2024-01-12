@@ -139,7 +139,7 @@ class AarcSDK {
       }
 
       if (amount && BigNumber.from(amount).gt(0)) {
-        amountToTransfer = amount;
+        amountToTransfer = BigNumber.from(amount);
       } else {
         amountToTransfer = BigNumber.from(
           await this.ethersProvider.getBalance(owner),
@@ -159,7 +159,7 @@ class AarcSDK {
         Logger.log('walletDeploymentResponse ', walletDeploymentResponse);
         response.push({
           tokenAddress: '',
-          amount: BigNumber.from(0),
+          amount: BigNumber.from(0)._hex,
           message: walletDeploymentResponse.startsWith('0x')
             ? 'Deployment tx sent'
             : walletDeploymentResponse,
@@ -172,7 +172,7 @@ class AarcSDK {
         Logger.error(error);
         response.push({
           tokenAddress: '',
-          amount: amountToTransfer,
+          amount: amountToTransfer._hex,
           message: 'Deployment Tx Failed',
           txHash: '',
         });
@@ -186,7 +186,7 @@ class AarcSDK {
 
       response.push({
         tokenAddress: GAS_TOKEN_ADDRESSES[this.chainId as ChainId],
-        amount: amountToTransfer,
+        amount: amountToTransfer._hex,
         message:
           typeof txHash === 'string'
             ? 'Token transfer tx sent'
@@ -376,7 +376,7 @@ class AarcSDK {
           );
           response.push({
             tokenAddress: tx.tokenAddress,
-            amount: tx.amount,
+            amount: tx.amount._hex,
             message: 'Insufficient balance for transaction',
             txHash: '',
           });
@@ -392,7 +392,7 @@ class AarcSDK {
             });
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               tokenId: tx.tokenId,
               message: 'Nft transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
@@ -402,7 +402,7 @@ class AarcSDK {
             logError(tx, error);
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               message: 'Nft transfer failed',
               txHash: '',
             });
@@ -414,11 +414,11 @@ class AarcSDK {
               senderSigner: senderSigner,
               recipientAddress: receiverAddress,
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: BigNumber.from(tx.amount),
             });
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: BigNumber.from(tx.amount)._hex,
               message: 'Token transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
@@ -426,7 +426,7 @@ class AarcSDK {
             logError(tx, error);
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               message: 'Token transfer failed',
               txHash: '',
             });
@@ -444,7 +444,7 @@ class AarcSDK {
 
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               message: 'Native transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
@@ -452,7 +452,7 @@ class AarcSDK {
             logError(tx, error);
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               message: 'Native transfer failed',
               txHash: '',
             });
@@ -612,7 +612,7 @@ class AarcSDK {
           );
           response.push({
             tokenAddress: token.token_address,
-            amount: token.balance,
+            amount: token.balance._hex,
             message: 'Permit token failed',
             txHash: '',
           });
@@ -752,13 +752,13 @@ class AarcSDK {
             logError(
               {
                 tokenAddress: token.token,
-                amount: token.amount,
+                amount: BigNumber.from(token.amount)._hex,
               },
               error,
             );
             response.push({
               tokenAddress: token.token,
-              amount: token.amount,
+              amount: BigNumber.from(token.amount)._hex,
               message: 'Transaction Failed',
               txHash: '',
             });
@@ -778,7 +778,7 @@ class AarcSDK {
           if (type === PERMIT_TX_TYPES.PERMIT2_BATCH) {
             for (let index = 0; index < tokenInfo.length; index++) {
               const token_address = tokenInfo[index].tokenAddress;
-              const amount = tokenInfo[index].amount;
+              const amount = BigNumber.from(tokenInfo[index].amount)._hex;
               response.push({
                 taskId,
                 tokenAddress: token_address,
@@ -793,7 +793,7 @@ class AarcSDK {
             response.push({
               taskId,
               tokenAddress: tokenInfo[0].tokenAddress,
-              amount: tokenInfo[0].amount,
+              amount: BigNumber.from(tokenInfo[0].amount)._hex,
               message:
                 typeof status === 'string' ? status : 'Transaction Failed',
               txHash: '',
@@ -804,7 +804,7 @@ class AarcSDK {
             response.push({
               taskId,
               tokenAddress: tokenInfo[0].tokenAddress,
-              amount: tokenInfo[0].amount,
+              amount: BigNumber.from(tokenInfo[0].amount)._hex,
               message:
                 typeof status === 'string' ? status : 'Transaction Failed',
               txHash: '',
@@ -850,7 +850,7 @@ class AarcSDK {
           );
           response.push({
             tokenAddress: tx.tokenAddress,
-            amount: tx.amount,
+            amount: tx.amount._hex,
             message: 'Insufficient balance for transaction',
             txHash: '',
           });
@@ -866,7 +866,7 @@ class AarcSDK {
             });
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               tokenId: tx.tokenId,
               message: 'Nft transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
@@ -875,7 +875,7 @@ class AarcSDK {
             logError(tx, error);
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               message: 'Nft transfer failed',
               txHash: '',
             });
@@ -891,7 +891,7 @@ class AarcSDK {
             });
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               message: 'Token transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
@@ -899,7 +899,7 @@ class AarcSDK {
             logError(tx, error);
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               message: 'Token transfer failed',
               txHash: '',
             });
@@ -917,7 +917,7 @@ class AarcSDK {
 
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               message: 'Native transfer tx sent',
               txHash: typeof txHash === 'string' ? txHash : '',
             });
@@ -925,7 +925,7 @@ class AarcSDK {
             logError(tx, error);
             response.push({
               tokenAddress: tx.tokenAddress,
-              amount: tx.amount,
+              amount: tx.amount._hex,
               message: 'Native transfer failed',
               txHash: '',
             });
@@ -1150,7 +1150,7 @@ class AarcSDK {
           );
           response.push({
             tokenAddress: token.token_address,
-            amount: token.balance,
+            amount: token.balance._hex,
             message: 'Permit token failed',
             txHash: '',
           });
@@ -1293,13 +1293,13 @@ class AarcSDK {
             logError(
               {
                 tokenAddress: token.token,
-                amount: token.amount,
+                amount: BigNumber.from(token.amount)._hex,
               },
               error,
             );
             response.push({
               tokenAddress: token.token,
-              amount: token.amount,
+              amount: BigNumber.from(token.amount)._hex,
               message: 'Transaction Failed',
               txHash: '',
             });
@@ -1321,7 +1321,7 @@ class AarcSDK {
             if (type === PERMIT_TX_TYPES.PERMIT2_BATCH) {
               for (let index = 0; index < tokenInfo.length; index++) {
                 const token_address = tokenInfo[index].tokenAddress;
-                const amount = tokenInfo[index].amount;
+                const amount = BigNumber.from(tokenInfo[index].amount)._hex;
                 response.push({
                   taskId,
                   tokenAddress: token_address,
@@ -1336,7 +1336,7 @@ class AarcSDK {
               response.push({
                 taskId,
                 tokenAddress: tokenInfo[0].tokenAddress,
-                amount: tokenInfo[0].amount,
+                amount: BigNumber.from(tokenInfo[0].amount)._hex,
                 message:
                   typeof status === 'string' ? status : 'Transaction Failed',
                 txHash: '',
@@ -1347,7 +1347,7 @@ class AarcSDK {
               response.push({
                 taskId,
                 tokenAddress: tokenInfo[0].tokenAddress,
-                amount: tokenInfo[0].amount,
+                amount: BigNumber.from(tokenInfo[0].amount)._hex,
                 message:
                   typeof status === 'string' ? status : 'Transaction Failed',
                 txHash: '',

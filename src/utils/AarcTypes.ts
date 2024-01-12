@@ -40,7 +40,7 @@ export type NativeTransferDeployWalletDto = {
   walletType: WALLET_TYPE;
   owner: string;
   receiver: string;
-  amount?: BigNumber;
+  amount?: string;
   signer: Signer;
   deploymentWalletIndex?: number;
 };
@@ -125,7 +125,7 @@ export type RelayedTxListResponse = {
 
 export type TransferTokenDetails = {
   tokenAddress: string;
-  amount?: BigNumber; // for ERC20
+  amount?: string; // for ERC20
   tokenIds?: string[]; // for ERC721
 };
 
@@ -226,7 +226,7 @@ export type PermitDomainDto = {
 export type MigrationResponse = {
   tokenAddress: string;
   taskId?: string;
-  amount?: BigNumber | BigNumberish;
+  amount?: string;
   message: string;
   txHash?: string;
   tokenId?: string;

@@ -1,21 +1,26 @@
-import { Contract, providers } from 'ethers';
+import { Contract, ethers, providers } from 'ethers';
 import { Provider } from '@ethersproject/providers';
-import { DeployWalletDto, SmartAccountResponse } from '../utils/AarcTypes';
+import {
+  DeployWalletDto,
+  DeployWalletReponse,
+  SmartAccountResponse,
+} from '../utils/AarcTypes';
 import { Logger } from '../utils/Logger';
 import {
   KERNEL_ECDSA_VALIDATOR_ADDRESS,
   KERNEL_IMPLEMENTATION_ADDRESS,
+  ZERODEV_ENTRY_POINT_ADDRESS,
   ZERODEV_KERNEL_FACTORY_ADDRESS,
 } from '../utils/Constants';
 import { ZERODEV_KERNEL_FACTORY_ABI } from '../utils/abis/ZerodevFactory.abi';
 import { KernelAccountAbi } from '../utils/abis/KernelAccount.abi';
+import { ZERODEV_ENTRY_POINT_ABI } from '../utils/abis/ZerodevEntryPoint.abi';
 
 class Zerodev {
   provider: Provider;
   chainId: number;
 
   constructor(chainId: number, rpcUrl: string) {
-    console.log('Zerodev provider');
     this.chainId = chainId;
     this.provider = new providers.JsonRpcProvider(rpcUrl);
   }
@@ -25,14 +30,15 @@ class Zerodev {
       let index = 0;
       const accounts: SmartAccountResponse[] = [];
       let account = await this.getZerodevSCW(owner, index);
+      accounts.push(account);
       while (account && account.address && account.isDeployed) {
+        index += 1;
         account = await this.getZerodevSCW(owner, index);
         accounts.push(account);
-        index += 1;
       }
       return accounts;
     } catch (error) {
-      Logger.error('error while getting alchemy smart accounts');
+      Logger.error('error while getting zerodev smart accounts');
       throw error;
     }
   }
@@ -42,37 +48,49 @@ class Zerodev {
     index: number,
   ): Promise<SmartAccountResponse> {
     try {
-      const zerodevFactoryInstance = new Contract(
-        ZERODEV_KERNEL_FACTORY_ADDRESS,
-        ZERODEV_KERNEL_FACTORY_ABI,
-        this.provider,
-      );
-      const zerodevSCWAddress = await zerodevFactoryInstance.getAllAccounts(
-        owner,
-        index,
-      );
-      console.log('zerodevSCWAddress ', zerodevSCWAddress);
-      const code = await this.provider.getCode(zerodevSCWAddress);
-      if (code === '0x') {
-        return {
-          address: zerodevSCWAddress,
-          isDeployed: false,
-        };
-      } else {
-        return {
-          address: zerodevSCWAddress,
-          isDeployed: true,
-        };
+      let zerodevSCWAddress: string;
+      try {
+        const zerodevEntryInstance = new Contract(
+          ZERODEV_ENTRY_POINT_ADDRESS,
+          ZERODEV_ENTRY_POINT_ABI,
+          this.provider,
+        );
+        const initCode = this.getAccountInitCode(owner, index);
+        await zerodevEntryInstance.callStatic.getSenderAddress(initCode);
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+      } catch (err: any) {
+        Logger.log(
+          '[BaseSmartContractAccount](getAddress) entrypoint.getSenderAddress result: ',
+          err,
+        );
+        if (err.errorName === 'SenderAddressResult') {
+          zerodevSCWAddress = err.errorArgs[0] as string;
+          const code = await this.provider.getCode(zerodevSCWAddress);
+          if (code === '0x') {
+            return {
+              address: zerodevSCWAddress,
+              isDeployed: false,
+            };
+          } else {
+            return {
+              address: zerodevSCWAddress,
+              isDeployed: true,
+            };
+          }
+        }
       }
+      throw new Error('getCounterFactualAddress failed');
     } catch (error) {
       Logger.error(
-        `error while getting alchemy smart account of owner ${owner} and index ${index}`,
+        `error while getting zerodev smart account of owner ${owner} and index ${index}`,
       );
       throw error;
     }
   }
 
-  async deployZerodevSCW(deployWalletDto: DeployWalletDto): Promise<string> {
+  async deployZerodevSCW(
+    deployWalletDto: DeployWalletDto,
+  ): Promise<DeployWalletReponse> {
     try {
       const { signer, owner } = deployWalletDto;
       const nonce = deployWalletDto.deploymentWalletIndex || 0;
@@ -86,17 +104,60 @@ class Zerodev {
         KernelAccountAbi,
         this.provider,
       );
-      const zerodevSCWAddress = await zerodevFactoryInstance.createAccount(
+      const data = kernelAccountInstance.interface.encodeFunctionData(
+        'initialize',
+        [KERNEL_ECDSA_VALIDATOR_ADDRESS, owner],
+      );
+      const deploymentResponse = await zerodevFactoryInstance.createAccount(
         KERNEL_IMPLEMENTATION_ADDRESS,
-        kernelAccountInstance.interface.encodeFunctionData('initialize', [
-          KERNEL_ECDSA_VALIDATOR_ADDRESS,
-          owner,
-        ]),
+        data,
         nonce,
       );
-      return zerodevSCWAddress;
+      if (deploymentResponse.hash) {
+        return {
+          smartWalletOwner: owner,
+          deploymentWalletIndex: nonce,
+          txHash: deploymentResponse.hash,
+          chainId: this.chainId,
+        };
+      }
+      throw new Error('deployment failed');
     } catch (error) {
-      Logger.error('error while generating zerodev smart account');
+      Logger.error('error while deploying zerodev smart account');
+      throw error;
+    }
+  }
+
+  getAccountInitCode(owner: string, index: number): string {
+    return ethers.utils.hexConcat([
+      ZERODEV_KERNEL_FACTORY_ADDRESS,
+      this.getFactoryInitCode(owner, index),
+    ]);
+  }
+
+  getFactoryInitCode(owner: string, index: number): string {
+    try {
+      const zerodevFactoryInstance = new Contract(
+        ZERODEV_KERNEL_FACTORY_ADDRESS,
+        ZERODEV_KERNEL_FACTORY_ABI,
+        this.provider,
+      );
+      const kernelAccountInstance = new Contract(
+        KERNEL_IMPLEMENTATION_ADDRESS,
+        KernelAccountAbi,
+        this.provider,
+      );
+      const data = kernelAccountInstance.interface.encodeFunctionData(
+        'initialize',
+        [KERNEL_ECDSA_VALIDATOR_ADDRESS, owner],
+      );
+      const initCode = zerodevFactoryInstance.interface.encodeFunctionData(
+        'createAccount',
+        [KERNEL_IMPLEMENTATION_ADDRESS, data, index],
+      );
+      return initCode;
+    } catch (error) {
+      Logger.error('error while getting zerodev factory init code');
       throw error;
     }
   }

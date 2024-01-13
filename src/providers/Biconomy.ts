@@ -3,7 +3,11 @@ import { Contract } from 'ethers';
 import { BICONOMY_TX_SERVICE_URL } from '../utils/Constants';
 import NodeClient from '@biconomy/node-client';
 import { BICONOMY_FACTORY_ABI } from '../utils/abis/BiconomyFactory.abi';
-import { DeployWalletDto, SmartAccountResponse } from '../utils/AarcTypes';
+import {
+  DeployWalletDto,
+  DeployWalletReponse,
+  SmartAccountResponse,
+} from '../utils/AarcTypes';
 
 class Biconomy {
   nodeClient: NodeClient;
@@ -26,18 +30,22 @@ class Biconomy {
         index: 0,
       };
       let account = await this.nodeClient.getSmartAccountsByOwner(params);
+      accounts.push({
+        address: account.data[0].smartAccountAddress,
+        isDeployed: account.data[0].isDeployed,
+      });
       while (
         account &&
         account.data &&
         account.data.length > 0 &&
         account.data[0].isDeployed
       ) {
+        params.index += 1;
+        account = await this.nodeClient.getSmartAccountsByOwner(params);
         accounts.push({
           address: account.data[0].smartAccountAddress,
           isDeployed: account.data[0].isDeployed,
         });
-        params.index += 1;
-        account = await this.nodeClient.getSmartAccountsByOwner(params);
       }
       return accounts;
     } catch (error) {
@@ -46,7 +54,9 @@ class Biconomy {
     }
   }
 
-  async deployBiconomySCW(deployWalletDto: DeployWalletDto): Promise<string> {
+  async deployBiconomySCW(
+    deployWalletDto: DeployWalletDto,
+  ): Promise<DeployWalletReponse> {
     // Input validation
     const { owner, signer } = deployWalletDto;
     const nonce = deployWalletDto.deploymentWalletIndex || 0;
@@ -89,7 +99,13 @@ class Biconomy {
 
     if (isDeployed) {
       Logger.log('Biconomy wallet is already deployed');
-      return 'Biconomy wallet is already deployed';
+      return {
+        smartWalletOwner: owner,
+        deploymentWalletIndex: nonce,
+        txHash: '',
+        chainId: chainId,
+        message: 'Biconomy wallet is already deployed',
+      };
     }
 
     // Validate factoryAddress
@@ -104,7 +120,12 @@ class Biconomy {
     );
     const tx = await factoryInstance.deployCounterFactualAccount(owner, nonce);
     Logger.log('Wallet deployment tx sent with hash', tx.hash);
-    return tx.hash;
+    return {
+      smartWalletOwner: owner,
+      deploymentWalletIndex: nonce,
+      txHash: tx.hash,
+      chainId: chainId,
+    };
   }
 }
 

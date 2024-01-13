@@ -169,6 +169,8 @@ export const KERNEL_IMPLEMENTATION_ADDRESS =
   '0x0DA6a956B9488eD4dd761E59f52FDc6c8068E6B5';
 export const KERNEL_ECDSA_VALIDATOR_ADDRESS =
   '0xd9AB5096a832b9ce79914329DAEE236f8Eea0390';
+export const ZERODEV_ENTRY_POINT_ADDRESS =
+  '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789';
 
 /**
  * Utility method returning the default simple account factory address given a {@link Chain} object

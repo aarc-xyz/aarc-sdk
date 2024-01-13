@@ -3,7 +3,11 @@ import { Provider } from '@ethersproject/providers';
 import { getAlchemySimpleAccountFactoryAddress } from '../utils/Constants';
 import { ALCHEMY_FACTORY_ABI } from '../utils/abis/AlchemyFactory.abi';
 import { Logger } from '../utils/Logger';
-import { DeployWalletDto, SmartAccountResponse } from '../utils/AarcTypes';
+import {
+  DeployWalletDto,
+  DeployWalletReponse,
+  SmartAccountResponse,
+} from '../utils/AarcTypes';
 
 class Alchemy {
   provider: Provider;
@@ -19,10 +23,11 @@ class Alchemy {
       let index = 0;
       const accounts: SmartAccountResponse[] = [];
       let account = await this.getAlchemySCW(owner, index);
+      accounts.push(account);
       while (account && account.address && account.isDeployed) {
+        index += 1;
         account = await this.getAlchemySCW(owner, index);
         accounts.push(account);
-        index += 1;
       }
       return accounts;
     } catch (error) {
@@ -41,12 +46,12 @@ class Alchemy {
         ALCHEMY_FACTORY_ABI,
         this.provider,
       );
-      const alchemySCWAddress = await alchemyFactoryInstance.getAllAccounts(
+      const alchemySCWAddress = await alchemyFactoryInstance.getAddress(
         owner,
         index,
       );
-      console.log('alchemySCWAddress ', alchemySCWAddress);
       const code = await this.provider.getCode(alchemySCWAddress);
+      console.log('code', code);
       if (code === '0x') {
         return {
           address: alchemySCWAddress,
@@ -66,7 +71,9 @@ class Alchemy {
     }
   }
 
-  async deployAlchemySCW(deployWalletDto: DeployWalletDto): Promise<string> {
+  async deployAlchemySCW(
+    deployWalletDto: DeployWalletDto,
+  ): Promise<DeployWalletReponse> {
     try {
       const { signer, owner } = deployWalletDto;
       const nonce = deployWalletDto.deploymentWalletIndex || 0;
@@ -75,11 +82,19 @@ class Alchemy {
         ALCHEMY_FACTORY_ABI,
         signer,
       );
-      const alchemySCWAddress = await alchemyFactoryInstance.createAccount(
+      const deploymentResponse = await alchemyFactoryInstance.createAccount(
         owner,
         nonce,
       );
-      return alchemySCWAddress;
+      if (deploymentResponse.hash) {
+        return {
+          smartWalletOwner: owner,
+          deploymentWalletIndex: nonce,
+          txHash: deploymentResponse.hash,
+          chainId: this.chainId,
+        };
+      }
+      throw new Error('deployment failed');
     } catch (error) {
       Logger.error('error while generating alchemy smart account');
       throw error;

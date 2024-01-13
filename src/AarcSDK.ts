@@ -32,6 +32,7 @@ import {
   ExecuteMigrationForwardDto,
   TransferTokenDetails,
   SmartAccountResponse,
+  DeployWalletReponse,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
@@ -76,7 +77,7 @@ class AarcSDK {
     Logger.log('Aarc SDK initiated');
 
     this.biconomy = new Biconomy(chainId);
-    this.safe = new Safe(rpcUrl);
+    this.safe = new Safe(chainId, rpcUrl);
     this.alchemy = new Alchemy(chainId, rpcUrl);
     this.zerodev = new Zerodev(chainId, rpcUrl);
 
@@ -110,7 +111,11 @@ class AarcSDK {
     return this.alchemy.getAllAlchemySCWs(owner);
   }
 
-  deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
+  async getAllZerodevSCWs(owner: string): Promise<SmartAccountResponse[]> {
+    return this.zerodev.getAllZerodevSCWs(owner);
+  }
+
+  deployWallet(deployWalletDto: DeployWalletDto): Promise<DeployWalletReponse> {
     const { walletType } = deployWalletDto;
 
     if (walletType === WALLET_TYPE.SAFE) {
@@ -160,11 +165,11 @@ class AarcSDK {
         response.push({
           tokenAddress: '',
           amount: BigNumber.from(0)._hex,
-          message: walletDeploymentResponse.startsWith('0x')
+          message: walletDeploymentResponse.txHash.startsWith('0x')
             ? 'Deployment tx sent'
-            : walletDeploymentResponse,
-          txHash: walletDeploymentResponse.startsWith('0x')
-            ? walletDeploymentResponse
+            : walletDeploymentResponse.message || '',
+          txHash: walletDeploymentResponse.txHash.startsWith('0x')
+            ? walletDeploymentResponse.txHash
             : '',
         });
         /* eslint-disable @typescript-eslint/no-explicit-any */

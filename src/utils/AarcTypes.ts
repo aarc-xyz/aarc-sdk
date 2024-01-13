@@ -74,6 +74,14 @@ export type SmartAccountResponse = {
   isDeployed: boolean;
 };
 
+export type DeployWalletReponse = {
+  smartWalletOwner: string;
+  deploymentWalletIndex: number;
+  txHash: string;
+  chainId: number;
+  message?: string;
+};
+
 export type BalancesResponse = {
   code: number;
   data: TokenData[];

@@ -66,9 +66,7 @@ let aarcSDK = new AarcSDK({
     - [More coming soon 👀](#more-coming-soon-)
   - [License](#license)
   - [Support and Feedback](#support-and-feedback)
-
-
-
+  
 ## Fetching Token Balances
 
 Retrieve balances of all tokens in an EOA wallet:

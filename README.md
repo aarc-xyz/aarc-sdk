@@ -8,6 +8,8 @@ The Aarc SDK is a TypeScript library that makes it easy for developers to transf
 - ERC20Permit support for streamlined token approvals.
 - Gasless transactions using Relayers (EIP2771).
 
+# Getting Started
+
 ## Prerequisites
 - Node.js (v12.x or later)
 - Basic understanding of Ethereum and smart contracts.
@@ -18,11 +20,9 @@ Install ethers.js and Aarc SDK using npm:
 npm install ethers@5.7.2 aarc-sdk
 ```
 
-# Getting Started
-
 ## Get the API Key
 
-To use Aarc SDK, an API key is required. Fill out [this form](https://rebrand.ly/aarc-api) to get the API Key on your email instantly!
+To use Aarc SDK, an API key is required. Get the **API Key** from the [Dashboard](https://dashboard.aarc.xyz/).
 
 ## Initialise the SDK
 
@@ -40,7 +40,36 @@ let aarcSDK = new AarcSDK({
 
 # Usage
 
-## Fetching token balances
+- [Aarc SDK](#aarc-sdk)
+  - [Features of the SDK](#features-of-the-sdk)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Get the API Key](#get-the-api-key)
+  - [Initialise the SDK](#initialise-the-sdk)
+- [Usage](#usage)
+  - [Fetching Token Balances](#fetching-token-balances)
+  - [Mirgate Assets](#mirgate-assets)
+    - [Output](#output)
+  - [Migration Assets \[With Gasless Flow\]](#migration-assets-with-gasless-flow)
+    - [Output:](#output-1)
+  - [Migration of Assets \[Pay Gas with Stables\]](#migration-of-assets-pay-gas-with-stables)
+  - [Moving Native Tokens and Wallet Deployment](#moving-native-tokens-and-wallet-deployment)
+  - [Smart Wallet Integration](#smart-wallet-integration)
+    - [Safe Smart Wallet](#safe-smart-wallet)
+      - [Fetching Existing Safes:](#fetching-existing-safes)
+      - [Creating a New Safe Wallet:](#creating-a-new-safe-wallet)
+    - [Biconomy Smart Wallet](#biconomy-smart-wallet)
+      - [Fetching Biconomy Smart Wallets:](#fetching-biconomy-smart-wallets)
+      - [Creating a New Biconomy Wallet:](#creating-a-new-biconomy-wallet)
+  - [Smart Wallet Deployment](#smart-wallet-deployment)
+    - [More coming soon 👀](#more-coming-soon-)
+  - [License](#license)
+  - [Support and Feedback](#support-and-feedback)
+
+
+
+## Fetching Token Balances
 
 Retrieve balances of all tokens in an EOA wallet:
 
@@ -52,7 +81,8 @@ let balances = await aarcSDK.fetchBalances(
 );
 ```
 
-## Moving Assets
+
+## Mirgate Assets
 
 Transfer tokens from EOA to any receiver wallet address:
 
@@ -73,23 +103,23 @@ await aarcSDK.executeMigration({
 // Returns the response given below
 ```
 
-Output:
+### Output
 ```bash
 [
   {
-    tokenAddress,
-    amount,
-    message,
-    txHash,
-    tokenId
+  tokenAddress: string;
+  taskId?: string;
+  amount?: BigNumber | BigNumberish;
+  message: string;
+  txHash?: string;
+  tokenId?: string;
   },
-  ...
 ]
 ```
 
-### Moving Assets without gas
+## Migration Assets [With Gasless Flow]
 
-Transfer tokens from EOA to any receiver wallet address without gas fees. Please note that we use Gelato Relayer to provide the gasless functionality. Please get the Gelato [API Key](https://docs.gelato.network/developer-services/relay/payment-and-fees/1balance-and-relay) to use the gasless functionality.
+Transfer tokens from EOA to any receiver wallet address **without paying gas fees**.
 
 ```typescript
 await aarcSDK.executeMigrationGasless({
@@ -103,35 +133,48 @@ await aarcSDK.executeMigrationGasless({
       tokenIds?: string[] // tokenIds for nfts
     },
     ...
-  ],
-  gelatoApiKey: GELATO_RELAYER_API_KEY // Use the link above to get the gelato relayer key
+  ]
 })
 // Returns the response given below
 ```
 
-Output:
+### Output:
 ```bash
 [
   {
-    tokenAddress,
-    amount,
-    message,
-    txHash,
-    tokenId
+  tokenAddress: string;
+  taskId?: string;
+  amount?: BigNumber | BigNumberish;
+  message: string;
+  txHash?: string;
+  tokenId?: string;
   },
-  ...
 ]
 ```
+
+## Migration of Assets [Pay Gas with Stables]
+
+Transfer tokens from EOA to any receiver wallet address by **paying gas in Stable Coins.**
+
+```typescript
+await aarcSDK.executeForwardTransaction({
+    senderSigner: signer,
+    receiverAddress:"0x786E6045eacb96cAe0259cd761e151b68B85bdA7"
+  });
+```
+
+> [!NOTE]
+AARC SDK currently supports a few of the Stable Tokens on different networks. You can check about them [here](https://docs.aarc.xyz/developer-docs/integration-guide/usage/assets-migration/user-pays-gas-with-erc20-tokens-forwarder-flow#supported-networks-and-tokens).
+
 
 ## Moving Native Tokens and Wallet Deployment
 
 The following code snippet demonstrates a method to transfer native tokens while simultaneously deploying a wallet using the aarcSDK.
 
-This code snippet illustrates a process to transfer native tokens and deploy a wallet concurrently using the aarcSDK. Essential parameters such as the owner's address (EOA_ADDRESS), the type of wallet to deploy (WALLET_TYPE), the signer (ethers.signer object), the receiver's wallet address (RECEIVER_WALLET_ADDRESS), an optional amount of tokens to transfer (amount), and an index for deploying multiple wallets under the same EOA (deploymentWalletIndex) are included.
+This code snippet illustrates a process to transfer native tokens and deploy a wallet concurrently using the `aarcSDK`. Essential parameters such as the owner's address (`EOA_ADDRESS`), the type of wallet to deploy (`WALLET_TYPE`), the `signer` (ethers.signer object), the receiver's wallet address (`RECEIVER_WALLET_ADDRESS`), an optional amount of tokens to transfer (`amount`), and an index for deploying multiple wallets under the same EOA (`deploymentWalletIndex`) are included.
 
-#### NOTE
-If the wallet corresponding to the provided owner address (EOA_ADDRESS) and index (deploymentWalletIndex) is already deployed, the deployment process will not occur, and only the token transfer will be executed.
-
+> [!NOTE]
+If the wallet corresponding to the provided owner address (`EOA_ADDRESS`) and index (`deploymentWalletIndex`) is already deployed, the deployment process will not occur, and only the token transfer will be executed.
 
 
 ```typescript
@@ -151,9 +194,9 @@ await aarcSDK.transferNativeAndDeploy({
 ## Smart Wallet Integration
 The Aarc SDK seamlessly integrates with different smart wallets. It currently supports Safe and Biconomy smart wallets and will add more options in the future.
 
-### Safe smart wallet
+### Safe Smart Wallet
 
-Fetching Existing Safes:
+#### Fetching Existing Safes:
 
 Retrieve a list of all Safe smart wallets associated with the user's EOA:
 ```typescript
@@ -161,7 +204,7 @@ const safes = await aarcSDK.getAllSafes(owner: string); // owner's eoaAddress
 // This returns an array of Safe wallet addresses
 ```
 
-Creating a New Safe Wallet:
+#### Creating a New Safe Wallet:
 
 Generate a new Safe smart wallet. The address returned is a counterfactual address, and the wallet needs to be deployed later. Asset migration can be directed to this address even before deployment.
 ```typescript
@@ -174,7 +217,7 @@ const newSafeAddress = await aarcSDK.generateSafeSCW(
 
 ### Biconomy Smart Wallet
 
-Fetching Biconomy Smart Wallets:
+#### Fetching Biconomy Smart Wallets:
 
 Retrieve a list of all Biconomy smart wallets associated with the user's EOA:
 ```typescript
@@ -182,7 +225,7 @@ const biconomySWs = await aarcSDK.getAllBiconomySCWs(owner: string); // owner's 
 // This returns an array of Biconomy wallet addresses
 ```
 
-Creating a New Biconomy Wallet:
+#### Creating a New Biconomy Wallet:
 
 Similar to the Safe wallet, you can create a Biconomy smart wallet. The address provided is also a counterfactual address, requiring later deployment. The migration process can target this address immediately.
 ```typescript
@@ -192,14 +235,14 @@ const newBiconomySCWAddress = await aarcSDK.generateBiconomySCW(
 // Returns a counterfactual address for the new Biconomy wallet
 ```
 
-## Wallet Deployment
+## Smart Wallet Deployment
 
 You have the capability to deploy Biconomy or Safe wallets by utilizing the provided code snippets.
 
-The code snippet below showcases how to deploy a wallet using the AarcSDK. It involves specifying essential parameters such as the owner's address (EOA_ADDRESS), the type of wallet to deploy (WALLET_TYPE.BICONOMY or WALLET_TYPE.SAFE), the signer (ethers.signer object), and an optional index for deploying multiple wallets under the same EOA.
+The code snippet below showcases how to deploy a wallet using the AarcSDK. It involves specifying essential parameters such as the owner's address (`EOA_ADDRESS`), the type of wallet to deploy (`WALLET_TYPE.BICONOMY` or `WALLET_TYPE.SAFE`), the `signer` (ethers.signer object), and an optional index for deploying multiple wallets under the same EOA.
 
-#### NOTE
-If the wallet corresponding to the provided owner address (EOA_ADDRESS) and index (deploymentWalletIndex) is already deployed, the deployment process will not occur.
+> [!NOTE]
+If the wallet corresponding to the provided owner address (`EOA_ADDRESS`) and index (`deploymentWalletIndex`) is already deployed, the deployment process will not occur.
 
 
 ```typescript
@@ -213,7 +256,7 @@ await aarcSDK.deployWallet({
 })
 ```
 
-#### More coming soon
+### More coming soon 👀
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE.md) for details.

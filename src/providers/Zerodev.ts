@@ -13,7 +13,7 @@ import {
   ZERODEV_KERNEL_FACTORY_ADDRESS,
 } from '../utils/Constants';
 import { ZERODEV_KERNEL_FACTORY_ABI } from '../utils/abis/ZerodevFactory.abi';
-import { KernelAccountAbi } from '../utils/abis/KernelAccount.abi';
+import { KERNEL_ACCOUNT_ABI } from '../utils/abis/KernelAccount.abi';
 import { ZERODEV_ENTRY_POINT_ABI } from '../utils/abis/ZerodevEntryPoint.abi';
 
 class Zerodev {
@@ -61,7 +61,7 @@ class Zerodev {
       } catch (err: any) {
         Logger.log(
           '[BaseSmartContractAccount](getAddress) entrypoint.getSenderAddress result: ',
-          err,
+          err.errorName,
         );
         if (err.errorName === 'SenderAddressResult') {
           zerodevSCWAddress = err.errorArgs[0] as string;
@@ -101,7 +101,7 @@ class Zerodev {
       );
       const kernelAccountInstance = new Contract(
         KERNEL_IMPLEMENTATION_ADDRESS,
-        KernelAccountAbi,
+        KERNEL_ACCOUNT_ABI,
         this.provider,
       );
       const data = kernelAccountInstance.interface.encodeFunctionData(
@@ -146,7 +146,7 @@ class Zerodev {
       );
       const kernelAccountInstance = new Contract(
         KERNEL_IMPLEMENTATION_ADDRESS,
-        KernelAccountAbi,
+        KERNEL_ACCOUNT_ABI,
         this.provider,
       );
       const data = kernelAccountInstance.interface.encodeFunctionData(

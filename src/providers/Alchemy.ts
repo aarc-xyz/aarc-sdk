@@ -93,7 +93,9 @@ class Alchemy {
           chainId: this.chainId,
         };
       }
-      throw new Error('error while deploying alchemy smart account');
+      throw new Error(
+        'error while deploying alchemy smart account, txHash is missing',
+      );
     } catch (error) {
       Logger.error('error while generating alchemy smart account');
       throw error;

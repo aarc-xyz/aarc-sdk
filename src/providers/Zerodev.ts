@@ -121,7 +121,9 @@ class Zerodev {
           chainId: this.chainId,
         };
       }
-      throw new Error('deployment failed');
+      throw new Error(
+        'error while deploying zerodev smart account, txHash is missing',
+      );
     } catch (error) {
       Logger.error('error while deploying zerodev smart account');
       throw error;

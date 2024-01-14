@@ -58,7 +58,10 @@ describe('Alchemy', () => {
         isDeployed: false,
       });
 
-      const accounts = await aarcSDK.getAllAlchemySCWs(owner);
+      const accounts = await aarcSDK.getSmartWalletAddresses(
+        WALLET_TYPE.ALCHEMY,
+        owner,
+      );
 
       expect(aarcSDK.alchemy.getAlchemySCW).toHaveBeenCalledTimes(1);
       expect(aarcSDK.alchemy.getAlchemySCW).toHaveBeenCalledWith(owner, 0);
@@ -88,7 +91,10 @@ describe('Alchemy', () => {
         isDeployed: false,
       });
 
-      const accounts = await aarcSDK.getAllAlchemySCWs(owner);
+      const accounts = await aarcSDK.getSmartWalletAddresses(
+        WALLET_TYPE.ALCHEMY,
+        owner,
+      );
 
       expect(aarcSDK.alchemy.getAlchemySCW).toHaveBeenCalledTimes(2);
       expect(aarcSDK.alchemy.getAlchemySCW).toHaveBeenCalledWith(owner, 0);

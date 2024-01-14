@@ -55,7 +55,6 @@ import {
 } from './helpers';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
-import { OwnerResponse } from '@safe-global/api-kit';
 import {
   fetchBalances,
   fetchGasPrice,
@@ -91,28 +90,21 @@ class AarcSDK {
     this.permitHelper = new PermitHelper(rpcUrl, chainId);
   }
 
-  async getAllBiconomySCWs(owner: string): Promise<SmartAccountResponse[]> {
-    return this.biconomy.getAllBiconomySCWs(this.chainId, owner);
-  }
-
-  // Forward the methods from Safe
-  getAllSafes(owner: string): Promise<OwnerResponse> {
-    return this.safe.getAllSafes(this.chainId, owner);
-  }
-
-  generateSafeSCW(
-    config: { owners: string[]; threshold: number },
-    saltNonce?: number,
-  ): Promise<string> {
-    return this.safe.generateSafeSCW(config, saltNonce);
-  }
-
-  async getAllAlchemySCWs(owner: string): Promise<SmartAccountResponse[]> {
-    return this.alchemy.getAllAlchemySCWs(owner);
-  }
-
-  async getAllZerodevSCWs(owner: string): Promise<SmartAccountResponse[]> {
-    return this.zerodev.getAllZerodevSCWs(owner);
+  async getSmartWalletAddresses(
+    walletType: WALLET_TYPE,
+    owner: string,
+  ): Promise<SmartAccountResponse[]> {
+    if (walletType === WALLET_TYPE.SAFE) {
+      return this.safe.getAllSafes(owner);
+    } else if (walletType == WALLET_TYPE.ALCHEMY) {
+      return this.alchemy.getAllAlchemySCWs(owner);
+    } else if (walletType == WALLET_TYPE.BICONOMY) {
+      return this.biconomy.getAllBiconomySCWs(owner);
+    } else if (walletType == WALLET_TYPE.ZERODEV) {
+      return this.zerodev.getAllZerodevSCWs(owner);
+    } else {
+      throw new Error('Unsupported wallet type');
+    }
   }
 
   deployWallet(deployWalletDto: DeployWalletDto): Promise<DeployWalletReponse> {

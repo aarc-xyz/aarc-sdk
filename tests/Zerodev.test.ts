@@ -63,7 +63,10 @@ describe('Zerodev', () => {
         isDeployed: false,
       });
 
-      const accounts = await aarcSDK.getAllZerodevSCWs(owner);
+      const accounts = await aarcSDK.getSmartWalletAddresses(
+        WALLET_TYPE.ZERODEV,
+        owner,
+      );
 
       expect(aarcSDK.zerodev.getZerodevSCW).toHaveBeenCalledTimes(1);
       expect(aarcSDK.zerodev.getZerodevSCW).toHaveBeenCalledWith(owner, 0);
@@ -93,7 +96,10 @@ describe('Zerodev', () => {
         isDeployed: false,
       });
 
-      const accounts = await aarcSDK.getAllZerodevSCWs(owner);
+      const accounts = await aarcSDK.getSmartWalletAddresses(
+        WALLET_TYPE.ZERODEV,
+        owner,
+      );
 
       expect(aarcSDK.zerodev.getZerodevSCW).toHaveBeenCalledTimes(2);
       expect(aarcSDK.zerodev.getZerodevSCW).toHaveBeenCalledWith(owner, 0);

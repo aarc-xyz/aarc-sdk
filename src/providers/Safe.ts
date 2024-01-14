@@ -1,10 +1,14 @@
-import SafeApiKit, { OwnerResponse } from '@safe-global/api-kit';
+import SafeApiKit from '@safe-global/api-kit';
 import { SafeFactory } from '@safe-global/protocol-kit';
 import { SAFE_TX_SERVICE_URLS } from '../utils/Constants';
 import { EthersAdapter } from '@safe-global/protocol-kit';
 import { ethers } from 'ethers';
 import { Logger } from '../utils/Logger';
-import { DeployWalletDto, DeployWalletReponse } from '../utils/AarcTypes';
+import {
+  DeployWalletDto,
+  DeployWalletReponse,
+  SmartAccountResponse,
+} from '../utils/AarcTypes';
 
 class Safe {
   ethAdapter!: EthersAdapter;
@@ -18,24 +22,31 @@ class Safe {
     this.chainId = chainId;
   }
 
-  async getAllSafes(
-    chainId: number,
-    eoaAddress: string,
-  ): Promise<OwnerResponse> {
+  async getAllSafes(eoaAddress: string): Promise<SmartAccountResponse[]> {
     try {
       const safeService = new SafeApiKit({
-        txServiceUrl: SAFE_TX_SERVICE_URLS[chainId],
+        txServiceUrl: SAFE_TX_SERVICE_URLS[this.chainId],
         ethAdapter: this.ethAdapter,
       });
+      const accounts: SmartAccountResponse[] = [];
       const safes = await safeService.getSafesByOwner(eoaAddress);
+      safes.safes.forEach((safe: string) => {
+        accounts.push({
+          address: safe,
+          isDeployed: true,
+        });
+      });
       if (safes.safes.length === 0) {
         const newSafe = await this.generateSafeSCW({
           owners: [eoaAddress],
           threshold: 1,
         });
-        safes.safes.push(newSafe);
+        accounts.push({
+          address: newSafe,
+          isDeployed: false,
+        });
       }
-      return safes;
+      return accounts;
     } catch (error) {
       Logger.log('error while getting safes');
       throw error;

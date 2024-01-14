@@ -18,14 +18,11 @@ class Biconomy {
     this.nodeClient = new NodeClient({ txServiceUrl: BICONOMY_TX_SERVICE_URL });
   }
 
-  async getAllBiconomySCWs(
-    chainId: number,
-    owner: string,
-  ): Promise<SmartAccountResponse[]> {
+  async getAllBiconomySCWs(owner: string): Promise<SmartAccountResponse[]> {
     try {
       const accounts: SmartAccountResponse[] = [];
       const params = {
-        chainId: chainId,
+        chainId: this.chainId,
         owner: owner,
         index: 0,
       };

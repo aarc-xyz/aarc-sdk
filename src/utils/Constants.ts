@@ -16,7 +16,7 @@ export const PERMIT_FUNCTION_ABI =
 export const TREASURY_ADDRESS = '0xfa59d56b4bb6bdbd28883eef1b7bdf504a124f64';
 export const PERMIT_GAS_UNITS = 220000;
 export const PERMIT_PER_TRX_UNITS = 70000;
-export const GEWI_UNITS = BigNumber.from(10).pow(9);
+// export const GWEI_UNITS = BigNumber.from(10).pow(9);
 export const ETH_UNITS = BigNumber.from(10).pow(18);
 
 interface GAS_TOKEN_ADDRESSES {

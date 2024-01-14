@@ -51,7 +51,6 @@ class Alchemy {
         index,
       );
       const code = await this.provider.getCode(alchemySCWAddress);
-      console.log('code', code);
       if (code === '0x') {
         return {
           address: alchemySCWAddress,
@@ -94,7 +93,7 @@ class Alchemy {
           chainId: this.chainId,
         };
       }
-      throw new Error('deployment failed');
+      throw new Error('error while deploying alchemy smart account');
     } catch (error) {
       Logger.error('error while generating alchemy smart account');
       throw error;

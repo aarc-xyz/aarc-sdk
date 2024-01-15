@@ -25,6 +25,11 @@ npm install ethers@5.7.2 aarc-sdk
 To use Aarc SDK, an API key is required. Get the **API Key** from the [Dashboard](https://dashboard.aarc.xyz/).
 You can learn about gettign the API Key from [here](https://docs.aarc.xyz/developer-docs/integration-guide/setup-and-installation).
 
+![Dashboard Image](./readme_assets/1.png)
+
+> [!NOTE] 
+We only accept funds on **Polygon Mainnet** & **Polygon Mumbai Testnet**.  However, these funds can be transacted on any supported mainnet or testnet.
+
 ## Initialise the SDK
 
 Import and initialise the Aarc SDK in your project.

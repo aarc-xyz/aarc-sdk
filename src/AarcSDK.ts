@@ -90,6 +90,12 @@ class AarcSDK {
     this.permitHelper = new PermitHelper(rpcUrl, chainId);
   }
 
+  /**
+   * Function to get the address of the Smart Wallet by different Wallet Providers.
+   * @param walletType Type of Wallet Provider
+   * @param owner The address of the EOA that owns the wallet
+   * @returns Reponse including the address of the wallet and whether it is deployed or not
+   */
   async getSmartWalletAddresses(
     walletType: WALLET_TYPE,
     owner: string,
@@ -107,6 +113,11 @@ class AarcSDK {
     }
   }
 
+  /**
+   * Function to deploy the Smart Wallet on the chosen Wallet Provider.
+   * @param deployWalletDto Parameters to deploy a Smart Wallet. Those include owner address, signer, and wallet provider type.
+   * @returns Reponse including the Smart Wallet deployment Index, txnHash, chainId and message.
+   */
   deployWallet(deployWalletDto: DeployWalletDto): Promise<DeployWalletReponse> {
     const { walletType } = deployWalletDto;
 
@@ -123,6 +134,12 @@ class AarcSDK {
     }
   }
 
+  /**
+   * Function to deploy the Smart Wallet on the chosen Wallet Provider and transfer native tokens.
+   * @param nativeTransferDeployWalletDto Parameters to deploy a Smart Wallet and transfer native tokens. Those include owner address, signer, receiver and wallet provider type.
+   * @returns Migration response including the token address and message.
+   * @dev if the txn successful then the Migration response will also include the txnHash, taskId and amount.
+   */
   async transferNativeAndDeploy(
     nativeTransferDeployWalletDto: NativeTransferDeployWalletDto,
   ): Promise<MigrationResponse[]> {

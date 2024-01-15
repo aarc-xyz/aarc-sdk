@@ -27,6 +27,8 @@ export type GetSafeDto = {
 export enum WALLET_TYPE {
   BICONOMY,
   SAFE,
+  ALCHEMY,
+  ZERODEV,
 }
 
 export type DeployWalletDto = {
@@ -65,6 +67,19 @@ export type TokenData = {
 export type TokenNftData = {
   image: string;
   tokenId: string;
+};
+
+export type SmartAccountResponse = {
+  address: string;
+  isDeployed: boolean;
+};
+
+export type DeployWalletReponse = {
+  smartWalletOwner: string;
+  deploymentWalletIndex: number;
+  txHash: string;
+  chainId: number;
+  message?: string;
 };
 
 export type BalancesResponse = {

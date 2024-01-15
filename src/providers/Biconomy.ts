@@ -1,46 +1,48 @@
 import { Logger } from '../utils/Logger';
-import { Signer, Contract } from 'ethers';
+import { Contract } from 'ethers';
 import { BICONOMY_TX_SERVICE_URL } from '../utils/Constants';
-import {
-  BiconomySmartAccountV2,
-  DEFAULT_ENTRYPOINT_ADDRESS,
-} from '@biconomy/account';
-import {
-  ECDSAOwnershipValidationModule,
-  DEFAULT_ECDSA_OWNERSHIP_MODULE,
-} from '@biconomy/modules';
 import NodeClient from '@biconomy/node-client';
 import { BICONOMY_FACTORY_ABI } from '../utils/abis/BiconomyFactory.abi';
-import { ISmartAccount } from '@biconomy/node-client';
+import {
+  DeployWalletDto,
+  DeployWalletReponse,
+  SmartAccountResponse,
+} from '../utils/AarcTypes';
 
 class Biconomy {
   nodeClient: NodeClient;
+  chainId: number;
 
-  constructor() {
+  constructor(chainId: number) {
+    this.chainId = chainId;
     this.nodeClient = new NodeClient({ txServiceUrl: BICONOMY_TX_SERVICE_URL });
   }
 
-  async getAllBiconomySCWs(
-    chainId: number,
-    owner: string,
-  ): Promise<ISmartAccount[]> {
+  async getAllBiconomySCWs(owner: string): Promise<SmartAccountResponse[]> {
     try {
-      const accounts: ISmartAccount[] = [];
+      const accounts: SmartAccountResponse[] = [];
       const params = {
-        chainId: chainId,
+        chainId: this.chainId,
         owner: owner,
         index: 0,
       };
       let account = await this.nodeClient.getSmartAccountsByOwner(params);
+      accounts.push({
+        address: account.data[0].smartAccountAddress,
+        isDeployed: account.data[0].isDeployed,
+      });
       while (
         account &&
         account.data &&
         account.data.length > 0 &&
         account.data[0].isDeployed
       ) {
-        accounts.push(...account.data);
         params.index += 1;
         account = await this.nodeClient.getSmartAccountsByOwner(params);
+        accounts.push({
+          address: account.data[0].smartAccountAddress,
+          isDeployed: account.data[0].isDeployed,
+        });
       }
       return accounts;
     } catch (error) {
@@ -49,34 +51,13 @@ class Biconomy {
     }
   }
 
-  async generateBiconomySCW(signer: Signer): Promise<string> {
-    try {
-      const module = await ECDSAOwnershipValidationModule.create({
-        signer: signer,
-        moduleAddress: DEFAULT_ECDSA_OWNERSHIP_MODULE,
-      });
-
-      const biconomySmartAccount = await BiconomySmartAccountV2.create({
-        chainId: await signer.getChainId(),
-        entryPointAddress: DEFAULT_ENTRYPOINT_ADDRESS,
-        defaultValidationModule: module,
-        activeValidationModule: module,
-      });
-
-      return await biconomySmartAccount.getAccountAddress();
-    } catch (error) {
-      Logger.error('error while generating biconomy smart account');
-      throw error;
-    }
-  }
-
-  async deployBiconomyScw(
-    signer: Signer,
-    chainId: number,
-    owner: string,
-    nonce: number = 0,
-  ): Promise<string> {
+  async deployBiconomySCW(
+    deployWalletDto: DeployWalletDto,
+  ): Promise<DeployWalletReponse> {
     // Input validation
+    const { owner, signer } = deployWalletDto;
+    const nonce = deployWalletDto.deploymentWalletIndex || 0;
+    const chainId = this.chainId;
     if (typeof chainId !== 'number' || chainId <= 0) {
       throw new Error('Invalid chainId');
     }
@@ -115,7 +96,13 @@ class Biconomy {
 
     if (isDeployed) {
       Logger.log('Biconomy wallet is already deployed');
-      return 'Biconomy wallet is already deployed';
+      return {
+        smartWalletOwner: owner,
+        deploymentWalletIndex: nonce,
+        txHash: '',
+        chainId: chainId,
+        message: 'Biconomy wallet is already deployed',
+      };
     }
 
     // Validate factoryAddress
@@ -130,7 +117,12 @@ class Biconomy {
     );
     const tx = await factoryInstance.deployCounterFactualAccount(owner, nonce);
     Logger.log('Wallet deployment tx sent with hash', tx.hash);
-    return tx.hash;
+    return {
+      smartWalletOwner: owner,
+      deploymentWalletIndex: nonce,
+      txHash: tx.hash,
+      chainId: chainId,
+    };
   }
 }
 

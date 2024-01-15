@@ -23,6 +23,7 @@ npm install ethers@5.7.2 aarc-sdk
 ## Get the API Key
 
 To use Aarc SDK, an API key is required. Get the **API Key** from the [Dashboard](https://dashboard.aarc.xyz/).
+You can learn about gettign the API Key from [here](https://docs.aarc.xyz/developer-docs/integration-guide/setup-and-installation).
 
 ## Initialise the SDK
 
@@ -40,19 +41,32 @@ let aarcSDK = new AarcSDK({
 
 # Usage
 
-- [Fetching Token Balances](#fetching-token-balances)
-- [Mirgate Assets](#mirgate-assets)
-- [Migration Assets \[With Gasless Flow\]](#migration-assets-with-gasless-flow)
-- [Migration of Assets \[Pay Gas with Stables\]](#migration-of-assets-pay-gas-with-stables)
-- [Moving Native Tokens and Wallet Deployment](#moving-native-tokens-and-wallet-deployment)
-- [Smart Wallet Integration](#smart-wallet-integration)
-  - [Safe Smart Wallet](#safe-smart-wallet)
-    - [Fetching Existing Safes](#fetching-existing-safes)
-    - [Creating a New Safe Wallet](#creating-a-new-safe-wallet)
-  - [Biconomy Smart Wallet](#biconomy-smart-wallet)
-    - [Fetching Biconomy Smart Wallets](#fetching-biconomy-smart-wallets)
-    - [Creating a New Biconomy Wallet](#creating-a-new-biconomy-wallet)
-- [Smart Wallet Deployment](#smart-wallet-deployment)
+- [Aarc SDK](#aarc-sdk)
+  - [Features of the SDK](#features-of-the-sdk)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Get the API Key](#get-the-api-key)
+  - [Initialise the SDK](#initialise-the-sdk)
+- [Usage](#usage)
+  - [Fetching Token Balances](#fetching-token-balances)
+  - [Migrate Assets](#migrate-assets)
+    - [Output](#output)
+  - [Migration Assets \[With Gasless Flow\]](#migration-assets-with-gasless-flow)
+    - [Output:](#output-1)
+  - [Migration of Assets \[Pay Gas with Stables\]](#migration-of-assets-pay-gas-with-stables)
+  - [Moving Native Tokens and Wallet Deployment](#moving-native-tokens-and-wallet-deployment)
+  - [Smart Wallet Integration](#smart-wallet-integration)
+    - [Safe Smart Wallet](#safe-smart-wallet)
+      - [Fetching Existing Safes:](#fetching-existing-safes)
+      - [Creating a New Safe Wallet:](#creating-a-new-safe-wallet)
+    - [Biconomy Smart Wallet](#biconomy-smart-wallet)
+      - [Fetching Biconomy Smart Wallets:](#fetching-biconomy-smart-wallets)
+      - [Creating a New Biconomy Wallet:](#creating-a-new-biconomy-wallet)
+  - [Smart Wallet Deployment](#smart-wallet-deployment)
+    - [More coming soon 👀](#more-coming-soon-)
+  - [License](#license)
+  - [Support and Feedback](#support-and-feedback)
   
 ## Fetching Token Balances
 
@@ -67,7 +81,7 @@ let balances = await aarcSDK.fetchBalances(
 ```
 
 
-## Mirgate Assets
+## Migrate Assets
 
 Transfer tokens from EOA to any receiver wallet address:
 
@@ -79,7 +93,7 @@ await aarcSDK.executeMigration({
   [   
     {
       tokenAddress:TOKEN1_ADDRESS,
-      amount?:TOKEN1_AMOUNT, // ethers.BigNumber in case of erc20 and native token
+      amount?:TOKEN1_AMOUNT,  // Vaule in HEX as String
       tokenIds?: string[] // tokenIds for nfts
     },
     ...
@@ -94,7 +108,7 @@ await aarcSDK.executeMigration({
   {
   tokenAddress: string;
   taskId?: string;
-  amount?: BigNumber | BigNumberish;
+  amount?:string
   message: string;
   txHash?: string;
   tokenId?: string;
@@ -114,7 +128,7 @@ await aarcSDK.executeMigrationGasless({
   [   
     {
       tokenAddress:TOKEN1_ADDRESS,
-      amount?:TOKEN1_AMOUNT, // ethers.BigNumber in case of erc20 and native token
+      amount?:TOKEN1_AMOUNT, // Vaule in HEX as String
       tokenIds?: string[] // tokenIds for nfts
     },
     ...
@@ -129,7 +143,7 @@ await aarcSDK.executeMigrationGasless({
   {
   tokenAddress: string;
   taskId?: string;
-  amount?: BigNumber | BigNumberish;
+  amount?:string
   message: string;
   txHash?: string;
   tokenId?: string;
@@ -170,7 +184,7 @@ await aarcSDK.transferNativeAndDeploy({
   walletType: WALLET_TYPE, // WALLET_TYPE.SAFE or WALLET_TYPE.BICONOMY
   signer: signer, // ethers.signer object
   receiverAddress: RECEIVER_WALLET_ADDRESS,
-  amount: BigNumber, // Optional. if not paseed 80% of native tokens will get transferred.
+  amount?: string, // Optional. Vaule in HEX as String if not paseed 80% of native tokens will get transferred.
   deploymentWalletIndex: 0 // Optional -- Number: Since an EOA, can be used to deploy multiple wallets. you can supply any index and it will deploy wallet for you
 })
 // Returns the response given below

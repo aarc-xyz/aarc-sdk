@@ -45,19 +45,32 @@ let aarcSDK = new AarcSDK({
 ```
 
 # Usage
-- [Fetching Token Balances](#fetching-token-balances)
-- [Mirgate Assets](#mirgate-assets)
-- [Migration Assets \[With Gasless Flow\]](#migration-assets-with-gasless-flow)
-- [Migration of Assets \[Pay Gas with Stables\]](#migration-of-assets-pay-gas-with-stables)
-- [Moving Native Tokens and Wallet Deployment](#moving-native-tokens-and-wallet-deployment)
-- [Smart Wallet Integration](#smart-wallet-integration)
-  - [Safe Smart Wallet](#safe-smart-wallet)
-    - [Fetching Existing Safes](#fetching-existing-safes)
-    - [Creating a New Safe Wallet](#creating-a-new-safe-wallet)
-  - [Biconomy Smart Wallet](#biconomy-smart-wallet)
-    - [Fetching Biconomy Smart Wallets](#fetching-biconomy-smart-wallets)
-    - [Creating a New Biconomy Wallet](#creating-a-new-biconomy-wallet)
-- [Smart Wallet Deployment](#smart-wallet-deployment)
+- [Aarc SDK](#aarc-sdk)
+  - [Features of the SDK](#features-of-the-sdk)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Get the API Key](#get-the-api-key)
+  - [Initialise the SDK](#initialise-the-sdk)
+- [Usage](#usage)
+  - [Fetching Token Balances](#fetching-token-balances)
+  - [Migrate Assets](#migrate-assets)
+    - [Output](#output)
+  - [Migrate Assets \[With Gasless Flow\]](#migrate-assets-with-gasless-flow)
+    - [Output:](#output-1)
+  - [Migrate of Assets \[Pay Gas with Stables\]](#migrate-of-assets-pay-gas-with-stables)
+  - [Moving Native Tokens and Wallet Deployment](#moving-native-tokens-and-wallet-deployment)
+  - [Smart Wallet Integration](#smart-wallet-integration)
+    - [Safe Smart Wallet](#safe-smart-wallet)
+      - [Fetching Existing Safes:](#fetching-existing-safes)
+      - [Creating a New Safe Wallet:](#creating-a-new-safe-wallet)
+    - [Biconomy Smart Wallet](#biconomy-smart-wallet)
+      - [Fetching Biconomy Smart Wallets:](#fetching-biconomy-smart-wallets)
+      - [Creating a New Biconomy Wallet:](#creating-a-new-biconomy-wallet)
+  - [Smart Wallet Deployment](#smart-wallet-deployment)
+    - [More coming soon 👀](#more-coming-soon-)
+  - [License](#license)
+  - [Support and Feedback](#support-and-feedback)
   
 ## Fetching Token Balances
 
@@ -107,7 +120,7 @@ await aarcSDK.executeMigration({
 ]
 ```
 
-## Migration Assets [With Gasless Flow]
+## Migrate Assets [With Gasless Flow]
 
 Transfer tokens from EOA to any receiver wallet address **without paying gas fees**.
 
@@ -142,7 +155,7 @@ await aarcSDK.executeMigrationGasless({
 ]
 ```
 
-## Migration of Assets [Pay Gas with Stables]
+## Migrate of Assets [Pay Gas with Stables]
 
 Transfer tokens from EOA to any receiver wallet address by **paying gas in Stable Coins.**
 

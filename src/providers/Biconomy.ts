@@ -30,6 +30,7 @@ class Biconomy {
       accounts.push({
         address: account.data[0].smartAccountAddress,
         isDeployed: account.data[0].isDeployed,
+        walletIndex: 0,
       });
       while (
         account &&
@@ -42,6 +43,7 @@ class Biconomy {
         accounts.push({
           address: account.data[0].smartAccountAddress,
           isDeployed: account.data[0].isDeployed,
+          walletIndex: params.index,
         });
       }
       return accounts;

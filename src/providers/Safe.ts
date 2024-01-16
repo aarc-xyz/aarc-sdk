@@ -44,6 +44,7 @@ class Safe {
         accounts.push({
           address: newSafe,
           isDeployed: false,
+          walletIndex: 0,
         });
       }
       return accounts;

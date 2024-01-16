@@ -72,6 +72,7 @@ export type TokenNftData = {
 export type SmartAccountResponse = {
   address: string;
   isDeployed: boolean;
+  walletIndex?: number;
 };
 
 export type DeployWalletReponse = {

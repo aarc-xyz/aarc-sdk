@@ -94,7 +94,7 @@ class AarcSDK {
    * Function to get the address of the Smart Wallet by different Wallet Providers.
    * @param walletType Type of Wallet Provider
    * @param owner The address of the EOA that owns the wallet
-   * @returns Reponse including the address of the wallet and whether it is deployed or not
+   * @returns Reponse including the address of the wallet, the wallet index and whether it is deployed or not
    */
   async getSmartWalletAddresses(
     walletType: WALLET_TYPE,

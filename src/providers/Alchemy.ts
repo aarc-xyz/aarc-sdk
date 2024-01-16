@@ -55,11 +55,13 @@ class Alchemy {
         return {
           address: alchemySCWAddress,
           isDeployed: false,
+          walletIndex: index,
         };
       } else {
         return {
           address: alchemySCWAddress,
           isDeployed: true,
+          walletIndex: index,
         };
       }
     } catch (error) {

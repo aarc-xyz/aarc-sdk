@@ -70,11 +70,13 @@ class Zerodev {
             return {
               address: zerodevSCWAddress,
               isDeployed: false,
+              walletIndex: index,
             };
           } else {
             return {
               address: zerodevSCWAddress,
               isDeployed: true,
+              walletIndex: index,
             };
           }
         }

@@ -1,5 +1,5 @@
 import { Logger } from './utils/Logger';
-import { BigNumber, Contract, ethers, Signer } from 'ethers';
+import { BigNumber, Contract, ethers } from 'ethers';
 import { sendRequest, HttpMethod } from './utils/HttpRequest'; // Import your HTTP module
 import {
   PERMIT2_CONTRACT_ADDRESS,
@@ -31,11 +31,15 @@ import {
   TokenData,
   ExecuteMigrationForwardDto,
   TransferTokenDetails,
+  SmartAccountResponse,
+  DeployWalletReponse,
 } from './utils/AarcTypes';
 import { PERMIT2_BATCH_TRANSFER_ABI } from './utils/abis/Permit2BatchTransfer.abi';
 import { PERMIT2_SINGLE_TRANSFER_ABI } from './utils/abis/Permit2SingleTransfer.abi';
 import Biconomy from './providers/Biconomy';
 import Safe from './providers/Safe';
+import Alchemy from './providers/Alchemy';
+import Zerodev from './providers/Zerodev';
 import { PermitHelper } from './helpers/PermitHelper';
 import {
   logError,
@@ -51,8 +55,6 @@ import {
 } from './helpers';
 import { calculateTotalGasNeeded } from './helpers/EstimatorHelper';
 import { ChainId } from './utils/ChainTypes';
-import { ISmartAccount } from '@biconomy/node-client';
-import { OwnerResponse } from '@safe-global/api-kit';
 import {
   fetchBalances,
   fetchGasPrice,
@@ -62,6 +64,8 @@ import {
 class AarcSDK {
   biconomy: Biconomy;
   safe: Safe;
+  alchemy: Alchemy;
+  zerodev: Zerodev;
   chainId: number;
   apiKey: string;
   ethersProvider!: ethers.providers.JsonRpcProvider;
@@ -71,8 +75,10 @@ class AarcSDK {
     const { rpcUrl, apiKey, chainId } = config;
     Logger.log('Aarc SDK initiated');
 
-    this.biconomy = new Biconomy();
-    this.safe = new Safe(rpcUrl);
+    this.biconomy = new Biconomy(chainId);
+    this.safe = new Safe(chainId, rpcUrl);
+    this.alchemy = new Alchemy(chainId, rpcUrl);
+    this.zerodev = new Zerodev(chainId, rpcUrl);
 
     if (Object.values(ChainId).includes(chainId)) {
       this.chainId = chainId;
@@ -81,51 +87,59 @@ class AarcSDK {
     }
     this.apiKey = apiKey;
     this.ethersProvider = new ethers.providers.JsonRpcProvider(rpcUrl);
-
-    // instantiating Gelato Relay SDK
     this.permitHelper = new PermitHelper(rpcUrl, chainId);
   }
 
-  async getAllBiconomySCWs(owner: string): Promise<ISmartAccount[]> {
-    return this.biconomy.getAllBiconomySCWs(this.chainId, owner);
-  }
-
-  async generateBiconomySCW(signer: Signer): Promise<string> {
-    return this.biconomy.generateBiconomySCW(signer);
-  }
-
-  // Forward the methods from Safe
-  getAllSafes(owner: string): Promise<OwnerResponse> {
-    return this.safe.getAllSafes(this.chainId, owner);
-  }
-
-  generateSafeSCW(
-    config: { owners: string[]; threshold: number },
-    saltNonce?: number,
-  ): Promise<string> {
-    return this.safe.generateSafeSCW(config, saltNonce);
-  }
-
-  deployWallet(deployWalletDto: DeployWalletDto): Promise<string> {
-    const {
-      walletType,
-      owner,
-      signer,
-      deploymentWalletIndex = 0,
-    } = deployWalletDto;
-
+  /**
+   * Function to get the address of the Smart Wallet by different Wallet Providers.
+   * @param walletType Type of Wallet Provider
+   * @param owner The address of the EOA that owns the wallet
+   * @returns Reponse including the address of the wallet, the wallet index and whether it is deployed or not
+   */
+  async getSmartWalletAddresses(
+    walletType: WALLET_TYPE,
+    owner: string,
+  ): Promise<SmartAccountResponse[]> {
     if (walletType === WALLET_TYPE.SAFE) {
-      return this.safe.deploySafeSCW(signer, owner, deploymentWalletIndex);
+      return this.safe.getAllSafes(owner);
+    } else if (walletType == WALLET_TYPE.ALCHEMY) {
+      return this.alchemy.getAllAlchemySCWs(owner);
+    } else if (walletType == WALLET_TYPE.BICONOMY) {
+      return this.biconomy.getAllBiconomySCWs(owner);
+    } else if (walletType == WALLET_TYPE.ZERODEV) {
+      return this.zerodev.getAllZerodevSCWs(owner);
     } else {
-      return this.biconomy.deployBiconomyScw(
-        signer,
-        this.chainId,
-        owner,
-        deploymentWalletIndex,
-      );
+      throw new Error('Unsupported wallet type');
     }
   }
 
+  /**
+   * Function to deploy the Smart Wallet on the chosen Wallet Provider.
+   * @param deployWalletDto Parameters to deploy a Smart Wallet. Those include owner address, signer, and wallet provider type.
+   * @returns Reponse including the Smart Wallet deployment Index, txnHash, chainId and message.
+   */
+  deployWallet(deployWalletDto: DeployWalletDto): Promise<DeployWalletReponse> {
+    const { walletType } = deployWalletDto;
+
+    if (walletType === WALLET_TYPE.SAFE) {
+      return this.safe.deploySafeSCW(deployWalletDto);
+    } else if (walletType == WALLET_TYPE.ALCHEMY) {
+      return this.alchemy.deployAlchemySCW(deployWalletDto);
+    } else if (walletType == WALLET_TYPE.BICONOMY) {
+      return this.biconomy.deployBiconomySCW(deployWalletDto);
+    } else if (walletType == WALLET_TYPE.ZERODEV) {
+      return this.zerodev.deployZerodevSCW(deployWalletDto);
+    } else {
+      throw new Error('Unsupported wallet type');
+    }
+  }
+
+  /**
+   * Function to deploy the Smart Wallet on the chosen Wallet Provider and transfer native tokens.
+   * @param nativeTransferDeployWalletDto Parameters to deploy a Smart Wallet and transfer native tokens. Those include owner address, signer, receiver and wallet provider type.
+   * @returns Migration response including the token address and message.
+   * @dev if the txn successful then the Migration response will also include the txnHash, taskId and amount.
+   */
   async transferNativeAndDeploy(
     nativeTransferDeployWalletDto: NativeTransferDeployWalletDto,
   ): Promise<MigrationResponse[]> {
@@ -160,11 +174,11 @@ class AarcSDK {
         response.push({
           tokenAddress: '',
           amount: BigNumber.from(0)._hex,
-          message: walletDeploymentResponse.startsWith('0x')
+          message: walletDeploymentResponse.txHash.startsWith('0x')
             ? 'Deployment tx sent'
-            : walletDeploymentResponse,
-          txHash: walletDeploymentResponse.startsWith('0x')
-            ? walletDeploymentResponse
+            : walletDeploymentResponse.message || '',
+          txHash: walletDeploymentResponse.txHash.startsWith('0x')
+            ? walletDeploymentResponse.txHash
             : '',
         });
         /* eslint-disable @typescript-eslint/no-explicit-any */

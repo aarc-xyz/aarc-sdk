@@ -214,7 +214,9 @@ The following code snippet demonstrates a method to transfer native tokens while
 This code snippet illustrates a process to transfer native tokens and deploy a wallet concurrently using the `aarcSDK`. Essential parameters such as the owner's address (`EOA_ADDRESS`), the type of wallet to deploy (`WALLET_TYPE`), the `signer` (ethers.signer object), the receiver's wallet address (`RECEIVER_WALLET_ADDRESS`), an optional amount of tokens to transfer (`amount`), and an index for deploying multiple wallets under the same EOA (`deploymentWalletIndex`) are included.
 
 > [!NOTE]
-If the wallet corresponding to the provided owner address (`EOA_ADDRESS`) and index (`deploymentWalletIndex`) is already deployed, the deployment process will not occur, and only the token transfer will be executed.
+> - If the wallet corresponding to the provided owner address (`EOA_ADDRESS`) and index (`deploymentWalletIndex`) is already deployed, the deployment process will not occur, and only the token transfer will be executed.
+> - Get the `receiverAddress` for Smart Wallet for the owner address using the [getSmartWalletAddresses](#get-smart-wallet-address).
+> - If `amount` not mentioned, then sdk will transfer 80% of the balance to the receiverAddress.
 
 
 ```typescript
